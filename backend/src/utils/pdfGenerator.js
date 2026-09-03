@@ -5,26 +5,24 @@ const { promisify } = require('util');
 const execFileAsync = promisify(execFile);
 
 let sharedBrowser = null;
-
-// Prevent multiple simultaneous requests from launching multiple browsers.
 let launchPromise = null;
 
 /**
- * Check whether a Puppeteer browser instance is still usable.
+ * Check whether a Puppeteer browser instance is connected.
  *
- * Puppeteer versions differ:
- * - Newer versions use browser.connected
- * - Older versions use browser.isConnected()
+ * Supports both newer and older Puppeteer versions.
  */
 function isBrowserConnected(browser) {
   if (!browser) {
     return false;
   }
 
+  // Puppeteer newer versions
   if (typeof browser.connected === 'boolean') {
     return browser.connected;
   }
 
+  // Older Puppeteer versions
   if (typeof browser.isConnected === 'function') {
     return browser.isConnected();
   }
@@ -36,34 +34,42 @@ function isBrowserConnected(browser) {
  * Get the Chrome executable path.
  *
  * Priority:
- * 1. PUPPETEER_EXECUTABLE_PATH from Render environment variables
- * 2. Puppeteer's automatically detected Chrome path
+ * 1. PUPPETEER_EXECUTABLE_PATH environment variable
+ * 2. Puppeteer's automatically detected executable path
+ *
+ * IMPORTANT:
+ * puppeteer.executablePath() may return a Promise in the
+ * Puppeteer version being used, so this function is async.
  */
-function getChromeExecutablePath() {
+async function getChromeExecutablePath() {
   const configuredPath = process.env.PUPPETEER_EXECUTABLE_PATH;
 
   if (configuredPath && configuredPath.trim()) {
     return configuredPath.trim();
   }
 
-  return puppeteer.executablePath();
+  const executablePath = await puppeteer.executablePath();
+
+  return executablePath;
 }
 
 /**
- * Launch/reuse a shared Chromium browser.
+ * Get or create the shared browser.
  *
- * This is important for production because launching a new browser
- * for every PDF request is slow and can consume a lot of memory.
+ * Reusing one browser is much faster than launching Chrome
+ * for every PDF generation request.
  */
 async function getBrowser() {
+  // Reuse existing browser if it is still connected.
   if (isBrowserConnected(sharedBrowser)) {
     return sharedBrowser;
   }
 
-  // If another request is already launching Chrome, wait for it.
+  // If another request is already launching Chrome,
+  // wait for that same launch instead of starting another one.
   if (!launchPromise) {
     launchPromise = (async () => {
-      const executablePath = getChromeExecutablePath();
+      const executablePath = await getChromeExecutablePath();
 
       console.log(
         '[pdfGenerator] Puppeteer executable:',
@@ -76,9 +82,6 @@ async function getBrowser() {
           '(Puppeteer default cache directory)'
       );
 
-      /*
-       * Verify that Puppeteer actually found an executable path.
-       */
       if (!executablePath) {
         throw new Error(
           'Puppeteer could not determine the Chrome executable path.'
@@ -91,12 +94,13 @@ async function getBrowser() {
         headless: true,
 
         /*
-         * Explicit executable path is important on Render.
+         * Explicit Chrome executable.
          */
-        executablePath,
+        executablePath: executablePath,
 
         /*
-         * Required/recommended for container environments such as Render.
+         * Required/recommended for Render and other
+         * Linux container environments.
          */
         args: [
           '--no-sandbox',
@@ -105,20 +109,21 @@ async function getBrowser() {
           '--disable-gpu',
           '--no-first-run',
           '--no-zygote',
-          '--single-process',
         ],
 
         /*
-         * Give Chrome enough time to start on a cloud server.
+         * Allow enough time for Chrome to start on Render.
          */
         timeout: 60000,
       });
 
-      console.log('[pdfGenerator] Chrome started successfully.');
+      console.log(
+        '[pdfGenerator] Chrome started successfully.'
+      );
 
       /*
-       * If Chrome unexpectedly disconnects, clear the shared reference
-       * so the next PDF request can launch a new browser.
+       * If Chrome crashes or disconnects, clear the
+       * shared browser so the next request can relaunch it.
        */
       browser.on('disconnected', () => {
         console.warn(
@@ -142,10 +147,10 @@ async function getBrowser() {
 }
 
 /**
- * Render complete HTML into an A4 PDF buffer.
+ * Convert HTML to an A4 PDF buffer.
  *
- * @param {string} html
- * @returns {Promise<Buffer>}
+ * @param {string} html - Complete HTML document
+ * @returns {Promise<Buffer>} PDF buffer
  */
 async function htmlToPdfBuffer(html) {
   if (!html || typeof html !== 'string') {
@@ -162,7 +167,9 @@ async function htmlToPdfBuffer(html) {
     page = await browser.newPage();
 
     /*
-     * Set viewport for consistent document rendering.
+     * Set a standard A4-like viewport.
+     *
+     * Actual PDF size is controlled by page.pdf({ format: 'A4' }).
      */
     await page.setViewport({
       width: 794,
@@ -171,9 +178,7 @@ async function htmlToPdfBuffer(html) {
     });
 
     /*
-     * Load the complete document.
-     *
-     * networkidle0 waits until there are no active network requests.
+     * Load the assembled HTML.
      */
     await page.setContent(html, {
       waitUntil: 'networkidle0',
@@ -181,12 +186,13 @@ async function htmlToPdfBuffer(html) {
     });
 
     /*
-     * Wait until all web/system fonts have finished loading.
+     * Wait for all document fonts to finish loading.
      *
-     * This is especially important for:
-     * - Amharic / Ethiopic
+     * Important for:
+     * - Amharic
      * - Arabic
      * - Chinese
+     * - Other Unicode text
      */
     await page.evaluate(async () => {
       if (document.fonts && document.fonts.ready) {
@@ -195,23 +201,29 @@ async function htmlToPdfBuffer(html) {
     });
 
     /*
-     * Give the browser a small amount of time to finish
-     * layout/font rendering before creating the PDF.
+     * Small delay to allow final browser layout/font
+     * rendering before PDF capture.
      */
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     /*
      * Generate A4 PDF.
      *
-     * Margins are controlled by your HTML/CSS.
+     * Margins are handled by the HTML/CSS.
      */
     const pdfBuffer = await page.pdf({
       format: 'A4',
 
       printBackground: true,
 
+      /*
+       * Allows CSS @page size to be respected.
+       */
       preferCSSPageSize: true,
 
+      /*
+       * The document HTML controls its own margins.
+       */
       margin: {
         top: '0mm',
         bottom: '0mm',
@@ -219,9 +231,6 @@ async function htmlToPdfBuffer(html) {
         right: '0mm',
       },
 
-      /*
-       * Ensure the PDF is generated in print mode.
-       */
       displayHeaderFooter: false,
     });
 
@@ -233,8 +242,8 @@ async function htmlToPdfBuffer(html) {
     );
 
     /*
-     * If Chrome has crashed/disconnected, force a fresh browser
-     * on the next request.
+     * If Chrome disconnected/crashed, force a fresh
+     * browser on the next request.
      */
     if (!isBrowserConnected(browser)) {
       sharedBrowser = null;
@@ -243,7 +252,9 @@ async function htmlToPdfBuffer(html) {
     throw error;
   } finally {
     /*
-     * Always close the page, but keep the browser alive for reuse.
+     * Close only the page.
+     *
+     * The browser itself remains alive and is reused.
      */
     if (page) {
       try {
@@ -261,7 +272,7 @@ async function htmlToPdfBuffer(html) {
 /**
  * Close the shared browser.
  *
- * Useful during application shutdown.
+ * Call this when shutting down the Node.js application.
  */
 async function closeBrowser() {
   if (!sharedBrowser) {
@@ -275,7 +286,10 @@ async function closeBrowser() {
   try {
     if (isBrowserConnected(browser)) {
       await browser.close();
-      console.log('[pdfGenerator] Chrome browser closed.');
+
+      console.log(
+        '[pdfGenerator] Chrome browser closed.'
+      );
     }
   } catch (error) {
     console.warn(
@@ -306,9 +320,11 @@ const RECOMMENDED_UNICODE_FONTS = [
 ];
 
 /**
- * Check whether required Unicode fonts are available.
+ * Check whether recommended Unicode fonts
+ * are installed on the server.
  *
- * This function NEVER prevents the server from starting.
+ * This is only a diagnostic.
+ * It NEVER prevents the server from starting.
  */
 async function checkUnicodeFontsAvailable() {
   try {
@@ -326,13 +342,11 @@ async function checkUnicodeFontsAvailable() {
 
     if (missing.length > 0) {
       console.warn(
-        '[pdfGenerator] Unicode font check: missing system fonts for:',
-        missing.join(', ')
+        `[pdfGenerator] Unicode font check: missing system fonts for: ${missing.join(', ')}`
       );
 
       console.warn(
-        '[pdfGenerator] PDFs containing these scripts may have ' +
-        'missing or incorrect characters.'
+        '[pdfGenerator] PDFs containing these scripts may have missing or incorrect characters.'
       );
 
       console.warn(
@@ -345,8 +359,8 @@ async function checkUnicodeFontsAvailable() {
     }
   } catch (error) {
     /*
-     * fc-list may not exist on Windows or some Linux environments.
-     * This must not stop the application.
+     * fc-list may not exist on Windows or some Linux
+     * environments. This must not stop the application.
      */
     console.warn(
       '[pdfGenerator] Could not check system fonts:',
