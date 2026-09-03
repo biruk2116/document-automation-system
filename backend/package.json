@@ -4,6 +4,9 @@
   "description": "Automated Dynamic PDF/Report Generation Engine (with E-Sign) - Backend",
   "main": "src/server.js",
   "type": "commonjs",
+  "engines": {
+  "node": "22.x"
+},
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js"
