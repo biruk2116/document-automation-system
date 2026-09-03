@@ -1,0 +1,457 @@
+/* ============================================================
+   WorkflowResultPage — full-page workflow submission view.
+   All tokens reference the global CSS variables so dark/light
+   mode works automatically with zero extra code.
+   ============================================================ */
+
+/* ── Page shell ── */
+.wfr-page {
+  padding: 24px 28px 48px;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* ── Page header ── */
+.wfr-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.wfr-page-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.wfr-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+  font-weight: 500;
+  transition: color 0.15s;
+}
+.wfr-back-btn:hover { color: var(--accent); }
+
+.wfr-page-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.wfr-page-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--success-text);
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  padding: 3px 10px;
+  border-radius: 20px;
+  width: fit-content;
+}
+.wfr-page-title {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+/* ── Two-column content layout ── */
+.wfr-content {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+/* ── Cards ── */
+.wfr-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.wfr-card--accent {
+  border-color: var(--accent);
+  border-left-width: 3px;
+}
+.wfr-card--green {
+  border-color: var(--success-border);
+}
+
+.wfr-card-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 14px 18px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+
+/* ── Info fields ── */
+.wfr-info-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.wfr-field-grid {
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.wfr-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wfr-field-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.wfr-field-value {
+  font-size: 0.88rem;
+  color: var(--text-primary);
+}
+.wfr-field-value--large {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/* ── Status pills ── */
+.wfr-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  width: fit-content;
+}
+.wfr-status-pill--green {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border: 1px solid var(--success-border);
+}
+.wfr-status-pill--red {
+  background: var(--error-bg);
+  color: var(--error-text);
+  border: 1px solid var(--error-border);
+}
+.wfr-status-pill--amber {
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  border: 1px dashed var(--warn-border);
+}
+
+/* ── Timeline ── */
+.wfr-timeline {
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.wfr-timeline-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 0;
+  position: relative;
+}
+.wfr-timeline-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 22px;
+  bottom: -8px;
+  width: 2px;
+  background: var(--border);
+}
+.wfr-timeline-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 2px;
+  border: 2px solid var(--border);
+  background: var(--bg-surface);
+}
+.wfr-timeline-dot--done {
+  background: var(--success-text);
+  border-color: var(--success-text);
+}
+.wfr-timeline-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.wfr-timeline-time {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+/* ── Response blockquote ── */
+.wfr-response-text {
+  margin: 0;
+  padding: 14px 18px;
+  font-size: 0.95rem;
+  font-style: italic;
+  color: var(--text-primary);
+  line-height: 1.65;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-light);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+/* ── Signature ── */
+.wfr-sig-box {
+  padding: 14px 18px;
+}
+.wfr-sig-inner {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  border-bottom: 3px solid var(--brand);
+}
+.wfr-sig-sublabel {
+  margin: 0 0 3px;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.wfr-sig-signer {
+  margin: 0 0 4px;
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--text-primary);
+}
+.wfr-sig-cursive {
+  margin: 0 0 4px;
+  font-size: 1.3rem;
+  font-family: 'Georgia', cursive, serif;
+  color: var(--brand-text);
+  letter-spacing: 0.04em;
+}
+.wfr-sig-meta {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+.wfr-sig-img {
+  max-height: 72px;
+  max-width: 180px;
+  object-fit: contain;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-surface);
+  padding: 4px;
+  flex-shrink: 0;
+}
+
+/* ── Acknowledged banner ── */
+.wfr-ack-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+}
+.wfr-ack-title {
+  margin: 0 0 3px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--success-text);
+}
+.wfr-ack-time {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+/* ── PDF column ── */
+.wfr-pdf-col {
+  position: sticky;
+  top: 24px;
+}
+.wfr-pdf-card {
+  display: flex;
+  flex-direction: column;
+}
+.wfr-pdf-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+.wfr-pdf-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  flex: 1;
+}
+.wfr-pdf-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.15s, border-color 0.15s;
+}
+.wfr-pdf-download-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.wfr-pdf-body {
+  min-height: 580px;
+  display: flex;
+  flex-direction: column;
+}
+.wfr-pdf-embed {
+  display: block;
+  width: 100%;
+  flex: 1;
+  min-height: 640px;
+  border: none;
+}
+.wfr-pdf-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 0.87rem;
+  text-align: center;
+}
+
+/* ── Loading / error states ── */
+.wfr-loading,
+.wfr-error-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  gap: 14px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  padding: 40px 20px;
+}
+.wfr-error-card {
+  max-width: 440px;
+  width: 100%;
+  background: var(--bg-surface);
+  border: 1px solid var(--error-border);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+.wfr-error-card h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+.wfr-error-card p {
+  margin: 0;
+  font-size: 0.87rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+/* ── Spinner ── */
+.wfr-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: wfr-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes wfr-spin { to { transform: rotate(360deg); } }
+
+/* ── Buttons ── */
+.wfr-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 22px;
+  background: var(--brand);
+  color: var(--text-inverse);
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.88rem;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+.wfr-btn-primary:hover { opacity: 0.88; }
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+  .wfr-content {
+    grid-template-columns: 1fr;
+  }
+  .wfr-pdf-col {
+    position: static;
+  }
+  .wfr-pdf-embed {
+    min-height: 480px;
+  }
+}
+@media (max-width: 600px) {
+  .wfr-page { padding: 16px 12px 36px; }
+  .wfr-card-title { padding: 11px 14px; }
+  .wfr-field-grid { padding: 12px 14px; }
+  .wfr-timeline { padding: 12px 14px; }
+  .wfr-sig-inner { flex-direction: column; }
+}

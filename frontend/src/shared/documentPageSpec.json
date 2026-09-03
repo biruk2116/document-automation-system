@@ -1,0 +1,9 @@
+{
+  "_comment": "Single source of truth for the printed page dimensions and margins. Read by BOTH the on-screen preview (TemplateViewer.jsx) and the PDF generator (documentAssembler.js). Medium margins: 20 mm on every side — professional document standard. A4 page = 210 × 297 mm = 794 × 1123 px at 96 dpi.",
+  "pageWidthPx": 794,
+  "pageHeightPx": 1123,
+  "pagePaddingPx": 76,
+  "pagePaddingMm": 20,
+  "paddingNote": "20 mm margin on all 4 sides — medium/standard document margin. Content width = 794 - 152 = 642 px. Content height per page = 1123 - 152 = 971 px.",
+  "mmPerPx": 0.264583
+}

@@ -1,0 +1,113 @@
+# ============================================
+# Dependencies
+# ============================================
+
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+
+# ============================================
+# Environment variables / secrets
+# ============================================
+
+.env
+.env.*
+!.env.example
+
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+
+# ============================================
+# Build output
+# ============================================
+
+dist/
+build/
+
+frontend/dist/
+frontend/build/
+
+backend/dist/
+backend/build/
+
+
+# ============================================
+# Logs
+# ============================================
+
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+
+# ============================================
+# Uploaded/generated files
+# ============================================
+
+backend/uploads/
+frontend/uploads/
+
+uploads/
+generated/
+temp/
+tmp/
+
+
+# ============================================
+# Operating system files
+# ============================================
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+
+# ============================================
+# IDE / editor files
+# ============================================
+
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+.idea/
+*.swp
+*.swo
+
+
+# ============================================
+# Testing / coverage
+# ============================================
+
+coverage/
+.nyc_output/
+
+
+# ============================================
+# Miscellaneous
+# ============================================
+
+*.tmp
+*.temp
+# ============================================
+# Application storage / user-generated data
+# ============================================
+
+backend/storage/
+backend/uploads/
+
+backend/email-test-out.txt
+
+storage/
+uploads/
+
+# Keep empty storage directories in Git if needed
