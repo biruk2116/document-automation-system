@@ -1,12 +1,13 @@
 'use strict';
 
 const { Resend } = require('resend');
-
 require('dotenv').config();
 
-/* ─────────────────────────────────────────────────────────────────────────────
- * Resend configuration
- * ──────────────────────────────────────────────────────────────────────────── */
+/*
+|--------------------------------------------------------------------------
+| Resend Configuration
+|--------------------------------------------------------------------------
+*/
 
 const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
 
@@ -14,18 +15,32 @@ const resend = resendApiKey
   ? new Resend(resendApiKey)
   : null;
 
+/*
+|--------------------------------------------------------------------------
+| Sender
+|--------------------------------------------------------------------------
+|
+| For the first test, use:
+|
+| RESEND_FROM=Doc Automation <onboarding@resend.dev>
+|
+| Later, after verifying your own domain in Resend, you can use:
+|
+| RESEND_FROM=Doc Automation <no-reply@yourdomain.com>
+|
+*/
+
 const fromAddress =
   (process.env.RESEND_FROM || '').trim() ||
   'Doc Automation <onboarding@resend.dev>';
 
 
-/* ─────────────────────────────────────────────────────────────────────────────
- * Helpers
- * ──────────────────────────────────────────────────────────────────────────── */
+/*
+|--------------------------------------------------------------------------
+| Helper: Normalize Recipients
+|--------------------------------------------------------------------------
+*/
 
-/**
- * Normalize recipient list.
- */
 function normalizeRecipients(to) {
   if (Array.isArray(to)) {
     return to
@@ -44,19 +59,17 @@ function normalizeRecipients(to) {
 }
 
 
-/**
- * Normalize attachments for Resend.
- *
- * The existing application may provide attachments like:
- *
- * {
- *   filename: 'document.pdf',
- *   content: Buffer,
- *   contentType: 'application/pdf'
- * }
- *
- * Resend accepts Buffer content directly.
- */
+/*
+|--------------------------------------------------------------------------
+| Helper: Normalize Attachments
+|--------------------------------------------------------------------------
+|
+| Resend supports attachments.
+| Your existing document/PDF attachment workflows can therefore continue
+| using the same sendMail() function.
+|
+*/
+
 function normalizeAttachments(attachments) {
   if (!Array.isArray(attachments) || attachments.length === 0) {
     return undefined;
@@ -67,11 +80,6 @@ function normalizeAttachments(attachments) {
     .map((att) => {
       let content = att.content;
 
-      /*
-       * Resend supports Buffer content.
-       * Convert strings/other values to Buffer so that generated
-       * PDFs and other binary documents remain intact.
-       */
       if (!Buffer.isBuffer(content)) {
         content = Buffer.from(content);
       }
@@ -84,32 +92,32 @@ function normalizeAttachments(attachments) {
 }
 
 
-/**
- * Basic email validation.
- */
+/*
+|--------------------------------------------------------------------------
+| Helper: Validate Email
+|--------------------------------------------------------------------------
+*/
+
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 
-/* ─────────────────────────────────────────────────────────────────────────────
- * Public sendMail
- * ──────────────────────────────────────────────────────────────────────────── */
+/*
+|--------------------------------------------------------------------------
+| Send Email
+|--------------------------------------------------------------------------
+|
+| This replaces the old SMTP implementation.
+|
+| OLD:
+|   Application → Gmail SMTP → Recipient
+|
+| NEW:
+|   Application → HTTPS → Resend API → Recipient
+|
+*/
 
-/**
- * Send an email through Resend's HTTPS API.
- *
- * Existing application code can continue using:
- *
- * sendMail({
- *   to,
- *   subject,
- *   html,
- *   attachments
- * });
- *
- * No SMTP connection is used.
- */
 async function sendMail({
   to,
   subject,
@@ -117,6 +125,12 @@ async function sendMail({
   text,
   attachments,
 }) {
+  /*
+  |--------------------------------------------------------------------------
+  | Validate Recipient
+  |--------------------------------------------------------------------------
+  */
+
   const toList = normalizeRecipients(to);
 
   if (toList.length === 0) {
@@ -127,6 +141,13 @@ async function sendMail({
       error: 'No recipient email address provided.',
     };
   }
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Validate Recipient Email Addresses
+  |--------------------------------------------------------------------------
+  */
 
   const invalidRecipients = toList.filter(
     (email) => !isValidEmail(email)
@@ -140,9 +161,18 @@ async function sendMail({
 
     return {
       success: false,
-      error: `Invalid recipient email address: ${invalidRecipients.join(', ')}`,
+      error:
+        `Invalid recipient email address: ` +
+        `${invalidRecipients.join(', ')}`,
     };
   }
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Validate Subject
+  |--------------------------------------------------------------------------
+  */
 
   if (!subject) {
     console.error('[email] Email subject is missing.');
@@ -152,6 +182,13 @@ async function sendMail({
       error: 'Email subject is required.',
     };
   }
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Check Resend Configuration
+  |--------------------------------------------------------------------------
+  */
 
   if (!resend) {
     console.error(
@@ -164,7 +201,21 @@ async function sendMail({
     };
   }
 
+
+  /*
+  |--------------------------------------------------------------------------
+  | Prepare Attachments
+  |--------------------------------------------------------------------------
+  */
+
   const resendAttachments = normalizeAttachments(attachments);
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Send Through Resend
+  |--------------------------------------------------------------------------
+  */
 
   try {
     console.log(
@@ -172,12 +223,19 @@ async function sendMail({
     );
 
     console.log(
-      `[email] Provider: Resend HTTP API`
+      '[email] Provider: Resend HTTP API'
     );
 
     console.log(
       `[email] From: ${fromAddress}`
     );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Resend Payload
+    |--------------------------------------------------------------------------
+    */
 
     const payload = {
       from: fromAddress,
@@ -186,17 +244,28 @@ async function sendMail({
       html: html || '<p></p>',
     };
 
+
     /*
-     * Plain-text fallback is optional but recommended.
-     */
+    |--------------------------------------------------------------------------
+    | Optional Plain Text
+    |--------------------------------------------------------------------------
+    */
+
     if (text) {
       payload.text = String(text);
     }
 
+
     /*
-     * Add attachments only when they exist.
-     */
-    if (resendAttachments && resendAttachments.length > 0) {
+    |--------------------------------------------------------------------------
+    | Optional Attachments
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+      resendAttachments &&
+      resendAttachments.length > 0
+    ) {
       payload.attachments = resendAttachments;
 
       console.log(
@@ -204,10 +273,28 @@ async function sendMail({
       );
     }
 
-    const { data, error } = await resend.emails.send(payload);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Send Email
+    |--------------------------------------------------------------------------
+    */
+
+    const { data, error } =
+      await resend.emails.send(payload);
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Handle Resend API Error
+    |--------------------------------------------------------------------------
+    */
 
     if (error) {
-      console.error('[email] Resend API error:', error);
+      console.error(
+        '[email] Resend API error:',
+        error
+      );
 
       return {
         success: false,
@@ -218,6 +305,13 @@ async function sendMail({
       };
     }
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | Success
+    |--------------------------------------------------------------------------
+    */
+
     const messageId = data?.id || null;
 
     console.log(
@@ -225,37 +319,44 @@ async function sendMail({
     );
 
     console.log(
-      `[email] Resend message ID: ${messageId || 'unknown'}`
+      `[email] Resend message ID: ${
+        messageId || 'unknown'
+      }`
     );
+
 
     return {
       success: true,
       messageId,
       provider: 'resend',
     };
+
   } catch (err) {
-    console.error('[email] Resend send failed:', err);
+    console.error(
+      '[email] Resend send failed:',
+      err
+    );
 
     return {
       success: false,
-      error: err.message || 'Failed to send email.',
+      error:
+        err.message ||
+        'Failed to send email.',
     };
   }
 }
 
 
-/* ─────────────────────────────────────────────────────────────────────────────
- * Optional connection/configuration verification
- * ──────────────────────────────────────────────────────────────────────────── */
+/*
+|--------------------------------------------------------------------------
+| Verify Email Configuration
+|--------------------------------------------------------------------------
+|
+| This checks whether the Resend API key exists.
+| It does not send a test email.
+|
+*/
 
-/**
- * Resend does not require an SMTP connection.
- *
- * This function simply verifies that the API key is configured.
- *
- * It is intentionally NOT called automatically on startup because we don't
- * want the server startup to fail just because email configuration is missing.
- */
 async function verifyEmailConnection() {
   if (!resendApiKey) {
     console.warn(
@@ -281,11 +382,20 @@ async function verifyEmailConnection() {
 }
 
 
-/* ─────────────────────────────────────────────────────────────────────────────
- * Email Templates
- * ──────────────────────────────────────────────────────────────────────────── */
+/*
+|--------------------------------------------------------------------------
+| Email Templates
+|--------------------------------------------------------------------------
+*/
 
 const templates = {
+
+  /*
+  |--------------------------------------------------------------------------
+  | Document Ready For Signing
+  |--------------------------------------------------------------------------
+  */
+
   docReadyForSigning: ({
     approverName,
     docId,
@@ -293,17 +403,25 @@ const templates = {
     reviewUrl,
     resubmitNote,
   }) => ({
-    subject: `Action required: Document ${docId} awaiting your signature`,
+    subject:
+      `Action required: Document ${docId} awaiting your signature`,
+
     html: `
       <p>Hi ${approverName},</p>
 
       <p>
-        Document <b>${docId}</b> is awaiting your approval.
+        Document <b>${docId}</b>
+        is awaiting your approval.
       </p>
 
       ${
         resubmitNote
-          ? `<p><b>What was fixed:</b> ${resubmitNote}</p>`
+          ? `
+            <p>
+              <b>What was fixed:</b>
+              ${resubmitNote}
+            </p>
+          `
           : ''
       }
 
@@ -311,23 +429,33 @@ const templates = {
         <a href="${reviewUrl}">
           Review the document
         </a>
+
         ${otpNote || ''}
       </p>
     `,
   }),
 
 
+  /*
+  |--------------------------------------------------------------------------
+  | Document Signed
+  |--------------------------------------------------------------------------
+  */
+
   docSigned: ({
     generatorName,
     docId,
     reviewUrl,
   }) => ({
-    subject: `Document ${docId} has been signed`,
+    subject:
+      `Document ${docId} has been signed`,
+
     html: `
       <p>Hi ${generatorName},</p>
 
       <p>
-        Document <b>${docId}</b> was approved and digitally signed.
+        Document <b>${docId}</b>
+        was approved and digitally signed.
       </p>
 
       <p>
@@ -339,6 +467,12 @@ const templates = {
   }),
 
 
+  /*
+  |--------------------------------------------------------------------------
+  | Document Rejected
+  |--------------------------------------------------------------------------
+  */
+
   docRejected: ({
     generatorName,
     docId,
@@ -346,12 +480,15 @@ const templates = {
     reviewUrl,
     requiresLogin = false,
   }) => ({
-    subject: `Document ${docId} was rejected`,
+    subject:
+      `Document ${docId} was rejected`,
+
     html: `
       <p>Hi ${generatorName},</p>
 
       <p>
-        Document <b>${docId}</b> was rejected.
+        Document <b>${docId}</b>
+        was rejected.
         <b>Reason:</b> ${reason}
       </p>
 
@@ -363,6 +500,7 @@ const templates = {
         <a href="${reviewUrl}">
           Review the document
         </a>
+
         ${
           requiresLogin
             ? ' — sign in to open it.'
@@ -373,92 +511,128 @@ const templates = {
   }),
 
 
+  /*
+  |--------------------------------------------------------------------------
+  | 24 Hour Reminder
+  |--------------------------------------------------------------------------
+  */
+
   reminder24h: ({
     approverName,
     docId,
   }) => ({
-    subject: `Reminder: Document ${docId} still awaiting signature`,
+    subject:
+      `Reminder: Document ${docId} still awaiting signature`,
+
     html: `
       <p>Hi ${approverName},</p>
 
       <p>
-        Document <b>${docId}</b> is still pending your review.
+        Document <b>${docId}</b>
+        is still pending your review.
       </p>
     `,
   }),
 
+
+  /*
+  |--------------------------------------------------------------------------
+  | 72 Hour Escalation
+  |--------------------------------------------------------------------------
+  */
 
   escalation72h: ({
     generatorName,
     approverName,
     docId,
   }) => ({
-    subject: `Escalation: Document ${docId} unsigned for 72+ hours`,
+    subject:
+      `Escalation: Document ${docId} unsigned for 72+ hours`,
+
     html: `
       <p>
-        Document <b>${docId}</b> unsigned 72+ hrs.
+        Document <b>${docId}</b>
+        unsigned 72+ hrs.
       </p>
 
       <p>
         Generator: ${generatorName}
-        <br>
+        |
         Approver: ${approverName}
       </p>
     `,
   }),
 
 
+  /*
+  |--------------------------------------------------------------------------
+  | Delivery Ready
+  |--------------------------------------------------------------------------
+  */
+
   deliveryReady: ({
     recipientName,
     docId,
     downloadUrl,
   }) => ({
-    subject: `Your document ${docId} is ready`,
+    subject:
+      `Your document ${docId} is ready`,
+
     html: `
       <p>
         Hi ${recipientName || 'there'},
       </p>
 
       <p>
-        Your document <b>${docId}</b> is ready.
-      </p>
-
-      <p>
         <a href="${downloadUrl}">
           Open secure link
         </a>
+
         (expires 7 days)
       </p>
     `,
   }),
 
 
+  /*
+  |--------------------------------------------------------------------------
+  | Secure Link Ready
+  |--------------------------------------------------------------------------
+  */
+
   secureLinkReady: ({
     docId,
     downloadUrl,
   }) => ({
-    subject: `A document (${docId}) has been shared with you`,
+    subject:
+      `A document (${docId}) has been shared with you`,
+
     html: `
       <p>Hi,</p>
-
-      <p>
-        A document has been shared with you.
-      </p>
 
       <p>
         <a href="${downloadUrl}">
           Open secure link
         </a>
+
         (expires 7 days, single-use)
       </p>
     `,
   }),
 
 
+  /*
+  |--------------------------------------------------------------------------
+  | Document Attached
+  |--------------------------------------------------------------------------
+  */
+
   documentAttached: ({
     docId,
   }) => ({
-    subject: `Document ${docId}`,
+    subject:
+      `Document ${docId}`,
+
     html: `
       <p>Hi,</p>
 
@@ -470,19 +644,22 @@ const templates = {
   }),
 
 
+  /*
+  |--------------------------------------------------------------------------
+  | Password Reset
+  |--------------------------------------------------------------------------
+  */
+
   passwordReset: ({
     fullName,
     resetUrl,
   }) => ({
-    subject: 'Reset your Doc Automation password',
+    subject:
+      'Reset your Doc Automation password',
+
     html: `
       <p>
         Hi ${fullName || 'there'},
-      </p>
-
-      <p>
-        We received a request to reset your
-        Doc Automation password.
       </p>
 
       <p>
@@ -502,13 +679,24 @@ const templates = {
         </a>
       </p>
 
-      <p style="font-size:0.85em;color:#64748B;">
+      <p
+        style="
+          font-size:0.85em;
+          color:#64748B;
+        "
+      >
         Expires in 1 hour, single-use.
-        Ignore this email if you didn't request it.
+        Ignore if you didn't request this.
       </p>
     `,
   }),
 
+
+  /*
+  |--------------------------------------------------------------------------
+  | Secure Delivery + OTP
+  |--------------------------------------------------------------------------
+  */
 
   secureDeliveryReady: ({
     recipientName,
@@ -516,20 +704,24 @@ const templates = {
     secureUrl,
     otpCode,
   }) => ({
-    subject: `A document (${docId}) requires your confirmation`,
+    subject:
+      `A document (${docId}) requires your confirmation`,
+
     html: `
       <p>
         Hi ${recipientName || 'there'},
       </p>
 
       <p>
-        A document requires confirmation before download.
+        A document requires confirmation
+        before download.
       </p>
 
       <p>
         <a href="${secureUrl}">
           Open the secure document link
         </a>
+
         (single-use, 7 days).
       </p>
 
@@ -542,10 +734,18 @@ const templates = {
   }),
 
 
+  /*
+  |--------------------------------------------------------------------------
+  | Secure Delivery Plain Copy
+  |--------------------------------------------------------------------------
+  */
+
   secureDeliveryPlainCopy: ({
     docId,
   }) => ({
-    subject: `Document ${docId} (copy)`,
+    subject:
+      `Document ${docId} (copy)`,
+
     html: `
       <p>Hi,</p>
 
@@ -557,13 +757,21 @@ const templates = {
   }),
 
 
+  /*
+  |--------------------------------------------------------------------------
+  | Delivery Owned
+  |--------------------------------------------------------------------------
+  */
+
   deliveryOwned: ({
     generatorName,
     docId,
     recipientName,
     reviewUrl,
   }) => ({
-    subject: `Document ${docId} confirmed by recipient`,
+    subject:
+      `Document ${docId} confirmed by recipient`,
+
     html: `
       <p>
         Hi ${generatorName || 'there'},
@@ -571,7 +779,8 @@ const templates = {
 
       <p>
         <b>${recipientName || 'The recipient'}</b>
-        confirmed document <b>${docId}</b>.
+        confirmed document
+        <b>${docId}</b>.
       </p>
 
       <p>
@@ -594,13 +803,21 @@ const templates = {
   }),
 
 
+  /*
+  |--------------------------------------------------------------------------
+  | Ownership Rejected
+  |--------------------------------------------------------------------------
+  */
+
   ownershipRejected: ({
     generatorName,
     docId,
     recipientName,
     reason,
   }) => ({
-    subject: `Document ${docId} was rejected by the recipient`,
+    subject:
+      `Document ${docId} was rejected by the recipient`,
+
     html: `
       <p>
         Hi ${generatorName || 'there'},
@@ -608,11 +825,13 @@ const templates = {
 
       <p>
         <b>${recipientName || 'The recipient'}</b>
-        rejected document <b>${docId}</b>.
+        rejected document
+        <b>${docId}</b>.
       </p>
 
       <p>
-        <b>Reason:</b> ${reason}
+        <b>Reason:</b>
+        ${reason}
       </p>
 
       <p>
@@ -623,6 +842,12 @@ const templates = {
   }),
 
 
+  /*
+  |--------------------------------------------------------------------------
+  | Ownership Rejected With Review Link
+  |--------------------------------------------------------------------------
+  */
+
   ownershipRejectedWithLink: ({
     generatorName,
     docId,
@@ -630,7 +855,9 @@ const templates = {
     reason,
     reviewUrl,
   }) => ({
-    subject: `Document ${docId} was rejected by the recipient`,
+    subject:
+      `Document ${docId} was rejected by the recipient`,
+
     html: `
       <p>
         Hi ${generatorName || 'there'},
@@ -638,11 +865,13 @@ const templates = {
 
       <p>
         <b>${recipientName || 'The recipient'}</b>
-        rejected document <b>${docId}</b>.
+        rejected document
+        <b>${docId}</b>.
       </p>
 
       <p>
-        <b>Reason:</b> ${reason}
+        <b>Reason:</b>
+        ${reason}
       </p>
 
       <p>
@@ -658,7 +887,8 @@ const templates = {
             font-weight:600;
           "
         >
-          Review Rejection &amp; Edit / Resubmit
+          Review Rejection &amp;
+          Edit / Resubmit
         </a>
       </p>
     `,
@@ -666,9 +896,11 @@ const templates = {
 };
 
 
-/* ─────────────────────────────────────────────────────────────────────────────
- * Exports
- * ──────────────────────────────────────────────────────────────────────────── */
+/*
+|--------------------------------------------------------------------------
+| Exports
+|--------------------------------------------------------------------------
+*/
 
 module.exports = {
   sendMail,
