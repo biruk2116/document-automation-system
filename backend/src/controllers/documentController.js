@@ -997,12 +997,19 @@ async function resubmitDocument(req, res) {
     const newDoc = await generateSingleDocument({ template, recordId, userId: req.user.id });
 
     // Store the resubmit note on the new document for the audit trail.
-    if (resubmitNote) {
-      await pool.query(
-        'UPDATE generated_docs SET metadata = JSON_SET(COALESCE(metadata, "{}"), "$.resubmitNote", ?, "$.resubmittedFromDocUuid", ?) WHERE id = ?',
-        [resubmitNote, doc.doc_uuid, newDoc.id]
-      );
-    }
+   // Store the resubmit note on the new document for the audit trail.
+if (resubmitNote) {
+  await pool.query(
+    `UPDATE generated_docs
+     SET metadata = JSON_SET(
+       COALESCE(metadata, '{}'),
+       '$.resubmitNote', ?,
+       '$.resubmittedFromDocUuid', ?
+     )
+     WHERE id = ?`,
+    [resubmitNote, doc.doc_uuid, newDoc.id]
+  );
+}
 
     // Skip the approver: stamp the new document as 'signed' directly.
     // The Generator is correcting a known problem — a new approval round is not
