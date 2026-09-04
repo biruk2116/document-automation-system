@@ -13,6 +13,7 @@ const { buildFileName, buildStoragePath, buildRandomStorageFileName } = require(
 const { createJob, updateJobProgress, getJob } = require('../utils/bulkJobTracker');
 const { recordAudit } = require('../utils/auditLog');
 const { sendMail, templates } = require('../utils/emailService');
+const { runInitiateSignature } = require('./signatureController');
 const { validateRecipientEmail } = require('../utils/recipientValidation');
 const { buildDownloadToken, buildDownloadUrl, TOKEN_EXPIRY_DAYS } = require('./deliveryController');
 require('dotenv').config();
@@ -956,92 +957,289 @@ async function resubmitDocument(req, res) {
   const { record_identifier, note } = req.body || {};
 
   try {
-    const [[doc]] = await pool.query('SELECT * FROM generated_docs WHERE id = ?', [id]);
+    // ------------------------------------------------------------
+    // 1. Load the original rejected document
+    // ------------------------------------------------------------
+    const [[doc]] = await pool.query(
+      'SELECT * FROM generated_docs WHERE id = ?',
+      [id]
+    );
+
     if (!doc) {
-      return res.status(404).json({ success: false, message: 'Document not found.' });
+      return res.status(404).json({
+        success: false,
+        message: 'Document not found.',
+      });
     }
+
     if (doc.deleted_at) {
-      return res.status(410).json({ success: false, message: 'This document has been deleted.' });
+      return res.status(410).json({
+        success: false,
+        message: 'This document has been deleted.',
+      });
     }
 
+    // ------------------------------------------------------------
+    // 2. Check ownership / admin permission
+    // ------------------------------------------------------------
     const isOwner = doc.generated_by === req.user.id;
-    const isAdmin = req.user.role === 'super_admin' || req.user.role === 'system_admin';
+
+    const isAdmin =
+      req.user.role === 'super_admin' ||
+      req.user.role === 'system_admin';
+
     if (!isOwner && !isAdmin) {
-      return res.status(403).json({ success: false, message: 'You can only resubmit documents you generated.' });
+      return res.status(403).json({
+        success: false,
+        message: 'You can only resubmit documents you generated.',
+      });
     }
 
-    // Accept draft (approver rejected) OR delivered (recipient rejected ownership).
-    // Pending documents can't be resubmitted — the approver hasn't acted yet.
+    // ------------------------------------------------------------
+    // 3. Only rejected/draft documents can be resubmitted
+    // ------------------------------------------------------------
     if (doc.status === 'pending') {
       return res.status(409).json({
         success: false,
-        message: 'This document is still awaiting approver review and cannot be resubmitted yet.',
+        message:
+          'This document is still awaiting approver review and cannot be resubmitted yet.',
       });
     }
+
     if (doc.status !== 'draft' && doc.status !== 'delivered') {
       return res.status(409).json({
         success: false,
-        message: `Document has status "${doc.status}" and cannot be resubmitted.`,
+        message:
+          `Document has status "${doc.status}" and cannot be resubmitted.`,
       });
     }
 
-    const template = await loadTemplate(doc.template_id);
-    if (!template) {
-      return res.status(404).json({ success: false, message: 'The template this document was built from no longer exists.' });
-    }
-
-    const recordId = (record_identifier && String(record_identifier).trim()) || doc.record_identifier;
-    const resubmitNote = note && String(note).trim() ? String(note).trim() : null;
-
-    // Regenerate the PDF with current record data + current template content.
-    const newDoc = await generateSingleDocument({ template, recordId, userId: req.user.id });
-
-    // Store the resubmit note on the new document for the audit trail.
-   // Store the resubmit note on the new document for the audit trail.
-if (resubmitNote) {
-  await pool.query(
-    `UPDATE generated_docs
-     SET metadata = JSON_SET(
-       COALESCE(metadata, '{}'),
-       '$.resubmitNote', ?,
-       '$.resubmittedFromDocUuid', ?
-     )
-     WHERE id = ?`,
-    [resubmitNote, doc.doc_uuid, newDoc.id]
-  );
-}
-
-    // Skip the approver: stamp the new document as 'signed' directly.
-    // The Generator is correcting a known problem — a new approval round is not
-    // required. The signed status is needed so initiateResubmitDelivery can send it.
-    await pool.query(
-      "UPDATE generated_docs SET status = 'signed' WHERE id = ?",
-      [newDoc.id]
+    // ------------------------------------------------------------
+    // 4. Find the previous signature request
+    //
+    // We need the approver who rejected the original document.
+    // That same approver will receive the new approval request.
+    // ------------------------------------------------------------
+    const [[previousSignatureRequest]] = await pool.query(
+      `SELECT id, approver_id, status, rejection_reason
+       FROM signature_requests
+       WHERE doc_id = ?
+       ORDER BY id DESC
+       LIMIT 1`,
+      [doc.id]
     );
 
-    // Supersede the old document — soft-delete it so Document Tracking stays clean.
+    if (!previousSignatureRequest) {
+      return res.status(409).json({
+        success: false,
+        message:
+          'No previous approval request was found for this document. The document cannot be resubmitted through the approval workflow.',
+      });
+    }
+
+    if (!previousSignatureRequest.approver_id) {
+      return res.status(409).json({
+        success: false,
+        message:
+          'The previous approval request does not have an assigned approver.',
+      });
+    }
+
+    const previousApproverId = previousSignatureRequest.approver_id;
+
+    // ------------------------------------------------------------
+    // 5. Load the template
+    // ------------------------------------------------------------
+    const template = await loadTemplate(doc.template_id);
+
+    if (!template) {
+      return res.status(404).json({
+        success: false,
+        message:
+          'The template this document was built from no longer exists.',
+      });
+    }
+
+    // ------------------------------------------------------------
+    // 6. Determine which record should be regenerated
+    // ------------------------------------------------------------
+    const recordId =
+      (record_identifier && String(record_identifier).trim()) ||
+      doc.record_identifier;
+
+    const resubmitNote =
+      note && String(note).trim()
+        ? String(note).trim()
+        : null;
+
+    // ------------------------------------------------------------
+    // 7. Generate a COMPLETELY NEW PDF/document
+    //
+    // generateSingleDocument() creates it as status = draft.
+    // That is exactly what runInitiateSignature() expects.
+    // ------------------------------------------------------------
+    console.log(
+      `[documents] Resubmitting document ${doc.doc_uuid}. ` +
+      `Regenerating new document for approver ${previousApproverId}...`
+    );
+
+    const newDoc = await generateSingleDocument({
+      template,
+      recordId,
+      userId: req.user.id,
+    });
+
+    console.log(
+      `[documents] New resubmitted document generated: ${newDoc.docUuid}`
+    );
+
+    // ------------------------------------------------------------
+    // 8. Store resubmission metadata on the NEW document
+    // ------------------------------------------------------------
+
+const [[newDocRow]] = await pool.query(
+  'SELECT metadata FROM generated_docs WHERE id = ?',
+  [newDoc.id]
+);
+
+const newMetadata = newDocRow?.metadata
+  ? JSON.parse(newDocRow.metadata)
+  : {};
+
+const previousMetadata = doc.metadata
+  ? JSON.parse(doc.metadata)
+  : {};
+
+const previousRound = Number(
+  previousMetadata.resubmissionRound || 0
+);
+
+newMetadata.resubmitNote = resubmitNote;
+newMetadata.resubmittedFromDocUuid = doc.doc_uuid;
+newMetadata.resubmissionRound = previousRound + 1;
+
+await pool.query(
+  'UPDATE generated_docs SET metadata = ? WHERE id = ?',
+  [
+    JSON.stringify(newMetadata),
+    newDoc.id,
+  ]
+);
+    // ------------------------------------------------------------
+    // 9. IMPORTANT:
+    // Send the NEW document back through the normal approval flow.
+    //
+    // This will:
+    //   - create a NEW signature_requests row
+    //   - assign the SAME approver
+    //   - generate a NEW OTP
+    //   - generate a NEW secure review URL
+    //   - change new document status to pending
+    //   - send the approver an email
+    //   - create the normal SIGN audit record
+    // ------------------------------------------------------------
+    const signatureResult = await runInitiateSignature({
+      docId: newDoc.id,
+      approverId: previousApproverId,
+      userId: req.user.id,
+      req,
+      note: resubmitNote,
+    });
+
+    if (!signatureResult.ok) {
+      // The new document was generated, but the approval request
+      // could not be created.
+      //
+      // Keep the new document as draft so it can be diagnosed/retried.
+      console.error(
+        '[documents] resubmit: failed to initiate new signature request:',
+        signatureResult.message
+      );
+
+      return res.status(signatureResult.status || 500).json({
+        success: false,
+        message:
+          `New document was generated, but it could not be sent for approval: ${signatureResult.message}`,
+        data: {
+          id: newDoc.id,
+          docUuid: newDoc.docUuid,
+          status: 'draft',
+        },
+      });
+    }
+
+    console.log(
+      `[documents] New approval request created: ` +
+      `${signatureResult.signatureRequestId} ` +
+      `for approver ${previousApproverId}`
+    );
+
+    // ------------------------------------------------------------
+    // 10. The OLD document is now superseded.
+    //
+    // IMPORTANT:
+    // We do this AFTER the new approval request has been created.
+    // ------------------------------------------------------------
     if (fs.existsSync(doc.file_path)) {
-      try { fs.unlinkSync(doc.file_path); } catch (unlinkErr) {
-        console.error('[documents] resubmit: failed to remove superseded file:', unlinkErr.message);
+      try {
+        fs.unlinkSync(doc.file_path);
+      } catch (unlinkErr) {
+        console.error(
+          '[documents] resubmit: failed to remove superseded file:',
+          unlinkErr.message
+        );
       }
     }
-    await pool.query('UPDATE generated_docs SET deleted_at = NOW() WHERE id = ?', [id]);
+
+    await pool.query(
+      'UPDATE generated_docs SET deleted_at = NOW() WHERE id = ?',
+      [id]
+    );
+
+    // ------------------------------------------------------------
+    // 11. Audit the resubmission
+    // ------------------------------------------------------------
     await recordAudit({
       userId: req.user.id,
-      docId: id,
-      action: 'DELETE_DOCUMENT',
-      details: { doc_uuid: doc.doc_uuid, reason: 'superseded_by_resubmit', supersededBy: newDoc.docUuid, note: resubmitNote },
+      docId: newDoc.id,
+      action: 'RESUBMIT',
+      details: {
+        originalDocId: doc.id,
+        originalDocUuid: doc.doc_uuid,
+        newDocId: newDoc.id,
+        newDocUuid: newDoc.docUuid,
+        signatureRequestId: signatureResult.signatureRequestId,
+        approverId: previousApproverId,
+        note: resubmitNote,
+      },
       req,
     });
 
+    // ------------------------------------------------------------
+    // 12. Return success
+    // ------------------------------------------------------------
     return res.status(201).json({
       success: true,
-      message: `Corrected document ${newDoc.docUuid} generated successfully.`,
-      data: { id: newDoc.id, docId: newDoc.id, docUuid: newDoc.docUuid },
+      message:
+        `Corrected document ${newDoc.docUuid} was generated and sent back to ${signatureResult.approverName} for approval.`,
+      data: {
+        id: newDoc.id,
+        docId: newDoc.id,
+        docUuid: newDoc.docUuid,
+        status: 'pending',
+        signatureRequestId: signatureResult.signatureRequestId,
+        approverId: previousApproverId,
+        approverName: signatureResult.approverName,
+      },
     });
   } catch (err) {
     console.error('[documents] resubmit error:', err);
-    return res.status(err.status || 500).json({ success: false, message: err.message || 'Failed to resubmit document.' });
+
+    return res.status(err.status || 500).json({
+      success: false,
+      message:
+        err.message || 'Failed to resubmit document.',
+    });
   }
 }
 
