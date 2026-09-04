@@ -5,8 +5,8 @@
   "main": "src/server.js",
   "type": "commonjs",
   "engines": {
-  "node": "22.x"
-},
+    "node": "22.x"
+  },
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js"
@@ -21,7 +21,7 @@
     "mongodb": "^6.9.0",
     "multer": "^2.2.0",
     "mysql2": "^3.10.0",
-    "nodemailer": "6.9.16",
+    "nodemailer": "^6.9.16",
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^2.4.5",
     "pg": "^8.13.0",
