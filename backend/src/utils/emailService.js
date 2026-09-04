@@ -26,21 +26,21 @@ const smtpFrom = (process.env.SMTP_FROM || smtpUser).trim();
 const transporter = nodemailer.createTransport({
   host: smtpHost,
   port: smtpPort,
-  secure: smtpPort === 465,
+
+  // Port 587 uses STARTTLS.
+  secure: false,
 
   auth: {
     user: smtpUser,
     pass: smtpPassword,
   },
 
-  connectionTimeout: 20000,
-  greetingTimeout: 20000,
-  socketTimeout: 30000,
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+  socketTimeout: 60000,
 
-  /*
-   * Do not use rejectUnauthorized:false here.
-   * Gmail provides a valid TLS certificate.
-   */
+  requireTLS: true,
+
   tls: {
     minVersion: 'TLSv1.2',
   },
