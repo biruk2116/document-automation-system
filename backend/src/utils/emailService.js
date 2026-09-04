@@ -1,38 +1,53 @@
 'use strict';
 
-const { Resend } = require('resend');
 require('dotenv').config();
 
 /*
 |--------------------------------------------------------------------------
-| Resend Configuration
+| Brevo Email Configuration
+|--------------------------------------------------------------------------
+|
+| Required environment variables:
+|
+| EMAIL_PROVIDER=brevo
+| BREVO_API_KEY=your_brevo_api_key
+| EMAIL_FROM=your_verified_sender@gmail.com
+|
+| Optional:
+|
+| EMAIL_FROM_NAME=Document Automation
+|
 |--------------------------------------------------------------------------
 */
 
-const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
+const emailProvider = (
+  process.env.EMAIL_PROVIDER ||
+  'brevo'
+).trim().toLowerCase();
 
-const resend = resendApiKey
-  ? new Resend(resendApiKey)
-  : null;
+const brevoApiKey = (
+  process.env.BREVO_API_KEY ||
+  ''
+).trim();
+
+const fromEmail = (
+  process.env.EMAIL_FROM ||
+  ''
+).trim();
+
+const fromName = (
+  process.env.EMAIL_FROM_NAME ||
+  'Document Automation'
+).trim();
 
 /*
 |--------------------------------------------------------------------------
-| Sender
+| Brevo API URL
 |--------------------------------------------------------------------------
-|
-| For the first test, use:
-|
-| RESEND_FROM=Doc Automation <onboarding@resend.dev>
-|
-| Later, after verifying your own domain in Resend, you can use:
-|
-| RESEND_FROM=Doc Automation <no-reply@yourdomain.com>
-|
 */
 
-const fromAddress =
-  (process.env.RESEND_FROM || '').trim() ||
-  'Doc Automation <onboarding@resend.dev>';
+const BREVO_API_URL =
+  'https://api.brevo.com/v3/smtp/email';
 
 
 /*
@@ -64,28 +79,86 @@ function normalizeRecipients(to) {
 | Helper: Normalize Attachments
 |--------------------------------------------------------------------------
 |
-| Resend supports attachments.
-| Your existing document/PDF attachment workflows can therefore continue
-| using the same sendMail() function.
+| Brevo expects attachment content as Base64.
 |
+| Your existing application may provide:
+|
+| - Buffer
+| - string
+|
+|--------------------------------------------------------------------------
 */
 
 function normalizeAttachments(attachments) {
   if (!Array.isArray(attachments) || attachments.length === 0) {
-    return undefined;
+    return [];
   }
 
   return attachments
-    .filter((att) => att && att.filename && att.content)
+    .filter(
+      (att) =>
+        att &&
+        att.filename &&
+        att.content
+    )
     .map((att) => {
-      let content = att.content;
+      let content;
 
-      if (!Buffer.isBuffer(content)) {
-        content = Buffer.from(content);
+      /*
+      |----------------------------------------------------------------------
+      | Buffer
+      |----------------------------------------------------------------------
+      */
+
+      if (Buffer.isBuffer(att.content)) {
+        content = att.content.toString('base64');
+      }
+
+      /*
+      |----------------------------------------------------------------------
+      | Uint8Array / ArrayBuffer-like data
+      |----------------------------------------------------------------------
+      */
+
+      else if (
+        att.content instanceof Uint8Array
+      ) {
+        content = Buffer
+          .from(att.content)
+          .toString('base64');
+      }
+
+      /*
+      |----------------------------------------------------------------------
+      | String
+      |----------------------------------------------------------------------
+      */
+
+      else if (typeof att.content === 'string') {
+        /*
+        | If the string is already Base64, keep it.
+        | Otherwise encode it as UTF-8.
+        */
+
+        content = Buffer
+          .from(att.content)
+          .toString('base64');
+      }
+
+      /*
+      |----------------------------------------------------------------------
+      | Other data types
+      |----------------------------------------------------------------------
+      */
+
+      else {
+        content = Buffer
+          .from(String(att.content))
+          .toString('base64');
       }
 
       return {
-        filename: String(att.filename),
+        name: String(att.filename),
         content,
       };
     });
@@ -105,17 +178,43 @@ function isValidEmail(email) {
 
 /*
 |--------------------------------------------------------------------------
+| Helper: Escape HTML
+|--------------------------------------------------------------------------
+|
+| Used for user-controlled text such as:
+|
+| - names
+| - rejection reasons
+|
+| This prevents accidentally breaking the email HTML.
+|
+|--------------------------------------------------------------------------
+*/
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+
+/*
+|--------------------------------------------------------------------------
 | Send Email
 |--------------------------------------------------------------------------
 |
-| This replaces the old SMTP implementation.
+| Application
+|     ↓
+| HTTPS
+|     ↓
+| Brevo API
+|     ↓
+| Recipient
 |
-| OLD:
-|   Application → Gmail SMTP → Recipient
-|
-| NEW:
-|   Application → HTTPS → Resend API → Recipient
-|
+|--------------------------------------------------------------------------
 */
 
 async function sendMail({
@@ -127,14 +226,35 @@ async function sendMail({
 }) {
   /*
   |--------------------------------------------------------------------------
-  | Validate Recipient
+  | Validate Provider
+  |--------------------------------------------------------------------------
+  */
+
+  if (emailProvider !== 'brevo') {
+    console.error(
+      `[email] Unsupported EMAIL_PROVIDER: ${emailProvider}`
+    );
+
+    return {
+      success: false,
+      error:
+        `Unsupported EMAIL_PROVIDER: ${emailProvider}`,
+    };
+  }
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Normalize Recipients
   |--------------------------------------------------------------------------
   */
 
   const toList = normalizeRecipients(to);
 
   if (toList.length === 0) {
-    console.error('[email] No recipient email address provided.');
+    console.error(
+      '[email] No recipient email address provided.'
+    );
 
     return {
       success: false,
@@ -145,7 +265,7 @@ async function sendMail({
 
   /*
   |--------------------------------------------------------------------------
-  | Validate Recipient Email Addresses
+  | Validate Recipient Emails
   |--------------------------------------------------------------------------
   */
 
@@ -175,7 +295,9 @@ async function sendMail({
   */
 
   if (!subject) {
-    console.error('[email] Email subject is missing.');
+    console.error(
+      '[email] Email subject is missing.'
+    );
 
     return {
       success: false,
@@ -186,20 +308,64 @@ async function sendMail({
 
   /*
   |--------------------------------------------------------------------------
-  | Check Resend Configuration
+  | Validate Brevo API Key
   |--------------------------------------------------------------------------
   */
 
-  if (!resend) {
+  if (!brevoApiKey) {
     console.error(
-      '[email] RESEND_API_KEY is not configured. Email not sent.'
+      '[email] BREVO_API_KEY is not configured.'
     );
 
     return {
       success: false,
-      error: 'RESEND_API_KEY is not configured.',
+      error:
+        'BREVO_API_KEY is not configured.',
     };
   }
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Validate Sender
+  |--------------------------------------------------------------------------
+  */
+
+  if (!fromEmail) {
+    console.error(
+      '[email] EMAIL_FROM is not configured.'
+    );
+
+    return {
+      success: false,
+      error:
+        'EMAIL_FROM is not configured.',
+    };
+  }
+
+
+  if (!isValidEmail(fromEmail)) {
+    console.error(
+      `[email] Invalid EMAIL_FROM address: ${fromEmail}`
+    );
+
+    return {
+      success: false,
+      error:
+        `Invalid EMAIL_FROM address: ${fromEmail}`,
+    };
+  }
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Prepare Recipients
+  |--------------------------------------------------------------------------
+  */
+
+  const recipients = toList.map((email) => ({
+    email,
+  }));
 
 
   /*
@@ -208,12 +374,63 @@ async function sendMail({
   |--------------------------------------------------------------------------
   */
 
-  const resendAttachments = normalizeAttachments(attachments);
+  const brevoAttachments =
+    normalizeAttachments(attachments);
 
 
   /*
   |--------------------------------------------------------------------------
-  | Send Through Resend
+  | Prepare Brevo Payload
+  |--------------------------------------------------------------------------
+  */
+
+  const payload = {
+    sender: {
+      name: fromName,
+      email: fromEmail,
+    },
+
+    to: recipients,
+
+    subject: String(subject),
+
+    htmlContent:
+      html ||
+      '<p></p>',
+  };
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Optional Plain Text
+  |--------------------------------------------------------------------------
+  */
+
+  if (text) {
+    payload.textContent =
+      String(text);
+  }
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Optional Attachments
+  |--------------------------------------------------------------------------
+  */
+
+  if (brevoAttachments.length > 0) {
+    payload.attachment =
+      brevoAttachments;
+
+    console.log(
+      `[email] Attachments: ${brevoAttachments.length}`
+    );
+  }
+
+
+  /*
+  |--------------------------------------------------------------------------
+  | Send Through Brevo
   |--------------------------------------------------------------------------
   */
 
@@ -223,85 +440,80 @@ async function sendMail({
     );
 
     console.log(
-      '[email] Provider: Resend HTTP API'
+      '[email] Provider: Brevo HTTP API'
     );
 
     console.log(
-      `[email] From: ${fromAddress}`
+      `[email] From: ${fromName} <${fromEmail}>`
     );
 
 
     /*
     |--------------------------------------------------------------------------
-    | Resend Payload
+    | Brevo HTTP Request
     |--------------------------------------------------------------------------
     */
 
-    const payload = {
-      from: fromAddress,
-      to: toList,
-      subject: String(subject),
-      html: html || '<p></p>',
-    };
+    const response =
+      await fetch(
+        BREVO_API_URL,
+        {
+          method: 'POST',
 
+          headers: {
+            accept: 'application/json',
 
-    /*
-    |--------------------------------------------------------------------------
-    | Optional Plain Text
-    |--------------------------------------------------------------------------
-    */
+            'api-key':
+              brevoApiKey,
 
-    if (text) {
-      payload.text = String(text);
-    }
+            'content-type':
+              'application/json',
+          },
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Optional Attachments
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-      resendAttachments &&
-      resendAttachments.length > 0
-    ) {
-      payload.attachments = resendAttachments;
-
-      console.log(
-        `[email] Attachments: ${resendAttachments.length}`
+          body:
+            JSON.stringify(payload),
+        }
       );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Read Response
+    |--------------------------------------------------------------------------
+    */
+
+    let responseData = null;
+
+    try {
+      responseData =
+        await response.json();
+    } catch {
+      responseData = null;
     }
 
 
     /*
     |--------------------------------------------------------------------------
-    | Send Email
+    | Handle Brevo Error
     |--------------------------------------------------------------------------
     */
 
-    const { data, error } =
-      await resend.emails.send(payload);
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Handle Resend API Error
-    |--------------------------------------------------------------------------
-    */
-
-    if (error) {
+    if (!response.ok) {
       console.error(
-        '[email] Resend API error:',
-        error
+        '[email] Brevo API error:',
+        responseData
       );
 
       return {
         success: false,
+
         error:
-          error.message ||
-          error.name ||
-          'Resend API returned an error.',
+          responseData?.message ||
+          responseData?.code ||
+          `Brevo API returned HTTP ${response.status}.`,
+
+        statusCode:
+          response.status,
       };
     }
 
@@ -312,14 +524,16 @@ async function sendMail({
     |--------------------------------------------------------------------------
     */
 
-    const messageId = data?.id || null;
+    const messageId =
+      responseData?.messageId ||
+      null;
 
     console.log(
       `[email] Email sent successfully → ${toList.join(', ')}`
     );
 
     console.log(
-      `[email] Resend message ID: ${
+      `[email] Brevo message ID: ${
         messageId || 'unknown'
       }`
     );
@@ -327,21 +541,24 @@ async function sendMail({
 
     return {
       success: true,
+
       messageId,
-      provider: 'resend',
+
+      provider: 'brevo',
     };
 
   } catch (err) {
     console.error(
-      '[email] Resend send failed:',
+      '[email] Brevo send failed:',
       err
     );
 
     return {
       success: false,
+
       error:
-        err.message ||
-        'Failed to send email.',
+        err?.message ||
+        'Failed to send email through Brevo.',
     };
   }
 }
@@ -352,32 +569,100 @@ async function sendMail({
 | Verify Email Configuration
 |--------------------------------------------------------------------------
 |
-| This checks whether the Resend API key exists.
-| It does not send a test email.
+| This checks local configuration only.
+| It does NOT send a test email.
 |
+|--------------------------------------------------------------------------
 */
 
 async function verifyEmailConnection() {
-  if (!resendApiKey) {
+  if (emailProvider !== 'brevo') {
     console.warn(
-      '[email] RESEND_API_KEY is not configured.'
+      `[email] Unsupported EMAIL_PROVIDER: ${emailProvider}`
     );
 
     return {
       success: false,
+
       configured: false,
-      error: 'RESEND_API_KEY is not configured.',
+
+      provider: emailProvider,
+
+      error:
+        `Unsupported EMAIL_PROVIDER: ${emailProvider}`,
     };
   }
 
+
+  if (!brevoApiKey) {
+    console.warn(
+      '[email] BREVO_API_KEY is not configured.'
+    );
+
+    return {
+      success: false,
+
+      configured: false,
+
+      provider: 'brevo',
+
+      error:
+        'BREVO_API_KEY is not configured.',
+    };
+  }
+
+
+  if (!fromEmail) {
+    console.warn(
+      '[email] EMAIL_FROM is not configured.'
+    );
+
+    return {
+      success: false,
+
+      configured: false,
+
+      provider: 'brevo',
+
+      error:
+        'EMAIL_FROM is not configured.',
+    };
+  }
+
+
+  if (!isValidEmail(fromEmail)) {
+    console.warn(
+      `[email] Invalid EMAIL_FROM: ${fromEmail}`
+    );
+
+    return {
+      success: false,
+
+      configured: false,
+
+      provider: 'brevo',
+
+      error:
+        `Invalid EMAIL_FROM address: ${fromEmail}`,
+    };
+  }
+
+
   console.log(
-    '[email] Resend API configuration detected.'
+    '[email] Brevo API configuration detected.'
   );
+
+  console.log(
+    `[email] Sender: ${fromName} <${fromEmail}>`
+  );
+
 
   return {
     success: true,
+
     configured: true,
-    provider: 'resend',
+
+    provider: 'brevo',
   };
 }
 
@@ -389,6 +674,7 @@ async function verifyEmailConnection() {
 */
 
 const templates = {
+
 
   /*
   |--------------------------------------------------------------------------
@@ -407,10 +693,10 @@ const templates = {
       `Action required: Document ${docId} awaiting your signature`,
 
     html: `
-      <p>Hi ${approverName},</p>
+      <p>Hi ${escapeHtml(approverName)},</p>
 
       <p>
-        Document <b>${docId}</b>
+        Document <b>${escapeHtml(docId)}</b>
         is awaiting your approval.
       </p>
 
@@ -419,14 +705,14 @@ const templates = {
           ? `
             <p>
               <b>What was fixed:</b>
-              ${resubmitNote}
+              ${escapeHtml(resubmitNote)}
             </p>
           `
           : ''
       }
 
       <p>
-        <a href="${reviewUrl}">
+        <a href="${escapeHtml(reviewUrl)}">
           Review the document
         </a>
 
@@ -451,15 +737,17 @@ const templates = {
       `Document ${docId} has been signed`,
 
     html: `
-      <p>Hi ${generatorName},</p>
+      <p>
+        Hi ${escapeHtml(generatorName)},
+      </p>
 
       <p>
-        Document <b>${docId}</b>
+        Document <b>${escapeHtml(docId)}</b>
         was approved and digitally signed.
       </p>
 
       <p>
-        <a href="${reviewUrl}">
+        <a href="${escapeHtml(reviewUrl)}">
           Review the signed document
         </a>
       </p>
@@ -484,12 +772,15 @@ const templates = {
       `Document ${docId} was rejected`,
 
     html: `
-      <p>Hi ${generatorName},</p>
+      <p>
+        Hi ${escapeHtml(generatorName)},
+      </p>
 
       <p>
-        Document <b>${docId}</b>
+        Document <b>${escapeHtml(docId)}</b>
         was rejected.
-        <b>Reason:</b> ${reason}
+        <b>Reason:</b>
+        ${escapeHtml(reason)}
       </p>
 
       <p>
@@ -497,7 +788,7 @@ const templates = {
       </p>
 
       <p>
-        <a href="${reviewUrl}">
+        <a href="${escapeHtml(reviewUrl)}">
           Review the document
         </a>
 
@@ -525,10 +816,12 @@ const templates = {
       `Reminder: Document ${docId} still awaiting signature`,
 
     html: `
-      <p>Hi ${approverName},</p>
+      <p>
+        Hi ${escapeHtml(approverName)},
+      </p>
 
       <p>
-        Document <b>${docId}</b>
+        Document <b>${escapeHtml(docId)}</b>
         is still pending your review.
       </p>
     `,
@@ -551,14 +844,16 @@ const templates = {
 
     html: `
       <p>
-        Document <b>${docId}</b>
+        Document <b>${escapeHtml(docId)}</b>
         unsigned 72+ hrs.
       </p>
 
       <p>
-        Generator: ${generatorName}
+        Generator:
+        ${escapeHtml(generatorName)}
         |
-        Approver: ${approverName}
+        Approver:
+        ${escapeHtml(approverName)}
       </p>
     `,
   }),
@@ -580,11 +875,11 @@ const templates = {
 
     html: `
       <p>
-        Hi ${recipientName || 'there'},
+        Hi ${escapeHtml(recipientName || 'there')},
       </p>
 
       <p>
-        <a href="${downloadUrl}">
+        <a href="${escapeHtml(downloadUrl)}">
           Open secure link
         </a>
 
@@ -611,7 +906,7 @@ const templates = {
       <p>Hi,</p>
 
       <p>
-        <a href="${downloadUrl}">
+        <a href="${escapeHtml(downloadUrl)}">
           Open secure link
         </a>
 
@@ -638,7 +933,7 @@ const templates = {
 
       <p>
         Please find your document attached
-        (ID: <b>${docId}</b>).
+        (ID: <b>${escapeHtml(docId)}</b>).
       </p>
     `,
   }),
@@ -659,12 +954,12 @@ const templates = {
 
     html: `
       <p>
-        Hi ${fullName || 'there'},
+        Hi ${escapeHtml(fullName || 'there')},
       </p>
 
       <p>
         <a
-          href="${resetUrl}"
+          href="${escapeHtml(resetUrl)}"
           style="
             display:inline-block;
             padding:10px 20px;
@@ -709,7 +1004,7 @@ const templates = {
 
     html: `
       <p>
-        Hi ${recipientName || 'there'},
+        Hi ${escapeHtml(recipientName || 'there')},
       </p>
 
       <p>
@@ -718,7 +1013,7 @@ const templates = {
       </p>
 
       <p>
-        <a href="${secureUrl}">
+        <a href="${escapeHtml(secureUrl)}">
           Open the secure document link
         </a>
 
@@ -727,7 +1022,7 @@ const templates = {
 
       <p>
         Your one-time code:
-        <b>${otpCode}</b>
+        <b>${escapeHtml(otpCode)}</b>
         (expires in 5 minutes).
       </p>
     `,
@@ -751,7 +1046,7 @@ const templates = {
 
       <p>
         Please find a copy of your document attached
-        (ID: <b>${docId}</b>).
+        (ID: <b>${escapeHtml(docId)}</b>).
       </p>
     `,
   }),
@@ -774,18 +1069,23 @@ const templates = {
 
     html: `
       <p>
-        Hi ${generatorName || 'there'},
+        Hi ${escapeHtml(generatorName || 'there')},
       </p>
 
       <p>
-        <b>${recipientName || 'The recipient'}</b>
+        <b>
+          ${escapeHtml(
+            recipientName || 'The recipient'
+          )}
+        </b>
+
         confirmed document
-        <b>${docId}</b>.
+        <b>${escapeHtml(docId)}</b>.
       </p>
 
       <p>
         <a
-          href="${reviewUrl}"
+          href="${escapeHtml(reviewUrl)}"
           style="
             display:inline-block;
             padding:10px 20px;
@@ -820,18 +1120,23 @@ const templates = {
 
     html: `
       <p>
-        Hi ${generatorName || 'there'},
+        Hi ${escapeHtml(generatorName || 'there')},
       </p>
 
       <p>
-        <b>${recipientName || 'The recipient'}</b>
+        <b>
+          ${escapeHtml(
+            recipientName || 'The recipient'
+          )}
+        </b>
+
         rejected document
-        <b>${docId}</b>.
+        <b>${escapeHtml(docId)}</b>.
       </p>
 
       <p>
         <b>Reason:</b>
-        ${reason}
+        ${escapeHtml(reason)}
       </p>
 
       <p>
@@ -860,23 +1165,28 @@ const templates = {
 
     html: `
       <p>
-        Hi ${generatorName || 'there'},
+        Hi ${escapeHtml(generatorName || 'there')},
       </p>
 
       <p>
-        <b>${recipientName || 'The recipient'}</b>
+        <b>
+          ${escapeHtml(
+            recipientName || 'The recipient'
+          )}
+        </b>
+
         rejected document
-        <b>${docId}</b>.
+        <b>${escapeHtml(docId)}</b>.
       </p>
 
       <p>
         <b>Reason:</b>
-        ${reason}
+        ${escapeHtml(reason)}
       </p>
 
       <p>
         <a
-          href="${reviewUrl}"
+          href="${escapeHtml(reviewUrl)}"
           style="
             display:inline-block;
             padding:10px 20px;
