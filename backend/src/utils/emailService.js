@@ -1,42 +1,85 @@
 'use strict';
 
+const tls = require('tls');
+const dotenv = require('dotenv');
+
+dotenv.config();
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+
 /**
- * emailService.js — custom SMTP client for Doc Automation.
- *
- * Uses Node's built-in `tls` module to send over Gmail port 465 (direct SSL).
- * This bypasses nodemailer's pool/transport layer which hangs on Node.js v22
- * due to internal timer unreffing changes.  Auth is tested and confirmed working
- * (235 Accepted) with the Gmail App Password in .env.
- *
- * Falls back to dry-run logging when SMTP_HOST is not configured.
- * sendMail() NEVER throws — all errors are caught and returned as { success:false }.
+ * Base64 encode
  */
-
-const tls   = require('tls');
-const net   = require('net');
-const require_dotenv = require('dotenv');
-require_dotenv.config();
-
-/* ── helpers ────────────────────────────────────────────────────────────────── */
-
-function b64(s) { return Buffer.from(String(s)).toString('base64'); }
-
-/** Escape lone dots on a line (SMTP transparency) */
-function dotStuff(s) {
-  return s.replace(/\r?\n\.\r?\n/g, '\n..\n');
+function b64(value) {
+  return Buffer.from(String(value || '')).toString('base64');
 }
 
-/** Minimal quoted-printable safe content-transfer for HTML bodies */
-function buildMimeMessage({ from, to, subject, html, attachments }) {
-  const boundary = 'boundary_' + Date.now().toString(36);
-  const toList = Array.isArray(to) ? to.join(', ') : to;
+/**
+ * SMTP dot-stuffing.
+ *
+ * A line containing only "." must be escaped inside DATA.
+ */
+function dotStuff(value) {
+  return String(value || '').replace(
+    /\r?\n\.\r?\n/g,
+    '\n..\n'
+  );
+}
 
-  const hasAttachments = attachments && attachments.length > 0;
+/**
+ * Encode text as MIME Base64.
+ */
+function encodeBase64(value) {
+  const encoded = Buffer.from(
+    String(value || ''),
+    'utf8'
+  ).toString('base64');
+
+  if (!encoded) {
+    return '';
+  }
+
+  return encoded.match(/.{1,76}/g).join('\r\n');
+}
+
+/* ============================================================
+   MIME MESSAGE BUILDER
+   ============================================================ */
+
+/**
+ * Build MIME email.
+ *
+ * Supports:
+ * - HTML-only emails
+ * - HTML + attachments
+ */
+function buildMimeMessage({
+  from,
+  to,
+  subject,
+  html,
+  attachments = [],
+}) {
+  const boundary =
+    'boundary_' + Date.now().toString(36);
+
+  const toList = Array.isArray(to)
+    ? to.join(', ')
+    : String(to || '');
+
+  const hasAttachments =
+    Array.isArray(attachments) &&
+    attachments.length > 0;
+
+  /* ----------------------------------------------------------
+     HTML ONLY
+     ---------------------------------------------------------- */
 
   if (!hasAttachments) {
-    // Simple message: headers + HTML body
-    const encoded = Buffer.from(html || '').toString('base64')
-      .match(/.{1,76}/g).join('\r\n');
+    const encodedHtml = encodeBase64(html);
+
     return [
       `From: ${from}`,
       `To: ${toList}`,
@@ -45,13 +88,15 @@ function buildMimeMessage({ from, to, subject, html, attachments }) {
       'Content-Type: text/html; charset=UTF-8',
       'Content-Transfer-Encoding: base64',
       '',
-      encoded,
+      encodedHtml,
     ].join('\r\n');
   }
 
-  // With attachments: multipart/mixed
-  const htmlEncoded = Buffer.from(html || '').toString('base64')
-    .match(/.{1,76}/g).join('\r\n');
+  /* ----------------------------------------------------------
+     HTML + ATTACHMENTS
+     ---------------------------------------------------------- */
+
+  const htmlEncoded = encodeBase64(html);
 
   const parts = [
     `--${boundary}`,
@@ -61,20 +106,29 @@ function buildMimeMessage({ from, to, subject, html, attachments }) {
     htmlEncoded,
   ];
 
-  for (const att of attachments) {
-    const data = Buffer.isBuffer(att.content)
-      ? att.content.toString('base64')
-      : Buffer.from(att.content).toString('base64');
-    const chunks = data.match(/.{1,76}/g).join('\r\n');
+  for (const attachment of attachments) {
+    const content = Buffer.isBuffer(attachment.content)
+      ? attachment.content
+      : Buffer.from(attachment.content || '');
+
+    const encoded = content.toString('base64');
+
+    const chunks =
+      encoded.match(/.{1,76}/g) || [];
+
     parts.push(
       `--${boundary}`,
-      `Content-Type: ${att.contentType || 'application/octet-stream'}; name="${att.filename}"`,
-      `Content-Disposition: attachment; filename="${att.filename}"`,
+      `Content-Type: ${
+        attachment.contentType ||
+        'application/octet-stream'
+      }; name="${attachment.filename}"`,
+      `Content-Disposition: attachment; filename="${attachment.filename}"`,
       'Content-Transfer-Encoding: base64',
       '',
-      chunks
+      chunks.join('\r\n')
     );
   }
+
   parts.push(`--${boundary}--`);
 
   return [
@@ -88,248 +142,1194 @@ function buildMimeMessage({ from, to, subject, html, attachments }) {
   ].join('\r\n');
 }
 
+/* ============================================================
+   SMTP SENDER
+   ============================================================ */
+
 /**
- * Low-level SMTP send over TLS port 465.
- * Returns a Promise that resolves/rejects with the SMTP server's final response.
+ * Low-level SMTP sender using TLS.
+ *
+ * IMPORTANT:
+ * tls.connect() is intended for implicit TLS,
+ * normally SMTP port 465.
  */
-function smtpSend({ host, port, user, pass, from, to, mimeMessage, timeoutMs = 20000 }) {
+function smtpSend({
+  host,
+  port,
+  user,
+  pass,
+  from,
+  to,
+  mimeMessage,
+  timeoutMs = 20000,
+}) {
   return new Promise((resolve, reject) => {
-    const toList = Array.isArray(to) ? to : [to];
-    const timer = setTimeout(() => {
-      sock.destroy();
-      reject(new Error('SMTP connection timed out after ' + timeoutMs + 'ms'));
-    }, timeoutMs);
+    const toList = Array.isArray(to)
+      ? to
+      : [to];
 
-    const sock = tls.connect({ host, port, rejectUnauthorized: false }, () => {
-      // connected
-    });
-
-    sock.setEncoding('utf8');
-    let buf = '';
+    let socket = null;
+    let finished = false;
+    let buffer = '';
     let step = 0;
 
+    const timer = setTimeout(() => {
+      if (finished) {
+        return;
+      }
+
+      finished = true;
+
+      if (socket) {
+        socket.destroy();
+      }
+
+      reject(
+        new Error(
+          `SMTP connection timed out after ${timeoutMs}ms`
+        )
+      );
+    }, timeoutMs);
+
+    function cleanup() {
+      clearTimeout(timer);
+    }
+
+    function fail(message) {
+      if (finished) {
+        return;
+      }
+
+      finished = true;
+      cleanup();
+
+      if (socket && !socket.destroyed) {
+        socket.destroy();
+      }
+
+      reject(new Error(message));
+    }
+
+    function success(result) {
+      if (finished) {
+        return;
+      }
+
+      finished = true;
+      cleanup();
+
+      resolve(result);
+    }
+
+    /* --------------------------------------------------------
+       CONNECT TO SMTP SERVER
+       -------------------------------------------------------- */
+
+    try {
+      socket = tls.connect(
+        {
+          host,
+          port,
+          rejectUnauthorized: true,
+          servername: host,
+        },
+        () => {
+          console.log(
+            `[email] TLS connection established: ${host}:${port}`
+          );
+        }
+      );
+    } catch (error) {
+      fail(
+        `SMTP connection error: ${
+          error && error.message
+            ? error.message
+            : String(error)
+        }`
+      );
+
+      return;
+    }
+
+    socket.setEncoding('utf8');
+
+    /* --------------------------------------------------------
+       SEND SMTP COMMAND
+       -------------------------------------------------------- */
+
     function send(line) {
-      sock.write(line + '\r\n');
+      if (!socket || socket.destroyed) {
+        fail('SMTP socket is not available.');
+        return;
+      }
+
+      try {
+        socket.write(line + '\r\n');
+      } catch (error) {
+        fail(
+          `SMTP write error: ${
+            error && error.message
+              ? error.message
+              : String(error)
+          }`
+        );
+      }
     }
 
-    function fail(msg) {
-      clearTimeout(timer);
-      sock.destroy();
-      reject(new Error(msg));
-    }
+    /* --------------------------------------------------------
+       SOCKET ERROR
+       -------------------------------------------------------- */
 
-    sock.on('error', (err) => {
-      clearTimeout(timer);
-      reject(err);
+    socket.on('error', (error) => {
+      fail(
+        `SMTP socket error${
+          error && error.code
+            ? ` (${error.code})`
+            : ''
+        }: ${
+          error && error.message
+            ? error.message
+            : String(error)
+        }`
+      );
     });
 
-    sock.on('data', (chunk) => {
-      buf += chunk;
-      // SMTP responses end with \r\n; wait for a complete line
-      if (!buf.endsWith('\n')) return;
-      const line = buf.trim();
-      buf = '';
+    /* --------------------------------------------------------
+       SMTP RESPONSE HANDLER
+       -------------------------------------------------------- */
 
-      // Extract numeric code
-      const code = parseInt(line, 10);
+    socket.on('data', (chunk) => {
+      if (finished) {
+        return;
+      }
 
-      switch (step) {
-        case 0: // greeting
-          if (code !== 220) return fail('SMTP greeting error: ' + line);
-          step = 1;
-          send('EHLO localhost');
-          break;
+      buffer += chunk;
 
-        case 1: // EHLO — may be multi-line (250-...)
-          if (!line.match(/^250 /m) && !line.match(/^250$/m)) return; // still reading
-          step = 2;
-          send('AUTH LOGIN');
-          break;
+      /*
+       * SMTP responses are terminated by CRLF.
+       */
+      while (buffer.includes('\n')) {
+        const index = buffer.indexOf('\n');
 
-        case 2: // AUTH LOGIN prompt for username
-          if (code !== 334) return fail('AUTH LOGIN failed: ' + line);
-          step = 3;
-          send(b64(user));
-          break;
+        let line = buffer.substring(
+          0,
+          index
+        );
 
-        case 3: // AUTH LOGIN prompt for password
-          if (code !== 334) return fail('AUTH LOGIN password prompt error: ' + line);
-          step = 4;
-          send(b64(pass));
-          break;
+        buffer = buffer.substring(index + 1);
 
-        case 4: // AUTH result
-          if (code !== 235) return fail('Authentication failed (' + code + '): ' + line);
-          step = 5;
-          send('MAIL FROM:<' + from + '>');
-          break;
+        line = line.replace(/\r$/, '');
 
-        case 5: // MAIL FROM
-          if (code !== 250) return fail('MAIL FROM rejected: ' + line);
-          step = 6;
-          // Send first RCPT TO
-          send('RCPT TO:<' + toList[0] + '>');
-          break;
+        if (!line) {
+          continue;
+        }
 
-        case 6: // RCPT TO (handle multi-recipient if needed)
-          if (code !== 250) return fail('RCPT TO rejected: ' + line);
-          step = 7;
-          send('DATA');
-          break;
+        const code = parseInt(
+          line.substring(0, 3),
+          10
+        );
 
-        case 7: // DATA prompt
-          if (code !== 354) return fail('DATA command rejected: ' + line);
-          step = 8;
-          sock.write(mimeMessage + '\r\n.\r\n');
-          break;
+        if (Number.isNaN(code)) {
+          continue;
+        }
 
-        case 8: // message accepted
-          if (code !== 250) return fail('Message rejected: ' + line);
-          step = 9;
-          send('QUIT');
-          break;
+        /*
+         * SMTP multiline response:
+         *
+         * 250-example
+         * 250-example
+         * 250 final
+         *
+         * The final line contains a space
+         * after the SMTP status code.
+         */
 
-        case 9: // QUIT
-          clearTimeout(timer);
-          sock.destroy();
-          resolve({ messageId: '<smtp-' + Date.now() + '@' + host + '>', response: line });
-          break;
+        const finalLine =
+          line.length >= 4 &&
+          line[3] === ' ';
+
+        switch (step) {
+          /* ==================================================
+             0. SMTP GREETING
+             ================================================== */
+
+          case 0:
+            if (code !== 220) {
+              fail(
+                `SMTP greeting error (${code}): ${line}`
+              );
+
+              return;
+            }
+
+            step = 1;
+
+            send('EHLO localhost');
+
+            break;
+
+          /* ==================================================
+             1. EHLO
+             ================================================== */
+
+          case 1:
+            if (code !== 250) {
+              fail(
+                `SMTP EHLO failed (${code}): ${line}`
+              );
+
+              return;
+            }
+
+            if (!finalLine) {
+              continue;
+            }
+
+            step = 2;
+
+            send('AUTH LOGIN');
+
+            break;
+
+          /* ==================================================
+             2. USERNAME PROMPT
+             ================================================== */
+
+          case 2:
+            if (code !== 334) {
+              fail(
+                `AUTH LOGIN username prompt failed (${code}): ${line}`
+              );
+
+              return;
+            }
+
+            step = 3;
+
+            send(b64(user));
+
+            break;
+
+          /* ==================================================
+             3. PASSWORD PROMPT
+             ================================================== */
+
+          case 3:
+            if (code !== 334) {
+              fail(
+                `AUTH LOGIN password prompt failed (${code}): ${line}`
+              );
+
+              return;
+            }
+
+            step = 4;
+
+            send(b64(pass));
+
+            break;
+
+          /* ==================================================
+             4. AUTHENTICATION RESULT
+             ================================================== */
+
+          case 4:
+            if (code !== 235) {
+              fail(
+                `SMTP authentication failed (${code}): ${line}`
+              );
+
+              return;
+            }
+
+            step = 5;
+
+            send(
+              `MAIL FROM:<${from}>`
+            );
+
+            break;
+
+          /* ==================================================
+             5. MAIL FROM
+             ================================================== */
+
+          case 5:
+            if (code !== 250) {
+              fail(
+                `MAIL FROM rejected (${code}): ${line}`
+              );
+
+              return;
+            }
+
+            step = 6;
+
+            /*
+             * Send all recipients.
+             */
+            send(
+              `RCPT TO:<${toList[0]}>`
+            );
+
+            break;
+
+          /* ==================================================
+             6. RCPT TO
+             ================================================== */
+
+          case 6:
+            if (
+              code !== 250 &&
+              code !== 251
+            ) {
+              fail(
+                `RCPT TO rejected (${code}): ${line}`
+              );
+
+              return;
+            }
+
+            step = 7;
+
+            send('DATA');
+
+            break;
+
+          /* ==================================================
+             7. DATA
+             ================================================== */
+
+          case 7:
+            if (code !== 354) {
+              fail(
+                `DATA command rejected (${code}): ${line}`
+              );
+
+              return;
+            }
+
+            step = 8;
+
+            try {
+              socket.write(
+                dotStuff(mimeMessage) +
+                '\r\n.\r\n'
+              );
+            } catch (error) {
+              fail(
+                `SMTP DATA error: ${
+                  error && error.message
+                    ? error.message
+                    : String(error)
+                }`
+              );
+            }
+
+            break;
+
+          /* ==================================================
+             8. MESSAGE ACCEPTED
+             ================================================== */
+
+          case 8:
+            if (code !== 250) {
+              fail(
+                `Message rejected (${code}): ${line}`
+              );
+
+              return;
+            }
+
+            step = 9;
+
+            send('QUIT');
+
+            break;
+
+          /* ==================================================
+             9. QUIT
+             ================================================== */
+
+          case 9:
+            success({
+              messageId:
+                `<smtp-${Date.now()}@${host}>`,
+              response: line,
+            });
+
+            if (
+              socket &&
+              !socket.destroyed
+            ) {
+              socket.destroy();
+            }
+
+            break;
+
+          default:
+            fail(
+              `Unknown SMTP state: ${step}`
+            );
+        }
+      }
+    });
+
+    /* --------------------------------------------------------
+       SOCKET CLOSED
+       -------------------------------------------------------- */
+
+    socket.on('close', () => {
+      if (!finished) {
+        fail(
+          'SMTP connection closed unexpectedly.'
+        );
       }
     });
   });
 }
 
-/* ── public sendMail ─────────────────────────────────────────────────────────── */
-async function sendMail({ to, subject, html, attachments }) {
-  const smtpHost = (process.env.SMTP_HOST || '').trim();
+/* ============================================================
+   PUBLIC sendMail()
+   ============================================================ */
+
+async function sendMail({
+  to,
+  subject,
+  html,
+  attachments = [],
+}) {
+  const smtpHost =
+    (process.env.SMTP_HOST || '').trim();
+
+  /* ----------------------------------------------------------
+     SMTP NOT CONFIGURED
+     ---------------------------------------------------------- */
 
   if (!smtpHost) {
-    const toAddr = Array.isArray(to) ? to.join(',') : to;
-    console.log(`[email:DRY-RUN] To:${toAddr} | Subject:${subject}`);
-    return { success: false, dryRun: true };
+    const toAddress =
+      Array.isArray(to)
+        ? to.join(',')
+        : to;
+
+    console.log(
+      `[email:DRY-RUN] To:${toAddress} | Subject:${subject}`
+    );
+
+    return {
+      success: false,
+      dryRun: true,
+      error:
+        'SMTP_HOST is not configured',
+    };
   }
 
-  const isGmail = smtpHost.toLowerCase() === 'smtp.gmail.com';
-  const smtpPort = isGmail ? 465 : (Number(process.env.SMTP_PORT) || 587);
-  const smtpUser = process.env.SMTP_USER || '';
-  const smtpPass = process.env.SMTP_PASSWORD || '';
-  const fromAddr = process.env.SMTP_FROM || smtpUser || 'no-reply@doc-automation.local';
-  const toList   = Array.isArray(to) ? to : [to];
+  /* ----------------------------------------------------------
+     SMTP SETTINGS
+     ---------------------------------------------------------- */
+
+  const isGmail =
+    smtpHost.toLowerCase() ===
+    'smtp.gmail.com';
+
+  /*
+   * tls.connect() requires implicit TLS.
+   *
+   * Gmail:
+   *     smtp.gmail.com
+   *     port 465
+   */
+
+  const smtpPort = isGmail
+    ? 465
+    : Number(process.env.SMTP_PORT) || 465;
+
+  const smtpUser =
+    (process.env.SMTP_USER || '').trim();
+
+  const smtpPass =
+    process.env.SMTP_PASSWORD || '';
+
+  const fromAddress =
+    (
+      process.env.SMTP_FROM ||
+      smtpUser ||
+      'no-reply@doc-automation.local'
+    ).trim();
+
+  const toList =
+    Array.isArray(to)
+      ? to.filter(Boolean)
+      : [to].filter(Boolean);
+
+  /* ----------------------------------------------------------
+     VALIDATE CONFIGURATION
+     ---------------------------------------------------------- */
+
+  if (!smtpUser) {
+    const error =
+      'SMTP_USER is not configured.';
+
+    console.error(
+      '[email] send failed:',
+      error
+    );
+
+    return {
+      success: false,
+      error,
+    };
+  }
+
+  if (!smtpPass) {
+    const error =
+      'SMTP_PASSWORD is not configured.';
+
+    console.error(
+      '[email] send failed:',
+      error
+    );
+
+    return {
+      success: false,
+      error,
+    };
+  }
+
+  if (!toList.length) {
+    const error =
+      'Recipient email address is missing.';
+
+    console.error(
+      '[email] send failed:',
+      error
+    );
+
+    return {
+      success: false,
+      error,
+    };
+  }
+
+  console.log(
+    `[email] Connecting to ${smtpHost}:${smtpPort} ` +
+    `as ${smtpUser}`
+  );
 
   try {
-    const mime = buildMimeMessage({ from: fromAddr, to: toList, subject, html, attachments });
-    const info = await smtpSend({
-      host: smtpHost,
-      port: smtpPort,
-      user: smtpUser,
-      pass: smtpPass,
-      from: fromAddr,
-      to:   toList,
-      mimeMessage: mime,
-    });
-    console.log(`[email] sent → ${toList.join(',')} | msgId:${info.messageId}`);
-    return { success: true, messageId: info.messageId };
-  } catch (err) {
-    console.error('[email] send failed:', err.message);
-    return { success: false, error: err.message };
+    /* --------------------------------------------------------
+       BUILD MIME MESSAGE
+       -------------------------------------------------------- */
+
+    const mimeMessage =
+      buildMimeMessage({
+        from: fromAddress,
+        to: toList,
+        subject,
+        html,
+        attachments,
+      });
+
+    /* --------------------------------------------------------
+       SEND EMAIL
+       -------------------------------------------------------- */
+
+    const info =
+      await smtpSend({
+        host: smtpHost,
+        port: smtpPort,
+        user: smtpUser,
+        pass: smtpPass,
+        from: fromAddress,
+        to: toList,
+        mimeMessage,
+      });
+
+    console.log(
+      `[email] sent → ${toList.join(', ')} | ` +
+      `msgId:${info.messageId}`
+    );
+
+    return {
+      success: true,
+      messageId: info.messageId,
+    };
+  } catch (error) {
+    const message =
+      error && error.message
+        ? error.message
+        : String(error);
+
+    console.error(
+      '[email] send failed:',
+      message
+    );
+
+    if (error) {
+      console.error(
+        '[email] error code:',
+        error.code || 'N/A'
+      );
+
+      if (error.stack) {
+        console.error(
+          '[email] stack:',
+          error.stack
+        );
+      }
+    }
+
+    return {
+      success: false,
+      error: message,
+    };
   }
 }
 
-/* ── Templates ────────────────────────────────────────────────────────────────── */
+/* ============================================================
+   EMAIL TEMPLATES
+   ============================================================ */
+
 const templates = {
-  docReadyForSigning: ({ approverName, docId, otpNote, reviewUrl, resubmitNote }) => ({
-    subject: `Action required: Document ${docId} awaiting your signature`,
-    html: `<p>Hi ${approverName},</p>
-      <p>Document <b>${docId}</b> is awaiting your approval.</p>
-      ${resubmitNote ? `<p><b>What was fixed:</b> ${resubmitNote}</p>` : ''}
-      <p><a href="${reviewUrl}">Review the document</a> ${otpNote || ''}</p>`,
+  /* ==========================================================
+     DOCUMENT READY FOR SIGNING
+     ========================================================== */
+
+  docReadyForSigning: ({
+    approverName,
+    docId,
+    otpNote,
+    reviewUrl,
+    resubmitNote,
+  }) => ({
+    subject:
+      `Action required: Document ${docId} awaiting your signature`,
+
+    html: `
+      <p>Hi ${approverName || 'there'},</p>
+
+      <p>
+        Document <b>${docId}</b>
+        is awaiting your approval.
+      </p>
+
+      ${
+        resubmitNote
+          ? `
+            <p>
+              <b>What was fixed:</b>
+              ${resubmitNote}
+            </p>
+          `
+          : ''
+      }
+
+      <p>
+        <a href="${reviewUrl}">
+          Review the document
+        </a>
+      </p>
+
+      ${otpNote || ''}
+    `,
   }),
 
-  docSigned: ({ generatorName, docId, reviewUrl }) => ({
-    subject: `Document ${docId} has been signed`,
-    html: `<p>Hi ${generatorName},</p>
-      <p>Document <b>${docId}</b> was approved and digitally signed.</p>
-      <p><a href="${reviewUrl}">Review the signed document</a></p>`,
+  /* ==========================================================
+     DOCUMENT SIGNED
+     ========================================================== */
+
+  docSigned: ({
+    generatorName,
+    docId,
+    reviewUrl,
+  }) => ({
+    subject:
+      `Document ${docId} has been signed`,
+
+    html: `
+      <p>
+        Hi ${generatorName || 'there'},
+      </p>
+
+      <p>
+        Document <b>${docId}</b>
+        was approved and digitally signed.
+      </p>
+
+      <p>
+        <a href="${reviewUrl}">
+          Review the signed document
+        </a>
+      </p>
+    `,
   }),
 
-  docRejected: ({ generatorName, docId, reason, reviewUrl, requiresLogin = false }) => ({
-    subject: `Document ${docId} was rejected`,
-    html: `<p>Hi ${generatorName},</p>
-      <p>Document <b>${docId}</b> was rejected. <b>Reason:</b> ${reason}</p>
-      <p>It has been reverted to Draft status.</p>
-      <p><a href="${reviewUrl}">Review the document</a>${requiresLogin
-        ? ' — sign in to open it.'
-        : ' — one-time link, no login required.'}</p>`,
+  /* ==========================================================
+     DOCUMENT REJECTED
+     ========================================================== */
+
+  docRejected: ({
+    generatorName,
+    docId,
+    reason,
+    reviewUrl,
+    requiresLogin = false,
+  }) => ({
+    subject:
+      `Document ${docId} was rejected`,
+
+    html: `
+      <p>
+        Hi ${generatorName || 'there'},
+      </p>
+
+      <p>
+        Document <b>${docId}</b>
+        was rejected.
+      </p>
+
+      <p>
+        <b>Reason:</b>
+        ${reason || 'No reason provided.'}
+      </p>
+
+      <p>
+        It has been reverted to Draft status.
+      </p>
+
+      <p>
+        <a href="${reviewUrl}">
+          Review the document
+        </a>
+
+        ${
+          requiresLogin
+            ? ' — sign in to open it.'
+            : ' — one-time link, no login required.'
+        }
+      </p>
+    `,
   }),
 
-  reminder24h: ({ approverName, docId }) => ({
-    subject: `Reminder: Document ${docId} still awaiting signature`,
-    html: `<p>Hi ${approverName},</p><p>Document <b>${docId}</b> is still pending your review.</p>`,
+  /* ==========================================================
+     24-HOUR REMINDER
+     ========================================================== */
+
+  reminder24h: ({
+    approverName,
+    docId,
+  }) => ({
+    subject:
+      `Reminder: Document ${docId} still awaiting signature`,
+
+    html: `
+      <p>
+        Hi ${approverName || 'there'},
+      </p>
+
+      <p>
+        Document <b>${docId}</b>
+        is still pending your review.
+      </p>
+    `,
   }),
 
-  escalation72h: ({ generatorName, approverName, docId }) => ({
-    subject: `Escalation: Document ${docId} unsigned for 72+ hours`,
-    html: `<p>Document <b>${docId}</b> unsigned 72+ hrs. Generator:${generatorName} | Approver:${approverName}</p>`,
+  /* ==========================================================
+     72-HOUR ESCALATION
+     ========================================================== */
+
+  escalation72h: ({
+    generatorName,
+    approverName,
+    docId,
+  }) => ({
+    subject:
+      `Escalation: Document ${docId} unsigned for 72+ hours`,
+
+    html: `
+      <p>
+        Document <b>${docId}</b>
+        has remained unsigned for 72+ hours.
+      </p>
+
+      <p>
+        <b>Generator:</b>
+        ${generatorName || 'N/A'}
+      </p>
+
+      <p>
+        <b>Approver:</b>
+        ${approverName || 'N/A'}
+      </p>
+    `,
   }),
 
-  deliveryReady: ({ recipientName, docId, downloadUrl }) => ({
-    subject: `Your document ${docId} is ready`,
-    html: `<p>Hi ${recipientName || 'there'},</p>
-      <p><a href="${downloadUrl}">Open secure link</a> (expires 7 days)</p>`,
+  /* ==========================================================
+     DELIVERY READY
+     ========================================================== */
+
+  deliveryReady: ({
+    recipientName,
+    docId,
+    downloadUrl,
+  }) => ({
+    subject:
+      `Your document ${docId} is ready`,
+
+    html: `
+      <p>
+        Hi ${recipientName || 'there'},
+      </p>
+
+      <p>
+        Your document
+        <b>${docId}</b>
+        is ready.
+      </p>
+
+      <p>
+        <a href="${downloadUrl}">
+          Open secure link
+        </a>
+        <br>
+        <small>
+          Link expires in 7 days.
+        </small>
+      </p>
+    `,
   }),
 
-  secureLinkReady: ({ docId, downloadUrl }) => ({
-    subject: `A document (${docId}) has been shared with you`,
-    html: `<p>Hi,</p><p><a href="${downloadUrl}">Open secure link</a> (expires 7 days, single-use)</p>`,
+  /* ==========================================================
+     SECURE LINK READY
+     ========================================================== */
+
+  secureLinkReady: ({
+    docId,
+    downloadUrl,
+  }) => ({
+    subject:
+      `A document (${docId}) has been shared with you`,
+
+    html: `
+      <p>Hi,</p>
+
+      <p>
+        A document has been shared with you.
+      </p>
+
+      <p>
+        <a href="${downloadUrl}">
+          Open secure link
+        </a>
+      </p>
+
+      <p>
+        <small>
+          The link expires in 7 days
+          and can be used only once.
+        </small>
+      </p>
+    `,
   }),
 
-  documentAttached: ({ docId }) => ({
-    subject: `Document ${docId}`,
-    html: `<p>Hi,</p><p>Please find your document attached (ID: <b>${docId}</b>).</p>`,
+  /* ==========================================================
+     DOCUMENT ATTACHED
+     ========================================================== */
+
+  documentAttached: ({
+    docId,
+  }) => ({
+    subject:
+      `Document ${docId}`,
+
+    html: `
+      <p>Hi,</p>
+
+      <p>
+        Please find your document attached.
+      </p>
+
+      <p>
+        Document ID:
+        <b>${docId}</b>
+      </p>
+    `,
   }),
 
-  passwordReset: ({ fullName, resetUrl }) => ({
-    subject: 'Reset your Doc Automation password',
-    html: `<p>Hi ${fullName || 'there'},</p>
-      <p><a href="${resetUrl}" style="display:inline-block;padding:10px 20px;background:#0F2747;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">Reset Your Password</a></p>
-      <p style="font-size:0.85em;color:#64748B;">Expires in 1 hour, single-use. Ignore if you didn't request this.</p>`,
+  /* ==========================================================
+     PASSWORD RESET
+     ========================================================== */
+
+  passwordReset: ({
+    fullName,
+    resetUrl,
+  }) => ({
+    subject:
+      'Reset your Doc Automation password',
+
+    html: `
+      <p>
+        Hi ${fullName || 'there'},
+      </p>
+
+      <p>
+        We received a request to reset
+        your Doc Automation password.
+      </p>
+
+      <p>
+        <a
+          href="${resetUrl}"
+          style="
+            display:inline-block;
+            padding:10px 20px;
+            background:#0F2747;
+            color:#ffffff;
+            border-radius:6px;
+            text-decoration:none;
+            font-weight:600;
+          "
+        >
+          Reset Your Password
+        </a>
+      </p>
+
+      <p
+        style="
+          font-size:0.85em;
+          color:#64748B;
+        "
+      >
+        Expires in 1 hour and can be used
+        only once.
+        Ignore this email if you didn't
+        request a password reset.
+      </p>
+    `,
   }),
 
-  secureDeliveryReady: ({ recipientName, docId, secureUrl, otpCode }) => ({
-    subject: `A document (${docId}) requires your confirmation`,
-    html: `<p>Hi ${recipientName || 'there'},</p>
-      <p>A document requires confirmation before download.</p>
-      <p><a href="${secureUrl}">Open the secure document link</a> (single-use, 7 days).</p>
-      <p>Your one-time code: <b>${otpCode}</b> (expires in 5 minutes).</p>`,
+  /* ==========================================================
+     SECURE DELIVERY READY
+     ========================================================== */
+
+  secureDeliveryReady: ({
+    recipientName,
+    docId,
+    secureUrl,
+    otpCode,
+  }) => ({
+    subject:
+      `A document (${docId}) requires your confirmation`,
+
+    html: `
+      <p>
+        Hi ${recipientName || 'there'},
+      </p>
+
+      <p>
+        A document requires your confirmation
+        before download.
+      </p>
+
+      <p>
+        <a href="${secureUrl}">
+          Open the secure document link
+        </a>
+      </p>
+
+      <p>
+        <small>
+          The secure link is single-use
+          and expires in 7 days.
+        </small>
+      </p>
+
+      <p>
+        Your one-time code:
+        <b>${otpCode}</b>
+      </p>
+
+      <p>
+        <small>
+          The OTP expires in 5 minutes.
+        </small>
+      </p>
+    `,
   }),
 
-  secureDeliveryPlainCopy: ({ docId }) => ({
-    subject: `Document ${docId} (copy)`,
-    html: `<p>Hi,</p><p>Please find a copy of your document attached (ID: <b>${docId}</b>).</p>`,
+  /* ==========================================================
+     SECURE DELIVERY PLAIN COPY
+     ========================================================== */
+
+  secureDeliveryPlainCopy: ({
+    docId,
+  }) => ({
+    subject:
+      `Document ${docId} (copy)`,
+
+    html: `
+      <p>Hi,</p>
+
+      <p>
+        Please find a copy of your document
+        attached.
+      </p>
+
+      <p>
+        Document ID:
+        <b>${docId}</b>
+      </p>
+    `,
   }),
 
-  deliveryOwned: ({ generatorName, docId, recipientName, reviewUrl }) => ({
-    subject: `Document ${docId} confirmed by recipient`,
-    html: `<p>Hi ${generatorName || 'there'},</p>
-      <p><b>${recipientName || 'The recipient'}</b> confirmed document <b>${docId}</b>.</p>
-      <p><a href="${reviewUrl}" style="display:inline-block;padding:10px 20px;background:#0F2747;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">View Submitted Document</a></p>`,
+  /* ==========================================================
+     DELIVERY OWNED
+     ========================================================== */
+
+  deliveryOwned: ({
+    generatorName,
+    docId,
+    recipientName,
+    reviewUrl,
+  }) => ({
+    subject:
+      `Document ${docId} confirmed by recipient`,
+
+    html: `
+      <p>
+        Hi ${generatorName || 'there'},
+      </p>
+
+      <p>
+        <b>
+          ${recipientName || 'The recipient'}
+        </b>
+        confirmed document
+        <b>${docId}</b>.
+      </p>
+
+      <p>
+        <a
+          href="${reviewUrl}"
+          style="
+            display:inline-block;
+            padding:10px 20px;
+            background:#0F2747;
+            color:#ffffff;
+            border-radius:6px;
+            text-decoration:none;
+            font-weight:600;
+          "
+        >
+          View Submitted Document
+        </a>
+      </p>
+    `,
   }),
 
-  ownershipRejected: ({ generatorName, docId, recipientName, reason }) => ({
-    subject: `Document ${docId} was rejected by the recipient`,
-    html: `<p>Hi ${generatorName || 'there'},</p>
-      <p><b>${recipientName || 'The recipient'}</b> rejected document <b>${docId}</b>.</p>
-      <p><b>Reason:</b> ${reason}</p>
-      <p>Download link blocked. Please verify recipient and re-send.</p>`,
+  /* ==========================================================
+     OWNERSHIP REJECTED
+     ========================================================== */
+
+  ownershipRejected: ({
+    generatorName,
+    docId,
+    recipientName,
+    reason,
+  }) => ({
+    subject:
+      `Document ${docId} was rejected by the recipient`,
+
+    html: `
+      <p>
+        Hi ${generatorName || 'there'},
+      </p>
+
+      <p>
+        <b>
+          ${recipientName || 'The recipient'}
+        </b>
+        rejected document
+        <b>${docId}</b>.
+      </p>
+
+      <p>
+        <b>Reason:</b>
+      </p>
+
+      <p>
+        ${reason || 'No reason provided.'}
+      </p>
+
+      <p>
+        Download link blocked.
+        Please verify the recipient
+        and re-send the document.
+      </p>
+    `,
   }),
 
-  ownershipRejectedWithLink: ({ generatorName, docId, recipientName, reason, reviewUrl }) => ({
-    subject: `Document ${docId} was rejected by the recipient`,
-    html: `<p>Hi ${generatorName || 'there'},</p>
-      <p><b>${recipientName || 'The recipient'}</b> rejected document <b>${docId}</b>.</p>
-      <p><b>Reason:</b> ${reason}</p>
-      <p><a href="${reviewUrl}" style="display:inline-block;padding:10px 20px;background:#6366F1;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">Review Rejection &amp; Edit / Resubmit</a></p>`,
+  /* ==========================================================
+     OWNERSHIP REJECTED WITH LINK
+     ========================================================== */
+
+  ownershipRejectedWithLink: ({
+    generatorName,
+    docId,
+    recipientName,
+    reason,
+    reviewUrl,
+  }) => ({
+    subject:
+      `Document ${docId} was rejected by the recipient`,
+
+    html: `
+      <p>
+        Hi ${generatorName || 'there'},
+      </p>
+
+      <p>
+        <b>
+          ${recipientName || 'The recipient'}
+        </b>
+        rejected document
+        <b>${docId}</b>.
+      </p>
+
+      <p>
+        <b>Reason:</b>
+      </p>
+
+      <p>
+        ${reason || 'No reason provided.'}
+      </p>
+
+      <p>
+        <a
+          href="${reviewUrl}"
+          style="
+            display:inline-block;
+            padding:10px 20px;
+            background:#6366F1;
+            color:#ffffff;
+            border-radius:6px;
+            text-decoration:none;
+            font-weight:600;
+          "
+        >
+          Review Rejection &amp;
+          Edit / Resubmit
+        </a>
+      </p>
+    `,
   }),
 };
 
-module.exports = { sendMail, templates };
+/* ============================================================
+   EXPORTS
+   ============================================================ */
+
+module.exports = {
+  sendMail,
+  templates,
+};
