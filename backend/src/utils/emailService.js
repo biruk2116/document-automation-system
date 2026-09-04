@@ -1,127 +1,115 @@
 'use strict';
 
-const nodemailer = require('nodemailer');
-const dotenv = require('dotenv');
+const { Resend } = require('resend');
 
-dotenv.config();
+require('dotenv').config();
 
 /* ─────────────────────────────────────────────────────────────────────────────
- * SMTP CONFIGURATION
- * ─────────────────────────────────────────────────────────────────────────── */
+ * Resend configuration
+ * ──────────────────────────────────────────────────────────────────────────── */
 
-const smtpHost = (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
-const smtpPort = Number(process.env.SMTP_PORT || 465);
-const smtpUser = (process.env.SMTP_USER || '').trim();
-const smtpPassword = (process.env.SMTP_PASSWORD || '').trim();
-const smtpFrom = (process.env.SMTP_FROM || smtpUser).trim();
+const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
 
-/*
- * Gmail:
- *   SMTP_HOST=smtp.gmail.com
- *   SMTP_PORT=465
- *   secure=true
- *
- * Port 465 uses direct TLS.
+const resend = resendApiKey
+  ? new Resend(resendApiKey)
+  : null;
+
+const fromAddress =
+  (process.env.RESEND_FROM || '').trim() ||
+  'Doc Automation <onboarding@resend.dev>';
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Helpers
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Normalize recipient list.
  */
-const transporter = nodemailer.createTransport({
-  host: smtpHost,
-  port: smtpPort,
-
-  // Port 587 uses STARTTLS.
-  secure: false,
-
-  auth: {
-    user: smtpUser,
-    pass: smtpPassword,
-  },
-
-  connectionTimeout: 30000,
-  greetingTimeout: 30000,
-  socketTimeout: 60000,
-
-  requireTLS: true,
-
-  tls: {
-    minVersion: 'TLSv1.2',
-  },
-});
-
-
-/* ─────────────────────────────────────────────────────────────────────────────
- * SMTP CONFIGURATION VALIDATION
- * ─────────────────────────────────────────────────────────────────────────── */
-
-function validateEmailConfiguration() {
-  const missing = [];
-
-  if (!smtpHost) {
-    missing.push('SMTP_HOST');
+function normalizeRecipients(to) {
+  if (Array.isArray(to)) {
+    return to
+      .map((email) => String(email || '').trim())
+      .filter(Boolean);
   }
 
-  if (!smtpUser) {
-    missing.push('SMTP_USER');
+  if (typeof to === 'string') {
+    return to
+      .split(',')
+      .map((email) => email.trim())
+      .filter(Boolean);
   }
 
-  if (!smtpPassword) {
-    missing.push('SMTP_PASSWORD');
+  return [];
+}
+
+
+/**
+ * Normalize attachments for Resend.
+ *
+ * The existing application may provide attachments like:
+ *
+ * {
+ *   filename: 'document.pdf',
+ *   content: Buffer,
+ *   contentType: 'application/pdf'
+ * }
+ *
+ * Resend accepts Buffer content directly.
+ */
+function normalizeAttachments(attachments) {
+  if (!Array.isArray(attachments) || attachments.length === 0) {
+    return undefined;
   }
 
-  if (!smtpFrom) {
-    missing.push('SMTP_FROM');
-  }
+  return attachments
+    .filter((att) => att && att.filename && att.content)
+    .map((att) => {
+      let content = att.content;
 
-  if (missing.length > 0) {
-    throw new Error(
-      `Email configuration missing: ${missing.join(', ')}`
-    );
-  }
+      /*
+       * Resend supports Buffer content.
+       * Convert strings/other values to Buffer so that generated
+       * PDFs and other binary documents remain intact.
+       */
+      if (!Buffer.isBuffer(content)) {
+        content = Buffer.from(content);
+      }
+
+      return {
+        filename: String(att.filename),
+        content,
+      };
+    });
+}
+
+
+/**
+ * Basic email validation.
+ */
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 
 /* ─────────────────────────────────────────────────────────────────────────────
- * EMAIL CONNECTION TEST
- * ─────────────────────────────────────────────────────────────────────────── */
+ * Public sendMail
+ * ──────────────────────────────────────────────────────────────────────────── */
 
-/*
- * This function can be used during startup or debugging.
+/**
+ * Send an email through Resend's HTTPS API.
  *
- * It verifies that:
- *   1. Render can connect to Gmail.
- *   2. Gmail accepts the SMTP credentials.
+ * Existing application code can continue using:
  *
- * It does NOT send an email.
+ * sendMail({
+ *   to,
+ *   subject,
+ *   html,
+ *   attachments
+ * });
+ *
+ * No SMTP connection is used.
  */
-async function verifyEmailConnection() {
-  validateEmailConfiguration();
-
-  try {
-    await transporter.verify();
-
-    console.log(
-      `[email] SMTP connection verified: ${smtpHost}:${smtpPort} as ${smtpUser}`
-    );
-
-    return true;
-  } catch (error) {
-    console.error('[email] SMTP verification failed:', error);
-
-    if (error && error.code) {
-      console.error('[email] error code:', error.code);
-    }
-
-    if (error && error.command) {
-      console.error('[email] SMTP command:', error.command);
-    }
-
-    throw error;
-  }
-}
-
-
-/* ─────────────────────────────────────────────────────────────────────────────
- * PUBLIC sendMail()
- * ─────────────────────────────────────────────────────────────────────────── */
-
 async function sendMail({
   to,
   subject,
@@ -129,68 +117,54 @@ async function sendMail({
   text,
   attachments,
 }) {
-  /*
-   * Validate recipient.
-   */
-  if (!to) {
-    console.error('[email] send failed: recipient email is missing');
-
-    return {
-      success: false,
-      error: 'Recipient email is required',
-    };
-  }
-
-  /*
-   * Validate SMTP configuration.
-   */
-  try {
-    validateEmailConfiguration();
-  } catch (error) {
-    console.error('[email] configuration error:', error.message);
-
-    return {
-      success: false,
-      error: error.message,
-    };
-  }
-
-  /*
-   * Normalize recipients.
-   */
-  const toList = Array.isArray(to)
-    ? to.filter(Boolean)
-    : [to];
+  const toList = normalizeRecipients(to);
 
   if (toList.length === 0) {
+    console.error('[email] No recipient email address provided.');
+
     return {
       success: false,
-      error: 'No valid recipient email address provided',
+      error: 'No recipient email address provided.',
     };
   }
 
-  /*
-   * Convert attachments to Nodemailer format.
-   *
-   * Your existing code already sends attachment objects containing:
-   *
-   *   {
-   *     filename,
-   *     content,
-   *     contentType
-   *   }
-   *
-   * Nodemailer accepts the same structure.
-   */
-  const normalizedAttachments = Array.isArray(attachments)
-    ? attachments.map((attachment) => ({
-        filename: attachment.filename,
-        content: attachment.content,
-        contentType:
-          attachment.contentType ||
-          'application/octet-stream',
-      }))
-    : undefined;
+  const invalidRecipients = toList.filter(
+    (email) => !isValidEmail(email)
+  );
+
+  if (invalidRecipients.length > 0) {
+    console.error(
+      '[email] Invalid recipient email address(es):',
+      invalidRecipients
+    );
+
+    return {
+      success: false,
+      error: `Invalid recipient email address: ${invalidRecipients.join(', ')}`,
+    };
+  }
+
+  if (!subject) {
+    console.error('[email] Email subject is missing.');
+
+    return {
+      success: false,
+      error: 'Email subject is required.',
+    };
+  }
+
+  if (!resend) {
+    console.error(
+      '[email] RESEND_API_KEY is not configured. Email not sent.'
+    );
+
+    return {
+      success: false,
+      error: 'RESEND_API_KEY is not configured.',
+    };
+  }
+
+  const resendAttachments = normalizeAttachments(attachments);
 
   try {
     console.log(
@@ -198,97 +172,120 @@ async function sendMail({
     );
 
     console.log(
-      `[email] SMTP: ${smtpHost}:${smtpPort} as ${smtpUser}`
+      `[email] Provider: Resend HTTP API`
     );
 
-    const mailOptions = {
-      from: smtpFrom,
-      to: toList.join(', '),
-      subject: subject || '',
-      text: text || '',
-      html: html || '',
+    console.log(
+      `[email] From: ${fromAddress}`
+    );
+
+    const payload = {
+      from: fromAddress,
+      to: toList,
+      subject: String(subject),
+      html: html || '<p></p>',
     };
 
-    if (normalizedAttachments && normalizedAttachments.length > 0) {
-      mailOptions.attachments = normalizedAttachments;
+    /*
+     * Plain-text fallback is optional but recommended.
+     */
+    if (text) {
+      payload.text = String(text);
     }
 
-    const info = await transporter.sendMail(mailOptions);
+    /*
+     * Add attachments only when they exist.
+     */
+    if (resendAttachments && resendAttachments.length > 0) {
+      payload.attachments = resendAttachments;
+
+      console.log(
+        `[email] Attachments: ${resendAttachments.length}`
+      );
+    }
+
+    const { data, error } = await resend.emails.send(payload);
+
+    if (error) {
+      console.error('[email] Resend API error:', error);
+
+      return {
+        success: false,
+        error:
+          error.message ||
+          error.name ||
+          'Resend API returned an error.',
+      };
+    }
+
+    const messageId = data?.id || null;
 
     console.log(
-      `[email] sent successfully → ${toList.join(', ')}`
+      `[email] Email sent successfully → ${toList.join(', ')}`
     );
 
     console.log(
-      `[email] messageId: ${info.messageId}`
-    );
-
-    console.log(
-      `[email] response: ${info.response || 'accepted'}`
+      `[email] Resend message ID: ${messageId || 'unknown'}`
     );
 
     return {
       success: true,
-      messageId: info.messageId,
-      response: info.response,
+      messageId,
+      provider: 'resend',
     };
-
-  } catch (error) {
-    /*
-     * IMPORTANT:
-     *
-     * Do not only print error.message.
-     * Your previous implementation produced:
-     *
-     *   [email] send failed:
-     *
-     * because the useful socket information was hidden.
-     *
-     * We now print the complete error information.
-     */
-    console.error(
-      '[email] send failed:',
-      error
-    );
-
-    if (error && error.code) {
-      console.error(
-        '[email] error code:',
-        error.code
-      );
-    }
-
-    if (error && error.command) {
-      console.error(
-        '[email] SMTP command:',
-        error.command
-      );
-    }
-
-    if (error && error.response) {
-      console.error(
-        '[email] SMTP response:',
-        error.response
-      );
-    }
+  } catch (err) {
+    console.error('[email] Resend send failed:', err);
 
     return {
       success: false,
-      error: error?.message || String(error),
-      code: error?.code || null,
-      command: error?.command || null,
-      response: error?.response || null,
+      error: err.message || 'Failed to send email.',
     };
   }
 }
 
 
 /* ─────────────────────────────────────────────────────────────────────────────
- * EMAIL TEMPLATES
- * ─────────────────────────────────────────────────────────────────────────── */
+ * Optional connection/configuration verification
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Resend does not require an SMTP connection.
+ *
+ * This function simply verifies that the API key is configured.
+ *
+ * It is intentionally NOT called automatically on startup because we don't
+ * want the server startup to fail just because email configuration is missing.
+ */
+async function verifyEmailConnection() {
+  if (!resendApiKey) {
+    console.warn(
+      '[email] RESEND_API_KEY is not configured.'
+    );
+
+    return {
+      success: false,
+      configured: false,
+      error: 'RESEND_API_KEY is not configured.',
+    };
+  }
+
+  console.log(
+    '[email] Resend API configuration detected.'
+  );
+
+  return {
+    success: true,
+    configured: true,
+    provider: 'resend',
+  };
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Email Templates
+ * ──────────────────────────────────────────────────────────────────────────── */
 
 const templates = {
-
   docReadyForSigning: ({
     approverName,
     docId,
@@ -297,7 +294,6 @@ const templates = {
     resubmitNote,
   }) => ({
     subject: `Action required: Document ${docId} awaiting your signature`,
-
     html: `
       <p>Hi ${approverName},</p>
 
@@ -327,13 +323,11 @@ const templates = {
     reviewUrl,
   }) => ({
     subject: `Document ${docId} has been signed`,
-
     html: `
       <p>Hi ${generatorName},</p>
 
       <p>
-        Document <b>${docId}</b>
-        was approved and digitally signed.
+        Document <b>${docId}</b> was approved and digitally signed.
       </p>
 
       <p>
@@ -353,7 +347,6 @@ const templates = {
     requiresLogin = false,
   }) => ({
     subject: `Document ${docId} was rejected`,
-
     html: `
       <p>Hi ${generatorName},</p>
 
@@ -384,15 +377,12 @@ const templates = {
     approverName,
     docId,
   }) => ({
-    subject:
-      `Reminder: Document ${docId} still awaiting signature`,
-
+    subject: `Reminder: Document ${docId} still awaiting signature`,
     html: `
       <p>Hi ${approverName},</p>
 
       <p>
-        Document <b>${docId}</b>
-        is still pending your review.
+        Document <b>${docId}</b> is still pending your review.
       </p>
     `,
   }),
@@ -403,18 +393,15 @@ const templates = {
     approverName,
     docId,
   }) => ({
-    subject:
-      `Escalation: Document ${docId} unsigned for 72+ hours`,
-
+    subject: `Escalation: Document ${docId} unsigned for 72+ hours`,
     html: `
       <p>
-        Document <b>${docId}</b>
-        unsigned 72+ hrs.
+        Document <b>${docId}</b> unsigned 72+ hrs.
       </p>
 
       <p>
         Generator: ${generatorName}
-        |
+        <br>
         Approver: ${approverName}
       </p>
     `,
@@ -426,12 +413,14 @@ const templates = {
     docId,
     downloadUrl,
   }) => ({
-    subject:
-      `Your document ${docId} is ready`,
-
+    subject: `Your document ${docId} is ready`,
     html: `
       <p>
         Hi ${recipientName || 'there'},
+      </p>
+
+      <p>
+        Your document <b>${docId}</b> is ready.
       </p>
 
       <p>
@@ -448,11 +437,13 @@ const templates = {
     docId,
     downloadUrl,
   }) => ({
-    subject:
-      `A document (${docId}) has been shared with you`,
-
+    subject: `A document (${docId}) has been shared with you`,
     html: `
       <p>Hi,</p>
+
+      <p>
+        A document has been shared with you.
+      </p>
 
       <p>
         <a href="${downloadUrl}">
@@ -467,9 +458,7 @@ const templates = {
   documentAttached: ({
     docId,
   }) => ({
-    subject:
-      `Document ${docId}`,
-
+    subject: `Document ${docId}`,
     html: `
       <p>Hi,</p>
 
@@ -485,12 +474,15 @@ const templates = {
     fullName,
     resetUrl,
   }) => ({
-    subject:
-      'Reset your Doc Automation password',
-
+    subject: 'Reset your Doc Automation password',
     html: `
       <p>
         Hi ${fullName || 'there'},
+      </p>
+
+      <p>
+        We received a request to reset your
+        Doc Automation password.
       </p>
 
       <p>
@@ -510,14 +502,9 @@ const templates = {
         </a>
       </p>
 
-      <p
-        style="
-          font-size:0.85em;
-          color:#64748B;
-        "
-      >
+      <p style="font-size:0.85em;color:#64748B;">
         Expires in 1 hour, single-use.
-        Ignore if you didn't request this.
+        Ignore this email if you didn't request it.
       </p>
     `,
   }),
@@ -529,17 +516,14 @@ const templates = {
     secureUrl,
     otpCode,
   }) => ({
-    subject:
-      `A document (${docId}) requires your confirmation`,
-
+    subject: `A document (${docId}) requires your confirmation`,
     html: `
       <p>
         Hi ${recipientName || 'there'},
       </p>
 
       <p>
-        A document requires confirmation
-        before download.
+        A document requires confirmation before download.
       </p>
 
       <p>
@@ -561,9 +545,7 @@ const templates = {
   secureDeliveryPlainCopy: ({
     docId,
   }) => ({
-    subject:
-      `Document ${docId} (copy)`,
-
+    subject: `Document ${docId} (copy)`,
     html: `
       <p>Hi,</p>
 
@@ -581,9 +563,7 @@ const templates = {
     recipientName,
     reviewUrl,
   }) => ({
-    subject:
-      `Document ${docId} confirmed by recipient`,
-
+    subject: `Document ${docId} confirmed by recipient`,
     html: `
       <p>
         Hi ${generatorName || 'there'},
@@ -620,9 +600,7 @@ const templates = {
     recipientName,
     reason,
   }) => ({
-    subject:
-      `Document ${docId} was rejected by the recipient`,
-
+    subject: `Document ${docId} was rejected by the recipient`,
     html: `
       <p>
         Hi ${generatorName || 'there'},
@@ -652,9 +630,7 @@ const templates = {
     reason,
     reviewUrl,
   }) => ({
-    subject:
-      `Document ${docId} was rejected by the recipient`,
-
+    subject: `Document ${docId} was rejected by the recipient`,
     html: `
       <p>
         Hi ${generatorName || 'there'},
@@ -687,13 +663,12 @@ const templates = {
       </p>
     `,
   }),
-
 };
 
 
 /* ─────────────────────────────────────────────────────────────────────────────
- * EXPORTS
- * ─────────────────────────────────────────────────────────────────────────── */
+ * Exports
+ * ──────────────────────────────────────────────────────────────────────────── */
 
 module.exports = {
   sendMail,
