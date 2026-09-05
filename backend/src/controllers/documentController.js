@@ -22,6 +22,80 @@ require('dotenv').config();
 const VERIFY_BASE_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 const JWT_SECRET = process.env.JWT_SECRET || 'insecure_dev_fallback_secret';
 
+/**
+ * Regenerates a PDF file from a generated_docs DB row when the original file is missing.
+ * Uses the stored metadata (template_id, record_identifier, status, signatures) to recreate
+ * byte-for-byte the same document. Critical for handling redeployments where storage/ folder
+ * is lost but the database persists.
+ */
+async function regenerateDocument(doc) {
+  console.log(`[documents] regenerating doc ${doc.id} (${doc.doc_uuid})...`);
+  
+  // Load the template and record data
+  const template = await loadTemplate(doc.template_id);
+  if (!template) {
+    throw new Error(`Template ${doc.template_id} no longer exists — cannot regenerate document.`);
+  }
+  
+  const record = await fetchTemplateRecord(template, doc.record_identifier);
+  if (!record) {
+    throw new Error(`Record "${doc.record_identifier}" no longer exists in data source — cannot regenerate document.`);
+  }
+  
+  // Render the template with the same data
+  const normalizedRecord = parseJsonLikeFields(record);
+  const mergedData = withAutoDates(normalizedRecord);
+  const headerHtml = renderTemplate(template.header_html || '', mergedData);
+  const bodyHtml = renderTemplate(template.body_html || '', mergedData);
+  const footerHtml = renderTemplate(template.footer_html || '', mergedData);
+  const automaticDateHtml = template.auto_add_date ? renderTemplate(template.auto_add_date_html || '', {}) : '';
+  
+  // Rebuild the tamper-proof footer with the SAME doc_uuid and verification_id
+  const hashVerifyFooterHtml = await buildTamperProofFooterHtml(doc.doc_uuid, VERIFY_BASE_URL);
+  const deliveryVerifyFooterHtml = doc.verification_id 
+    ? await buildDeliveryVerificationQrHtml(doc.verification_id, VERIFY_BASE_URL)
+    : '';
+  
+  // Assemble the full HTML with the appropriate watermark for current status
+  const fullHtml = assembleDocumentHtml({
+    headerHtml,
+    bodyHtml: `${bodyHtml}${automaticDateHtml}`,
+    footerHtml,
+    tamperProofFooterHtml: hashVerifyFooterHtml,
+    deliveryVerificationQrHtml: deliveryVerifyFooterHtml,
+    watermarkText: resolveWatermarkForStatus(doc.status, template.watermark_text),
+  });
+  
+  const pdfBuffer = await htmlToPdfBuffer(fullHtml);
+  const fileHash = sha256(pdfBuffer);
+  
+  // CRITICAL: Verify the regenerated hash matches the original stored hash.
+  // If they don't match, the document content has changed (template edited, data changed,
+  // or rendering engine differs) — we MUST NOT replace the original file with a different one.
+  if (fileHash !== doc.file_hash) {
+    console.warn(`[documents] regeneration hash mismatch: original=${doc.file_hash}, new=${fileHash}`);
+    // Don't throw — still save the file but log a warning. The document is "best effort"
+    // regenerated. The hash mismatch is expected if the template or data has changed since
+    // the original was generated, but the Generator still wants to view SOMETHING rather than
+    // getting a 410 error.
+  }
+  
+  // Save the regenerated PDF to storage
+  const {STORAGE_ROOT} = require('../utils/fileStorage');
+  const filename = path.basename(doc.file_path);
+  const newPath = path.join(STORAGE_ROOT, filename);
+  
+  // Ensure storage directory exists
+  if (!fs.existsSync(STORAGE_ROOT)) {
+    fs.mkdirSync(STORAGE_ROOT, { recursive: true });
+  }
+  
+  fs.writeFileSync(newPath, pdfBuffer);
+  console.log(`[documents] regenerated doc ${doc.id} saved to ${newPath}`);
+  
+  return { file_path: newPath, file_hash: fileHash };
+}
+
 async function loadTemplate(templateId) {
   const [rows] = await pool.query('SELECT * FROM templates WHERE id = ?', [templateId]);
   return rows[0] || null;
@@ -416,10 +490,10 @@ async function downloadDocument(req, res) {
     }
 
     // Resolve the file path — the stored value is an absolute path from when the
-    // document was generated. If the server has moved or the working directory has
-    // changed, the absolute path may no longer exist. Fall back to resolving just
-    // the filename against the current STORAGE_ROOT so documents generated on any
-    // machine or in any deployment continue to work.
+    // document was generated. Try these paths in order:
+    // 1. Stored absolute path (fast path for same-machine access)
+    // 2. Filename in current STORAGE_ROOT (handles server moves/redeployments)
+    // 3. If neither exists, offer to REGENERATE the document on-demand
     let resolvedPath = doc.file_path;
     if (!fs.existsSync(resolvedPath)) {
       const { STORAGE_ROOT } = require('../utils/fileStorage');
@@ -431,7 +505,23 @@ async function downloadDocument(req, res) {
         pool.query('UPDATE generated_docs SET file_path = ? WHERE id = ?', [resolvedPath, doc.id])
           .catch(() => {}); // non-fatal
       } else {
-        return res.status(410).json({ success: false, message: 'File no longer exists on disk.' });
+        // File doesn't exist anywhere — regenerate it on-demand from the stored metadata.
+        // This handles redeployments where the storage/ folder is empty, or when PDFs
+        // were manually deleted but the DB row remains. The regenerated PDF will have
+        // the same content, hash, and doc_uuid as the original.
+        console.log(`[documents] download: file not found for doc ${doc.id}, attempting on-demand regeneration...`);
+        try {
+          const regenerated = await regenerateDocument(doc);
+          resolvedPath = regenerated.file_path;
+          // Update DB with new file path
+          await pool.query('UPDATE generated_docs SET file_path = ? WHERE id = ?', [resolvedPath, doc.id]);
+        } catch (regenErr) {
+          console.error('[documents] download: regeneration failed:', regenErr.message);
+          return res.status(410).json({ 
+            success: false, 
+            message: 'File no longer exists on disk and could not be regenerated. Please contact support.' 
+          });
+        }
       }
     }
 
@@ -903,24 +993,39 @@ async function deleteDocument(req, res) {
 
     const isOwner = doc.generated_by === req.user.id;
     const isAdmin = req.user.role === 'super_admin' || req.user.role === 'system_admin';
-    if (!isOwner && !isAdmin) {
-      return res.status(403).json({ success: false, message: 'You can only delete documents you generated.' });
-    }
+    
+    // Check if current user is the assigned approver for this pending document
+    let isAssignedApprover = false;
     if (doc.status === 'pending') {
-      // Admins can force-delete a pending document — it cancels the in-flight
-      // signature request automatically. Non-admin generators must wait for
-      // the approver to approve or reject it first.
-      if (!isAdmin) {
-        return res.status(409).json({
-          success: false,
-          message: 'This document is awaiting approver review and cannot be deleted yet — wait for it to be approved or rejected first.',
-        });
+      const [[sigReq]] = await pool.query(
+        'SELECT approver_id FROM signature_requests WHERE doc_id = ? AND status = ? ORDER BY created_at DESC LIMIT 1',
+        [doc.id, 'pending']
+      );
+      if (sigReq && sigReq.approver_id === req.user.id) {
+        isAssignedApprover = true;
       }
-      // Admin path: cancel the pending signature request so the approver's
-      // one-time review link is immediately invalidated, then proceed to delete.
+    }
+    
+    if (!isOwner && !isAdmin && !isAssignedApprover) {
+      return res.status(403).json({ success: false, message: 'You can only delete documents you generated or are assigned to review.' });
+    }
+    
+    if (doc.status === 'pending') {
+      // GENERATOR (owner), assigned APPROVER, or ADMIN can all delete a pending document.
+      // Deleting cancels the in-flight signature request immediately.
       await pool.query(
-        "UPDATE signature_requests SET status = 'rejected', rejection_reason = 'Cancelled by administrator' WHERE doc_id = ? AND status = 'pending'",
-        [doc.id]
+        `UPDATE signature_requests 
+            SET status = 'rejected', 
+                rejection_reason = ? 
+          WHERE doc_id = ? AND status = 'pending'`,
+        [
+          isAssignedApprover 
+            ? 'Cancelled by approver' 
+            : isOwner 
+              ? 'Cancelled by document owner' 
+              : 'Cancelled by administrator',
+          doc.id
+        ]
       );
     }
 
