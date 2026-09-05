@@ -503,11 +503,10 @@ function DocBadge({ status }) {
  *    PDF in a new tab, Download saves it to disk).
  *  - draft, never sent: "Select Approver"
  *  - draft, reverted after a rejection: shows the reason + "Resubmit"
- *  - pending: read-only "awaiting <approver>" (still viewable, cannot be deleted yet)
- *  - signed / delivered: "Send" opens the Secure Delivery modal — the only way to
- *    send a document to a recipient (one-time link + OTP + ownership confirmation).
- *  - Everything else (Mark Hand Delivered for admins, Delete) lives behind the "⋮"
- *    menu so the primary action row stays uncluttered.
+ *  - pending: awaiting approver — admins can delete it (cancels the in-flight request)
+ *  - signed / delivered: "Send" opens the Secure Delivery modal. "Hand Delivered"
+ *    records a physical handover — available to the document owner and admins.
+ *  - Delete lives inline for pending/draft, and behind "⋮" for other statuses.
  */
 function DocumentCard({ doc, highlighted, isAdmin, onNeedsApprover, onSecureDeliver, onChanged, onEditResubmit, ownershipRejectionBanner }) {
   const { showToast } = useToast();
