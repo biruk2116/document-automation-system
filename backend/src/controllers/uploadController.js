@@ -32,8 +32,9 @@ function handleLogoUpload(req, res) {
     return res.status(400).json({ success: false, message: 'No file uploaded (field name must be "logo").' });
   }
 
-  const backendUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`;
-  const publicUrl = `${backendUrl}/uploads/logos/${req.file.filename}`;
+  // Store a relative path — not an absolute URL with a hostname — so it resolves
+  // correctly in every environment (local dev, staging, production).
+  const publicUrl = `/uploads/logos/${req.file.filename}`;
 
   return res.status(201).json({
     success: true,
