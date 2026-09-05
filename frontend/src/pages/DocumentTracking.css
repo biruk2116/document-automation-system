@@ -198,10 +198,11 @@
 /* ── Action buttons ── */
 .doc-card-actions {
   display: flex; 
-  flex-wrap: nowrap; 
+  flex-wrap: wrap; 
   gap: 8px; 
   margin-top: 14px;
   align-items: center;
+  max-width: 100%;
 }
 
 .doc-btn {
@@ -211,6 +212,7 @@
   transition: background 0.15s, opacity 0.15s; font-family: inherit;
   white-space: nowrap;
   flex-shrink: 0;
+  flex-grow: 0;
 }
 .doc-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 

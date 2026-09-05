@@ -30,103 +30,134 @@ function EyeIcon({ off }) {
   );
 }
 
-/* ── Document automation illustration matching the image exactly ── */
+/* ── Document automation illustration - larger and more descriptive ── */
 function DocAutomationIllustration() {
   return (
-    <svg viewBox="0 0 220 200" fill="none" xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true" style={{ width: '100%', maxWidth: 220 }}>
+    <svg viewBox="0 0 400 350" fill="none" xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true" style={{ width: '100%', maxWidth: 400 }}>
       
-      {/* Back document */}
-      <g opacity="0.6">
-        <rect x="90" y="50" width="80" height="105" rx="6"
-          fill="var(--doc-bg)" stroke="var(--doc-stroke)" strokeWidth="2"/>
-        <rect x="100" y="65" width="45" height="3" rx="1.5" fill="var(--doc-line)"/>
-        <rect x="100" y="73" width="55" height="3" rx="1.5" fill="var(--doc-line)"/>
-        <rect x="100" y="81" width="40" height="3" rx="1.5" fill="var(--doc-line)"/>
+      {/* Back document - largest */}
+      <g opacity="0.5">
+        <rect x="160" y="80" width="140" height="180" rx="8"
+          fill="var(--doc-bg)" stroke="var(--doc-stroke)" strokeWidth="2.5"/>
+        <rect x="175" y="100" width="80" height="4" rx="2" fill="var(--doc-line)"/>
+        <rect x="175" y="110" width="100" height="4" rx="2" fill="var(--doc-line)"/>
+        <rect x="175" y="120" width="70" height="4" rx="2" fill="var(--doc-line)"/>
+        <rect x="175" y="135" width="90" height="4" rx="2" fill="var(--doc-line)"/>
+        <rect x="175" y="145" width="85" height="4" rx="2" fill="var(--doc-line)"/>
+        <rect x="175" y="155" width="75" height="4" rx="2" fill="var(--doc-line)"/>
       </g>
 
       {/* Middle document */}
-      <g opacity="0.8">
+      <g opacity="0.7">
         <animateTransform attributeName="transform" type="translate"
-          values="0,0;-1,-1;0,0" dur="3s" repeatCount="indefinite"/>
-        <rect x="70" y="35" width="80" height="105" rx="6"
-          fill="var(--doc-bg)" stroke="var(--doc-stroke)" strokeWidth="2"/>
-        <rect x="80" y="50" width="45" height="3" rx="1.5" fill="var(--doc-line)"/>
-        <rect x="80" y="58" width="55" height="3" rx="1.5" fill="var(--doc-line)"/>
-        <rect x="80" y="66" width="40" height="3" rx="1.5" fill="var(--doc-line)"/>
-        <rect x="80" y="78" width="50" height="3" rx="1.5" fill="var(--doc-line)"/>
-        <rect x="80" y="86" width="45" height="3" rx="1.5" fill="var(--doc-line)"/>
+          values="0,0;-2,-2;0,0" dur="3.5s" repeatCount="indefinite"/>
+        <rect x="130" y="60" width="140" height="180" rx="8"
+          fill="var(--doc-bg)" stroke="var(--doc-stroke)" strokeWidth="2.5"/>
+        <rect x="145" y="80" width="80" height="4" rx="2" fill="var(--doc-line)"/>
+        <rect x="145" y="90" width="100" height="4" rx="2" fill="var(--doc-line)"/>
+        <rect x="145" y="100" width="70" height="4" rx="2" fill="var(--doc-line)"/>
+        <rect x="145" y="115" width="90" height="4" rx="2" fill="var(--doc-line)"/>
+        <rect x="145" y="125" width="85" height="4" rx="2" fill="var(--doc-line)"/>
+        <rect x="145" y="135" width="75" height="4" rx="2" fill="var(--doc-line)"/>
+        <rect x="145" y="150" width="95" height="4" rx="2" fill="var(--doc-line)"/>
+        <rect x="145" y="160" width="80" height="4" rx="2" fill="var(--doc-line)"/>
       </g>
 
-      {/* Front document with checkmark */}
+      {/* Front document with checkmark - largest and most prominent */}
       <g>
         <animateTransform attributeName="transform" type="translate"
-          values="0,0;-2,-2;0,0" dur="4s" repeatCount="indefinite"/>
-        <rect x="50" y="20" width="80" height="105" rx="6"
-          fill="var(--doc-bg-front)" stroke="var(--doc-stroke-front)" strokeWidth="2.5"/>
-        <rect x="60" y="35" width="45" height="3" rx="1.5" fill="var(--doc-line)"/>
-        <rect x="60" y="43" width="55" height="3" rx="1.5" fill="var(--doc-line)"/>
-        <rect x="60" y="51" width="40" height="3" rx="1.5" fill="var(--doc-line)"/>
-        <rect x="60" y="63" width="50" height="3" rx="1.5" fill="var(--doc-line)"/>
-        <rect x="60" y="71" width="45" height="3" rx="1.5" fill="var(--doc-line)"/>
-        <rect x="60" y="79" width="38" height="3" rx="1.5" fill="var(--doc-line)"/>
+          values="0,0;-3,-3;0,0" dur="4.5s" repeatCount="indefinite"/>
+        <rect x="100" y="40" width="140" height="180" rx="8"
+          fill="var(--doc-bg-front)" stroke="var(--doc-stroke-front)" strokeWidth="3"/>
+        <rect x="115" y="60" width="80" height="4" rx="2" fill="var(--doc-line)"/>
+        <rect x="115" y="70" width="100" height="4" rx="2" fill="var(--doc-line)"/>
+        <rect x="115" y="80" width="70" height="4" rx="2" fill="var(--doc-line)"/>
+        <rect x="115" y="95" width="90" height="4" rx="2" fill="var(--doc-line)"/>
+        <rect x="115" y="105" width="85" height="4" rx="2" fill="var(--doc-line)"/>
+        <rect x="115" y="115" width="75" height="4" rx="2" fill="var(--doc-line)"/>
+        <rect x="115" y="130" width="95" height="4" rx="2" fill="var(--doc-line)"/>
+        <rect x="115" y="140" width="80" height="4" rx="2" fill="var(--doc-line)"/>
+        <rect x="115" y="150" width="70" height="4" rx="2" fill="var(--doc-line)"/>
         
-        {/* Checkmark circle */}
-        <circle cx="90" cy="100" r="18" fill="var(--check-bg)" stroke="var(--check-stroke)" strokeWidth="2.5">
+        {/* Large checkmark circle */}
+        <circle cx="170" cy="180" r="28" fill="var(--check-bg)" stroke="var(--check-stroke)" strokeWidth="3">
           <animate attributeName="opacity" values="1;0.85;1" dur="2s" repeatCount="indefinite"/>
         </circle>
-        <path d="M80 100 l6 6 12-12" stroke="var(--check-mark)" strokeWidth="3"
+        <path d="M155 180 l10 10 20-20" stroke="var(--check-mark)" strokeWidth="4"
           strokeLinecap="round" strokeLinejoin="round">
-          <animate attributeName="stroke-dashoffset" from="25" to="0" dur="2s" repeatCount="indefinite"/>
-          <animate attributeName="stroke-dasharray" values="0 25;25 0" dur="2s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-dashoffset" from="40" to="0" dur="2s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-dasharray" values="0 40;40 0" dur="2s" repeatCount="indefinite"/>
         </path>
       </g>
 
-      {/* Left curved arrow */}
+      {/* Left curved arrow - workflow indication */}
       <g>
-        <path d="M 55 60 Q 25 60 25 35" stroke="var(--arrow-color)" strokeWidth="3"
+        <path d="M 105 100 Q 50 100 50 55" stroke="var(--arrow-color)" strokeWidth="4"
           fill="none" strokeLinecap="round" opacity="0.7">
-          <animate attributeName="stroke-dashoffset" from="70" to="0" dur="3s" repeatCount="indefinite"/>
-          <animate attributeName="stroke-dasharray" values="0 70;70 0" dur="3s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-dashoffset" from="100" to="0" dur="3s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-dasharray" values="0 100;100 0" dur="3s" repeatCount="indefinite"/>
         </path>
-        <circle cx="25" cy="32" r="2.5" fill="var(--arrow-color)">
+        <circle cx="50" cy="50" r="4" fill="var(--arrow-color)">
           <animate attributeName="opacity" values="0;1;0" dur="3s" repeatCount="indefinite"/>
         </circle>
       </g>
 
       {/* Right curved arrow */}
       <g>
-        <path d="M 125 105 Q 175 105 175 75" stroke="var(--arrow-color)" strokeWidth="3"
+        <path d="M 235 200 Q 320 200 320 150" stroke="var(--arrow-color)" strokeWidth="4"
           fill="none" strokeLinecap="round" opacity="0.7">
-          <animate attributeName="stroke-dashoffset" from="70" to="0" dur="3s" begin="1s" repeatCount="indefinite"/>
-          <animate attributeName="stroke-dasharray" values="0 70;70 0" dur="3s" begin="1s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-dashoffset" from="100" to="0" dur="3s" begin="1s" repeatCount="indefinite"/>
+          <animate attributeName="stroke-dasharray" values="0 100;100 0" dur="3s" begin="1s" repeatCount="indefinite"/>
         </path>
-        <circle cx="175" cy="72" r="2.5" fill="var(--arrow-color)">
+        <circle cx="320" cy="145" r="4" fill="var(--arrow-color)">
           <animate attributeName="opacity" values="0;1;0" dur="3s" begin="1s" repeatCount="indefinite"/>
         </circle>
       </g>
 
-      {/* Gear icon - top right */}
+      {/* Gear icon - automation symbol (top right) */}
       <g opacity="0.8">
         <animateTransform attributeName="transform" type="rotate"
-          values="0 175 45; 360 175 45" dur="8s" repeatCount="indefinite"/>
-        <circle cx="175" cy="45" r="16" fill="var(--gear-bg)" stroke="var(--gear-stroke)" strokeWidth="2.5"/>
-        <circle cx="175" cy="45" r="6" fill="var(--gear-center)"/>
+          values="0 320 80; 360 320 80" dur="8s" repeatCount="indefinite"/>
+        <circle cx="320" cy="80" r="24" fill="var(--gear-bg)" stroke="var(--gear-stroke)" strokeWidth="3"/>
+        <circle cx="320" cy="80" r="9" fill="var(--gear-center)"/>
         {[0, 60, 120, 180, 240, 300].map((angle, i) => (
           <rect key={i}
-            x="173" y="29" width="4" height="7" rx="2"
+            x="317" y="56" width="6" height="11" rx="3"
             fill="var(--gear-stroke)"
-            transform={`rotate(${angle} 175 45)`}/>
+            transform={`rotate(${angle} 320 80)`}/>
         ))}
       </g>
 
-      {/* Water drop - bottom left */}
-      <g opacity="0.7">
+      {/* Water drop - refresh/automation icon (bottom left) */}
+      <g opacity="0.75">
         <animateTransform attributeName="transform" type="translate"
-          values="0,0;0,-2;0,0" dur="2.5s" repeatCount="indefinite"/>
-        <ellipse cx="35" cy="110" rx="10" ry="13" fill="var(--drop-color)" opacity="0.4"/>
-        <ellipse cx="35" cy="108" rx="8" ry="11" fill="var(--drop-color)"/>
-        <circle cx="35" cy="104" r="2.5" fill="var(--drop-highlight)" opacity="0.7"/>
+          values="0,0;0,-4;0,0" dur="2.5s" repeatCount="indefinite"/>
+        <ellipse cx="65" cy="210" rx="16" ry="20" fill="var(--drop-color)" opacity="0.4"/>
+        <ellipse cx="65" cy="207" rx="13" ry="17" fill="var(--drop-color)"/>
+        <circle cx="65" cy="200" r="4" fill="var(--drop-highlight)" opacity="0.7"/>
+      </g>
+
+      {/* Signature pen icon - digital signature (bottom right) */}
+      <g opacity="0.75">
+        <animateTransform attributeName="transform" type="translate"
+          values="0,0;2,0;0,0" dur="2s" repeatCount="indefinite"/>
+        <path d="M 280 260 L 295 245 L 300 250 L 285 265 Z" 
+          fill="var(--arrow-color)" stroke="var(--arrow-color)" strokeWidth="2"/>
+        <path d="M 295 245 L 305 235" 
+          stroke="var(--arrow-color)" strokeWidth="3" strokeLinecap="round"/>
+        <circle cx="307" cy="233" r="3" fill="var(--check-bg)"/>
+        <path d="M 275 268 Q 278 265 280 260" 
+          stroke="var(--arrow-color)" strokeWidth="2" fill="none"/>
+      </g>
+
+      {/* Shield icon - security (top left) */}
+      <g opacity="0.7">
+        <path d="M 60 60 L 60 90 Q 60 105 75 110 Q 90 105 90 90 L 90 60 L 75 55 Z" 
+          fill="var(--gear-bg)" stroke="var(--gear-stroke)" strokeWidth="2.5"/>
+        <path d="M 70 75 L 73 78 L 80 70" 
+          stroke="var(--check-mark)" strokeWidth="2.5" fill="none" 
+          strokeLinecap="round" strokeLinejoin="round"/>
       </g>
 
       {/* Define CSS variables for theming */}
@@ -290,20 +321,20 @@ export default function Login() {
 
         .lp-brand {
           position: absolute;
-          top: 0;
+          top: 40px;
           left: 50%;
           transform: translateX(-50%);
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 8px;
+          gap: 12px;
         }
         .lp-brand-logo {
-          width: 56px;
-          height: 56px;
-          border-radius: 12px;
+          width: 64px;
+          height: 64px;
+          border-radius: 14px;
           overflow: hidden;
-          box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+          box-shadow: 0 4px 16px rgba(0,0,0,0.4);
         }
         .lp-brand-logo img {
           width: 100%;
@@ -311,108 +342,37 @@ export default function Login() {
           object-fit: cover;
         }
         .lp-brand-name {
-          font-size: 0.95rem;
+          font-size: 1.5rem;
           font-weight: 800;
-          letter-spacing: 0.1em;
+          letter-spacing: 0.05em;
           text-transform: uppercase;
           color: #FFFFFF;
           text-align: center;
-          animation: title-glow 3s ease-in-out infinite;
+          text-shadow: 0 2px 12px rgba(39,184,186,0.4);
         }
-        @keyframes title-glow {
-          0%, 100% { opacity: 1; text-shadow: 0 0 10px rgba(39,184,186,0.3); }
-          50% { opacity: 0.9; text-shadow: 0 0 20px rgba(39,184,186,0.5); }
+        .lp-brand-subtitle {
+          font-size: 0.75rem;
+          font-weight: 600;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: #27B8BA;
+          opacity: 0.9;
         }
 
         .lp-illus {
           display: flex;
           justify-content: center;
+          align-items: center;
           width: 100%;
-          margin-bottom: 40px;
         }
 
-        /* Animated descriptive section */
-        .lp-headline {
-          display: block;
-          text-align: center;
-          max-width: 420px;
-          margin: 0 auto;
-        }
-        .lp-headline-title {
-          font-size: 2.2rem;
-          font-weight: 800;
-          color: #FFFFFF;
-          letter-spacing: -0.02em;
-          line-height: 1.2;
-          margin-bottom: 16px;
-          animation: fade-in-up 1s ease-out;
-        }
-        .lp-headline-title span {
-          background: linear-gradient(90deg, #27B8BA, #6EE7E5);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-          animation: gradient-shift 3s ease-in-out infinite;
-        }
-        @keyframes gradient-shift {
-          0%, 100% { filter: brightness(1); }
-          50% { filter: brightness(1.3); }
-        }
-        @keyframes fade-in-up {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .lp-headline-desc {
-          font-size: 0.95rem;
-          color: rgba(232,238,247,0.65);
-          line-height: 1.7;
-          animation: fade-in-up 1s ease-out 0.2s both;
-        }
-        .lp-headline-desc strong {
-          color: rgba(232,238,247,0.9);
-          font-weight: 600;
-        }
-
-        /* Feature highlights */
-        .lp-features {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 12px;
-          margin-top: 32px;
-          max-width: 420px;
-          margin-left: auto;
-          margin-right: auto;
-          animation: fade-in-up 1s ease-out 0.4s both;
-        }
+        /* Remove all descriptive sections */
+        .lp-headline,
+        .lp-headline-title,
+        .lp-headline-desc,
+        .lp-features,
         .lp-feature {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 12px 14px;
-          background: rgba(255,255,255,0.05);
-          border: 1px solid rgba(255,255,255,0.1);
-          border-radius: 10px;
-          transition: all 0.3s ease;
-        }
-        .lp-feature:hover {
-          background: rgba(39,184,186,0.08);
-          border-color: rgba(39,184,186,0.3);
-          transform: translateY(-2px);
-        }
-        .lp-feature-icon {
-          width: 32px;
-          height: 32px;
-          border-radius: 8px;
-          background: rgba(39,184,186,0.15);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-        .lp-feature-text {
-          font-size: 0.8rem;
-          color: rgba(232,238,247,0.7);
-          font-weight: 500;
+          display: none;
         }
 
         /* RIGHT SIDE */
@@ -655,26 +615,16 @@ export default function Login() {
             flex-direction: column;
           }
           .lp-hero {
-            min-height: 40vh;
+            min-height: 45vh;
             padding: 40px 30px;
           }
           .lp-brand {
             position: static;
             transform: none;
-            margin-bottom: 30px;
+            margin-bottom: 40px;
           }
-          .lp-illus {
-            margin-bottom: 25px;
-          }
-          .lp-headline-title {
-            font-size: 1.8rem;
-          }
-          .lp-headline-desc {
-            font-size: 0.88rem;
-          }
-          .lp-features {
-            gap: 10px;
-            margin-top: 24px;
+          .lp-illus svg {
+            max-width: 320px;
           }
           .lp-right {
             padding: 40px 30px;
@@ -682,19 +632,21 @@ export default function Login() {
         }
         @media (max-width: 640px) {
           .lp-hero {
-            min-height: 35vh;
+            min-height: 40vh;
             padding: 30px 24px;
           }
-          .lp-headline-title {
-            font-size: 1.5rem;
+          .lp-brand {
+            margin-bottom: 30px;
           }
-          .lp-headline-desc {
-            font-size: 0.85rem;
+          .lp-brand-logo {
+            width: 52px;
+            height: 52px;
           }
-          .lp-features {
-            grid-template-columns: 1fr;
-            gap: 8px;
-            margin-top: 20px;
+          .lp-brand-name {
+            font-size: 1.2rem;
+          }
+          .lp-illus svg {
+            max-width: 280px;
           }
           .lp-right {
             padding: 30px 24px;
@@ -712,60 +664,11 @@ export default function Login() {
                 <img src={logo} alt=""/>
               </div>
               <div className="lp-brand-name">Document Automation</div>
+              <div className="lp-brand-subtitle">Enterprise Platform</div>
             </div>
 
             <div className="lp-illus">
               <DocAutomationIllustration/>
-            </div>
-
-            <div className="lp-headline">
-              <h2 className="lp-headline-title">
-                Streamline Your <span>Document Workflow</span>
-              </h2>
-              <p className="lp-headline-desc">
-                A complete enterprise platform for <strong>generating</strong>, <strong>approving</strong>, and <strong>delivering</strong> documents with full audit trails, digital signatures, and secure distribution.
-              </p>
-              
-              <div className="lp-features">
-                <div className="lp-feature">
-                  <div className="lp-feature-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#27B8BA" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                      <polyline points="14 2 14 8 20 8"/>
-                      <line x1="16" y1="13" x2="8" y2="13"/>
-                      <line x1="16" y1="17" x2="8" y2="17"/>
-                    </svg>
-                  </div>
-                  <span className="lp-feature-text">Auto Generation</span>
-                </div>
-                <div className="lp-feature">
-                  <div className="lp-feature-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#27B8BA" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="9 11 12 14 22 4"/>
-                      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-                    </svg>
-                  </div>
-                  <span className="lp-feature-text">Approval Workflow</span>
-                </div>
-                <div className="lp-feature">
-                  <div className="lp-feature-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#27B8BA" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                    </svg>
-                  </div>
-                  <span className="lp-feature-text">Secure Delivery</span>
-                </div>
-                <div className="lp-feature">
-                  <div className="lp-feature-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#27B8BA" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-                      <polyline points="14 2 14 8 20 8"/>
-                      <path d="M10 18l2 2 4-4"/>
-                    </svg>
-                  </div>
-                  <span className="lp-feature-text">Digital Signatures</span>
-                </div>
-              </div>
             </div>
           </div>
         </aside>

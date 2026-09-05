@@ -285,7 +285,7 @@ export default function ApprovalsPage() {
             <button type="button" onClick={() => openApprove(deepLinkReq)} className="doc-btn doc-btn-primary">Approve</button>
             <button type="button" onClick={() => openReject(deepLinkReq)} className="doc-btn doc-btn-danger">Reject</button>
             {canDeletePending && (
-              <button type="button" onClick={() => setDeleteTarget(deepLinkReq)} className="doc-btn doc-btn-danger" style={{ marginLeft: 'auto' }}>
+              <button type="button" onClick={() => setDeleteTarget(deepLinkReq)} className="doc-btn doc-btn-danger">
                 Delete
               </button>
             )}
@@ -323,7 +323,7 @@ export default function ApprovalsPage() {
                 <button type="button" onClick={() => openApprove(req)} className="doc-btn doc-btn-primary">Approve</button>
                 <button type="button" onClick={() => openReject(req)} className="doc-btn doc-btn-danger">Reject</button>
                 {canDeletePending && (
-                  <button type="button" onClick={() => setDeleteTarget(req)} className="doc-btn doc-btn-danger" style={{ marginLeft: 'auto' }}>
+                  <button type="button" onClick={() => setDeleteTarget(req)} className="doc-btn doc-btn-danger">
                     Delete
                   </button>
                 )}
