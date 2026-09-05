@@ -47,11 +47,13 @@ async function regenerateDocument(doc) {
   const singularKey = template.data_source_table.replace(/s$/, '');
   const dataContext = withAutoDates({ [singularKey]: record, [template.data_source_table]: record, ...record });
   
-  // Render all HTML regions with proper warnings (but ignore warnings for regeneration)
-  const warnings = [];
-  const headerHtml = renderTemplate(template.header_html || '', dataContext, warnings);
-  const bodyHtml = renderTemplate(template.body_html || '', dataContext, warnings);
-  const footerHtml = renderTemplate(template.footer_html || '', dataContext, warnings);
+  // Render all HTML regions with proper warnings array
+  const headerWarnings = [];
+  const bodyWarnings = [];
+  const footerWarnings = [];
+  const headerHtml = renderTemplate(template.header_html || '', dataContext, headerWarnings);
+  const bodyHtml = renderTemplate(template.body_html || '', dataContext, bodyWarnings);
+  const footerHtml = renderTemplate(template.footer_html || '', dataContext, footerWarnings);
   
   // Add automatic date HTML
   const automaticDateHtml = `
