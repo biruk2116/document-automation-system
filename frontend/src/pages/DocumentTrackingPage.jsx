@@ -446,6 +446,7 @@ export default function DocumentTrackingPage() {
                             doc={doc}
                             highlighted={String(doc.id) === String(highlightDocId)}
                             isAdmin={isAdminUser}
+                            user={user}
                             onNeedsApprover={() => setApproverModalDoc({ id: doc.id, doc_uuid: doc.doc_uuid })}
                             onSecureDeliver={() => setSecureDeliveryModalDoc(doc)}
                             onChanged={loadMyDocs}
@@ -508,7 +509,7 @@ function DocBadge({ status }) {
  *    records a physical handover — available to the document owner and admins.
  *  - Delete lives inline for pending/draft, and behind "⋮" for other statuses.
  */
-function DocumentCard({ doc, highlighted, isAdmin, onNeedsApprover, onSecureDeliver, onChanged, onEditResubmit, ownershipRejectionBanner }) {
+function DocumentCard({ doc, highlighted, isAdmin, user, onNeedsApprover, onSecureDeliver, onChanged, onEditResubmit, ownershipRejectionBanner }) {
   const { showToast } = useToast();
   const cardRef = useRef(null);
   const menuRef = useRef(null);
@@ -541,9 +542,12 @@ function DocumentCard({ doc, highlighted, isAdmin, onNeedsApprover, onSecureDeli
   // for signed or delivered documents.
   const canMarkHandDelivered = !isDeleted && isSignedOrDelivered;
 
-  // Delete for pending — admins only (backend cancels the signature request).
-  // Delete for other non-pending non-deleted states — available to all generators.
-  const canDelete = !isDeleted && (doc.status !== 'pending' || isAdmin);
+  // Delete rules:
+  // - Pending: GENERATOR (owner), assigned APPROVER, or ADMIN can delete
+  // - Other statuses: GENERATOR (owner) or ADMIN can delete
+  const isOwner = doc.generated_by === user?.id;
+  const isAssignedApprover = doc.status === 'pending' && doc.approver_id === user?.id;
+  const canDelete = !isDeleted && (isOwner || isAdmin || isAssignedApprover);
 
   // The "⋮" menu holds Delete only (Hand Delivered is now a primary action button).
   const hasSecondaryActions = canDelete;
