@@ -174,11 +174,13 @@ a { font-family: inherit; }
 .sidebar-brand-text { display: flex; align-items: center; gap: 8px; }
 .sidebar-brand-logo { width: 21px; height: 21px; flex-shrink: 0; }
 .sidebar-close-btn {
-  display: none; background: none; border: none;
-  color: var(--sidebar-text); font-size: 1rem; cursor: pointer;
-  opacity: 0.75; transition: opacity 0.15s; padding: 4px 6px;
+  display: inline-flex; background: none; border: none;
+  color: var(--sidebar-text); font-size: 1.1rem; cursor: pointer;
+  opacity: 0.7; transition: opacity 0.15s; padding: 4px 6px;
+  align-items: center; justify-content: center;
+  border-radius: 4px;
 }
-.sidebar-close-btn:hover { opacity: 1; }
+.sidebar-close-btn:hover { opacity: 1; background: var(--sidebar-hover); }
 
 .sidebar-nav { display: flex; flex-direction: column; gap: 2px; }
 .sidebar-nav-scroll {
