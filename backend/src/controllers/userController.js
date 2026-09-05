@@ -401,8 +401,12 @@ async function uploadOwnAvatar(req, res) {
   }
 
   try {
-    const backendUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`;
-    const publicUrl = `${backendUrl}/uploads/avatars/${req.file.filename}`;
+    // Store only the relative path — never an absolute URL with a hostname.
+    // An absolute URL like "http://localhost:5000/uploads/avatars/..." breaks in
+    // every deployed environment where the backend is not on localhost. The frontend
+    // resolves the path against its own API base (VITE_API_URL), so a relative path
+    // like "/uploads/avatars/abc.jpg" works correctly everywhere.
+    const publicUrl = `/uploads/avatars/${req.file.filename}`;
 
     await pool.query('UPDATE users SET avatar_url = ? WHERE id = ?', [publicUrl, req.user.id]);
     await recordAudit({ userId: req.user.id, action: 'UPDATE_USER', details: { self: true, avatarUpdated: true }, req });
