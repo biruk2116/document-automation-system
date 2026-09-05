@@ -260,6 +260,29 @@ async function ensureSchema() {
       await pool.query(`ALTER TABLE users ADD COLUMN avatar_url VARCHAR(500) NULL AFTER phone`);
       console.log('[db] Added avatar_url to users.');
     }
+
+    // One-time data fix: strip any absolute-URL prefix from existing avatar_url values.
+    // Old code stored "http://localhost:5000/uploads/avatars/<filename>" which breaks
+    // in every deployed environment. Convert to the relative path "/uploads/avatars/<filename>".
+    await pool.query(`
+      UPDATE users
+         SET avatar_url = CONCAT('/uploads/avatars/', SUBSTRING_INDEX(avatar_url, '/uploads/avatars/', -1))
+       WHERE avatar_url IS NOT NULL
+         AND avatar_url LIKE '%/uploads/avatars/%'
+         AND avatar_url NOT LIKE '/uploads/avatars/%'
+    `);
+    // Same fix for any logos embedded in templates (header_html/body_html/footer_html).
+    // These contain inline img src attributes with absolute URLs from the old code.
+    // Replace http(s)://any-host/uploads/logos/ with /uploads/logos/ inside the HTML.
+    await pool.query(`
+      UPDATE templates
+         SET header_html = REGEXP_REPLACE(header_html, 'https?://[^/]+/uploads/logos/', '/uploads/logos/'),
+             body_html   = REGEXP_REPLACE(body_html,   'https?://[^/]+/uploads/logos/', '/uploads/logos/'),
+             footer_html = REGEXP_REPLACE(footer_html, 'https?://[^/]+/uploads/logos/', '/uploads/logos/')
+       WHERE header_html LIKE '%/uploads/logos/%'
+          OR body_html   LIKE '%/uploads/logos/%'
+          OR footer_html LIKE '%/uploads/logos/%'
+    `);
   } catch (err) {
     console.error('[db] Could not ensure users.avatar_url exists:', err.message);
   }
