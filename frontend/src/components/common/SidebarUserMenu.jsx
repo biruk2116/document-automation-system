@@ -4,6 +4,36 @@ import { useAuth } from '../../hooks/useAuth';
 import { useToast } from '../../hooks/useToast';
 import { userService } from '../../services/userService';
 
+// API base — used to resolve relative avatar/logo paths stored in the DB.
+// In development the Vite proxy forwards /api/* → localhost:5000, but static
+// assets under /uploads/* are NOT proxied. We need the explicit backend origin
+// so the browser can reach them directly.
+const API_ORIGIN = (() => {
+  const viteUrl = import.meta.env?.VITE_API_URL || '';
+  if (viteUrl) {
+    // VITE_API_URL is typically "http://host:port/api" — strip the path
+    try { return new URL(viteUrl).origin; } catch { /* fall through */ }
+  }
+  // Default: same host as the page but port 5000 (Express default)
+  return `${window.location.protocol}//${window.location.hostname}:5000`;
+})();
+
+/**
+ * Resolves an avatar_url stored in the database to a browser-loadable URL.
+ * - Relative paths like /uploads/avatars/abc.jpg → prefixed with API_ORIGIN
+ * - Already-absolute URLs (http/https) → returned unchanged (legacy rows)
+ * - Blob object URLs (preview) → returned unchanged
+ * - null / undefined → returned as-is (Avatar shows initials fallback)
+ */
+function resolveAvatarUrl(url) {
+  if (!url) return url;
+  if (url.startsWith('blob:') || url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  // Relative path — prepend the backend origin
+  return `${API_ORIGIN}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function initialsFor(n) {
   if (!n) return '?';
@@ -13,7 +43,8 @@ function initialsFor(n) {
 
 function Avatar({ user, previewUrl, size = 34 }) {
   const s = { width: size, height: size, fontSize: size * 0.38, flexShrink: 0 };
-  const src = previewUrl || user?.avatar_url;
+  // previewUrl is a blob: URL (already absolute); avatar_url may be relative → resolve it
+  const src = previewUrl || resolveAvatarUrl(user?.avatar_url);
   return src
     ? <img src={src} alt="" className="user-avatar-img" style={s} />
     : <div className="user-avatar-fallback" style={s} aria-hidden="true">{initialsFor(user?.full_name)}</div>;
@@ -280,25 +311,84 @@ export default function SidebarUserMenu() {
             <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp"
               onChange={onFileChange} style={{ display: 'none' }} />
 
-            {/* Avatar + camera badge */}
-            <div style={{ position: 'relative', display: 'inline-flex' }}>
-              <Avatar user={user} previewUrl={preview} size={80} />
-              <button type="button" onClick={pickFile} disabled={savingPh}
-                title="Change photo" aria-label="Change photo"
-                style={{
-                  position: 'absolute', bottom: 0, right: -2,
-                  width: 26, height: 26, borderRadius: '50%',
-                  background: 'var(--accent)', color: '#fff',
-                  border: '2px solid var(--bg-surface)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', padding: 0,
+            {/* Full image preview — shows the complete photo without cropping */}
+            <div
+              onClick={pickFile}
+              title="Click to change photo"
+              style={{
+                width: '100%',
+                minHeight: 140,
+                maxHeight: 220,
+                borderRadius: 10,
+                overflow: 'hidden',
+                cursor: 'pointer',
+                background: 'var(--bg-subtle)',
+                border: '2px dashed var(--border-strong)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+                transition: 'border-color 0.15s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
+              onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-strong)'}
+            >
+              {(preview || user?.avatar_url) ? (
+                <>
+                  <img
+                    src={preview || resolveAvatarUrl(user.avatar_url)}
+                    alt="Profile"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      minHeight: 140,
+                      maxHeight: 220,
+                      objectFit: 'contain',   // show entire image, no crop
+                      display: 'block',
+                      background: 'var(--bg-subtle)',
+                    }}
+                  />
+                  {/* Hover overlay */}
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    background: 'rgba(0,0,0,0.35)',
+                    display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center', gap: 6,
+                    opacity: 0, transition: 'opacity 0.15s',
+                    color: '#fff', fontSize: '0.78rem', fontWeight: 600,
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                    onMouseLeave={e => e.currentTarget.style.opacity = 0}
+                  >
+                    {savingPh
+                      ? <span className="user-avatar-spinner" />
+                      : <>
+                          <IconCamera />
+                          <span>Change photo</span>
+                        </>
+                    }
+                  </div>
+                </>
+              ) : (
+                /* No photo — show a placeholder prompt */
+                <div style={{
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', gap: 8,
+                  color: 'var(--text-muted)', padding: '24px 0',
                 }}>
-                {savingPh ? <span className="user-avatar-spinner" /> : <IconCamera />}
-              </button>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"
+                    strokeLinejoin="round" aria-hidden="true">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 600 }}>No photo — click to upload</span>
+                </div>
+              )}
             </div>
 
             {/* Name / role / email */}
-            <div style={{ textAlign: 'center' }}>
+            <div style={{ textAlign: 'center', width: '100%' }}>
               <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{user.full_name}</div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'capitalize', marginTop: 2 }}>
                 {user.role.replace(/_/g, ' ')}
@@ -306,11 +396,7 @@ export default function SidebarUserMenu() {
               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>{user.email}</div>
             </div>
 
-            <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-              Click the camera icon to change your photo
-            </p>
-
-            {/* Only show Save button when a file is staged; camera badge handles picking */}
+            {/* Save / Discard buttons when a new file is staged */}
             {file && (
               <div style={{ display: 'flex', gap: 6, width: '100%' }}>
                 <button type="button"
@@ -328,6 +414,7 @@ export default function SidebarUserMenu() {
               </div>
             )}
 
+            {/* Remove existing photo */}
             {user.avatar_url && !file && (
               <button type="button" onClick={removePhoto} disabled={removePh}
                 style={{ background: 'none', border: 'none', fontSize: '0.72rem', color: 'var(--error-text)', cursor: 'pointer', padding: 0, fontWeight: 600 }}>
