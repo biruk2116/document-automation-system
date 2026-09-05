@@ -223,41 +223,87 @@ export default function Login() {
         /* LEFT SIDE */
         .lp-hero {
           flex: 0 0 50%;
+          position: relative;
           display: flex;
           flex-direction: column;
-          align-items: flex-start;
+          align-items: center;
           justify-content: space-between;
           padding: 60px 50px;
-          background: #FFFFFF;
+          background: linear-gradient(150deg, #0A1E38 0%, #0F2747 45%, #0C2244 100%);
+          overflow: hidden;
         }
         @media (prefers-color-scheme: dark) {
-          .lp-hero { background: #243447; }
+          .lp-hero { background: linear-gradient(150deg, #0A1E38 0%, #0F2747 45%, #0C2244 100%); }
+        }
+
+        /* Animated orbs */
+        .lp-hero::before {
+          content: '';
+          position: absolute;
+          width: 500px;
+          height: 500px;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(21,154,156,0.15) 0%, transparent 70%);
+          top: -80px;
+          left: -60px;
+          animation: orb-float 16s ease-in-out infinite alternate;
+          pointer-events: none;
+        }
+        .lp-hero::after {
+          content: '';
+          position: absolute;
+          width: 360px;
+          height: 360px;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(79,140,201,0.12) 0%, transparent 70%);
+          bottom: -80px;
+          right: -40px;
+          animation: orb-float 20s ease-in-out infinite alternate-reverse;
+          pointer-events: none;
+        }
+        @keyframes orb-float {
+          from { transform: translate(0,0) scale(1); }
+          to { transform: translate(20px,15px) scale(1.06); }
+        }
+
+        /* Grid pattern */
+        .lp-grid {
+          position: absolute;
+          inset: 0;
+          background-image:
+            linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+          background-size: 44px 44px;
+          pointer-events: none;
         }
 
         .lp-hi {
+          position: relative;
+          z-index: 1;
           width: 100%;
           display: flex;
           flex-direction: column;
-          align-items: flex-start;
+          align-items: center;
           flex: 1;
           justify-content: center;
         }
 
         .lp-brand {
+          position: absolute;
+          top: 0;
+          left: 50%;
+          transform: translateX(-50%);
           display: flex;
+          flex-direction: column;
           align-items: center;
-          gap: 14px;
-          margin-bottom: 60px;
+          gap: 8px;
         }
         .lp-brand-logo {
           width: 56px;
           height: 56px;
           border-radius: 12px;
           overflow: hidden;
-          background: #2563EB;
-        }
-        @media (prefers-color-scheme: dark) {
-          .lp-brand-logo { background: #3B82F6; }
+          box-shadow: 0 2px 10px rgba(0,0,0,0.35);
         }
         .lp-brand-logo img {
           width: 100%;
@@ -265,31 +311,27 @@ export default function Login() {
           object-fit: cover;
         }
         .lp-brand-name {
-          font-size: 1.25rem;
-          font-weight: 700;
-          color: #1A1A1A;
-          letter-spacing: -0.01em;
+          font-size: 0.95rem;
+          font-weight: 800;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: #FFFFFF;
+          text-align: center;
+          animation: title-glow 3s ease-in-out infinite;
         }
-        @media (prefers-color-scheme: dark) {
-          .lp-brand-name { color: #FFFFFF; }
+        @keyframes title-glow {
+          0%, 100% { opacity: 1; text-shadow: 0 0 10px rgba(39,184,186,0.3); }
+          50% { opacity: 0.9; text-shadow: 0 0 20px rgba(39,184,186,0.5); }
         }
 
         .lp-illus {
           display: flex;
           justify-content: center;
           width: 100%;
-          margin-bottom: 50px;
         }
 
         .lp-headline {
-          font-size: 3.5rem;
-          font-weight: 700;
-          color: #1A1A1A;
-          letter-spacing: -0.02em;
-          line-height: 1.1;
-        }
-        @media (prefers-color-scheme: dark) {
-          .lp-headline { color: #FFFFFF; }
+          display: none;
         }
 
         /* RIGHT SIDE */
@@ -565,19 +607,18 @@ export default function Login() {
       <div className="lp">
         {/* LEFT SIDE */}
         <aside className="lp-hero">
+          <div className="lp-grid"/>
           <div className="lp-hi">
             <div className="lp-brand">
               <div className="lp-brand-logo">
                 <img src={logo} alt=""/>
               </div>
-              <div className="lp-brand-name">Document<br/>Automation</div>
+              <div className="lp-brand-name">Document Automation</div>
             </div>
 
             <div className="lp-illus">
               <DocAutomationIllustration/>
             </div>
-
-            <h1 className="lp-headline">Welcome</h1>
           </div>
         </aside>
 
@@ -646,7 +687,7 @@ export default function Login() {
                 {submitting ? (
                   <><span className="lp-spin"/>Signing in…</>
                 ) : (
-                  'Log in to DocFlow'
+                  'Login'
                 )}
               </button>
             </form>
