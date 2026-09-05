@@ -27,10 +27,9 @@ export default function Layout() {
     };
   }, []);
 
-  const toggleSidebar = () => {
-    // Dispatch the custom event so the resize handler knows the user has chosen
+  const openSidebar  = () => {
     window.dispatchEvent(new Event('sidebar-toggle'));
-    setSidebarOpen((o) => !o);
+    setSidebarOpen(true);
   };
 
   const closeSidebar = () => setSidebarOpen(false);
@@ -41,7 +40,7 @@ export default function Layout() {
       {/* Backdrop: overlay behind drawer on narrow screens */}
       {sidebarOpen && <div className="sidebar-backdrop" onClick={closeSidebar} />}
       <div className={`app-main ${sidebarOpen ? 'sidebar-open' : 'sidebar-collapsed'}`}>
-        <Navbar onToggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
+        <Navbar onToggleSidebar={openSidebar} sidebarOpen={sidebarOpen} />
         <main className="app-content">
           <Outlet />
         </main>
