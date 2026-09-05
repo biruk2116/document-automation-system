@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../config/db');
 const { fetchRecordById: fetchInternalRecordById } = require('./dataSourceController');
@@ -413,8 +414,25 @@ async function downloadDocument(req, res) {
     if (doc.deleted_at) {
       return res.status(410).json({ success: false, message: 'This document has been deleted. It can still be checked on the Verify Document page using its Doc ID.' });
     }
-    if (!fs.existsSync(doc.file_path)) {
-      return res.status(410).json({ success: false, message: 'File no longer exists on disk.' });
+
+    // Resolve the file path — the stored value is an absolute path from when the
+    // document was generated. If the server has moved or the working directory has
+    // changed, the absolute path may no longer exist. Fall back to resolving just
+    // the filename against the current STORAGE_ROOT so documents generated on any
+    // machine or in any deployment continue to work.
+    let resolvedPath = doc.file_path;
+    if (!fs.existsSync(resolvedPath)) {
+      const { STORAGE_ROOT } = require('../utils/fileStorage');
+      const filename = path.basename(doc.file_path);
+      const fallback = path.join(STORAGE_ROOT, filename);
+      if (fs.existsSync(fallback)) {
+        resolvedPath = fallback;
+        // Update the stored path in the DB so future requests don't need to fall back.
+        pool.query('UPDATE generated_docs SET file_path = ? WHERE id = ?', [resolvedPath, doc.id])
+          .catch(() => {}); // non-fatal
+      } else {
+        return res.status(410).json({ success: false, message: 'File no longer exists on disk.' });
+      }
     }
 
     const meta = doc.metadata ? JSON.parse(doc.metadata) : {};
@@ -423,7 +441,7 @@ async function downloadDocument(req, res) {
 
     await recordAudit({ userId: req.user.id, docId: doc.id, action: 'DOWNLOAD', details: { via: 'direct' }, req });
 
-    fs.createReadStream(doc.file_path).pipe(res);
+    fs.createReadStream(resolvedPath).pipe(res);
   } catch (err) {
     console.error('[documents] download error:', err);
     return res.status(500).json({ success: false, message: 'Failed to download document.' });
