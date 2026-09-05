@@ -63,9 +63,11 @@ export default function ApprovalsPage() {
   const [recipientsLoading, setRecipientsLoading] = useState(false);
   const [selectedRecipientIds, setSelectedRecipientIds] = useState([]);
 
-  // Only admins may delete — the backend enforces this too, this just hides the button
-  // for approvers who don't own the document and can't delete it anyway.
+  // Approvers can delete documents they're assigned to review.
+  // Admins can delete any document.
+  // The backend enforces these rules — this just controls button visibility.
   const isAdmin = user?.role === ROLES.SUPER_ADMIN || user?.role === ROLES.SYSTEM_ADMIN;
+  const canDeletePending = true; // All approvers can delete their assigned pending documents
 
   const loadPending = async () => {
     setLoading(true);
@@ -282,7 +284,7 @@ export default function ApprovalsPage() {
             <button type="button" onClick={() => handleViewPdf(deepLinkReq)} disabled={viewingPdf} className="doc-btn doc-btn-secondary">View PDF</button>
             <button type="button" onClick={() => openApprove(deepLinkReq)} className="doc-btn doc-btn-primary">Approve</button>
             <button type="button" onClick={() => openReject(deepLinkReq)} className="doc-btn doc-btn-danger">Reject</button>
-            {isAdmin && (
+            {canDeletePending && (
               <button type="button" onClick={() => setDeleteTarget(deepLinkReq)} className="doc-btn doc-btn-danger" style={{ marginLeft: 'auto' }}>
                 Delete
               </button>
@@ -320,7 +322,7 @@ export default function ApprovalsPage() {
                 </button>
                 <button type="button" onClick={() => openApprove(req)} className="doc-btn doc-btn-primary">Approve</button>
                 <button type="button" onClick={() => openReject(req)} className="doc-btn doc-btn-danger">Reject</button>
-                {isAdmin && (
+                {canDeletePending && (
                   <button type="button" onClick={() => setDeleteTarget(req)} className="doc-btn doc-btn-danger" style={{ marginLeft: 'auto' }}>
                     Delete
                   </button>
