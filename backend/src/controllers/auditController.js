@@ -288,8 +288,7 @@ async function searchDocuments(req, res) {
            LIMIT 1
          )
        ${whereClause}
-       ORDER BY gd.generated_at DESC
-       LIMIT 200`,
+       ORDER BY gd.generated_at DESC`,
       params
     );
     return res.status(200).json({ success: true, message: 'Documents fetched.', data: rows });
