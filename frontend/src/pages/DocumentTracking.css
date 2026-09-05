@@ -197,7 +197,11 @@
 
 /* ── Action buttons ── */
 .doc-card-actions {
-  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px;
+  display: flex; 
+  flex-wrap: nowrap; 
+  gap: 8px; 
+  margin-top: 14px;
+  align-items: center;
 }
 
 .doc-btn {
@@ -205,9 +209,8 @@
   font-size: 0.82rem; font-weight: 600; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center; gap: 5px;
   transition: background 0.15s, opacity 0.15s; font-family: inherit;
-  /* Allow text to wrap — long labels like "Regenerate & Send to Recipient"
-     must never overflow or be clipped */
-  white-space: normal; word-break: break-word; text-align: center;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .doc-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -224,7 +227,11 @@
 
 .doc-btn-danger {
   background: var(--error-bg); color: var(--error-text);
-  border: 1px solid var(--error-border); font-weight: 700;
+  border: 1px solid var(--error-border); 
+  font-weight: 600;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  min-height: 32px;
 }
 .doc-btn-danger:hover:not(:disabled) { background: var(--error-text); color: #fff; }
 
@@ -326,9 +333,20 @@
   .doc-track-search  { flex: 1 1 auto; }
   .doc-track-toolbar select { width: 100%; font-size: 0.9rem; padding: 10px 12px; }
 
-  /* Card actions: wrap but ensure each button is readable */
-  .doc-card-actions { gap: 8px; }
-  .doc-btn { font-size: 0.84rem; padding: 9px 14px; }
+  /* Card actions: keep horizontal layout */
+  .doc-card-actions { 
+    gap: 6px; 
+    flex-wrap: wrap;
+  }
+  .doc-btn { 
+    font-size: 0.8rem; 
+    padding: 8px 12px;
+    white-space: nowrap;
+  }
+  .doc-btn-danger {
+    padding: 6px 9px;
+    font-size: 0.75rem;
+  }
 
   /* Stats bar: 2 columns on phones */
   .doc-track-stats { grid-template-columns: repeat(2, 1fr); }
