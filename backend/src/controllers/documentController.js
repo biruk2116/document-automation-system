@@ -25,7 +25,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'insecure_dev_fallback_secret';
 /**
  * Regenerates a PDF file from a generated_docs DB row when the original file is missing.
  * Uses the stored metadata (template_id, record_identifier, status, signatures) to recreate
- * byte-for-byte the same document. Critical for handling redeployments where storage/ folder
+ * the same document. Critical for handling redeployments where storage/ folder
  * is lost but the database persists.
  */
 async function regenerateDocument(doc) {
@@ -37,18 +37,28 @@ async function regenerateDocument(doc) {
     throw new Error(`Template ${doc.template_id} no longer exists — cannot regenerate document.`);
   }
   
-  const record = await fetchTemplateRecord(template, doc.record_identifier);
-  if (!record) {
+  const rawRecord = await fetchTemplateRecord(template, doc.record_identifier);
+  if (!rawRecord) {
     throw new Error(`Record "${doc.record_identifier}" no longer exists in data source — cannot regenerate document.`);
   }
   
-  // Render the template with the same data
-  const normalizedRecord = parseJsonLikeFields(record);
-  const mergedData = withAutoDates(normalizedRecord);
-  const headerHtml = renderTemplate(template.header_html || '', mergedData);
-  const bodyHtml = renderTemplate(template.body_html || '', mergedData);
-  const footerHtml = renderTemplate(template.footer_html || '', mergedData);
-  const automaticDateHtml = template.auto_add_date ? renderTemplate(template.auto_add_date_html || '', {}) : '';
+  // Use the SAME data context setup as buildRenderedDocument
+  const record = parseJsonLikeFields(rawRecord);
+  const singularKey = template.data_source_table.replace(/s$/, '');
+  const dataContext = withAutoDates({ [singularKey]: record, [template.data_source_table]: record, ...record });
+  
+  // Render all HTML regions with proper warnings (but ignore warnings for regeneration)
+  const warnings = [];
+  const headerHtml = renderTemplate(template.header_html || '', dataContext, warnings);
+  const bodyHtml = renderTemplate(template.body_html || '', dataContext, warnings);
+  const footerHtml = renderTemplate(template.footer_html || '', dataContext, warnings);
+  
+  // Add automatic date HTML
+  const automaticDateHtml = `
+    <div class="document-dates">
+        <p><strong>Generated Date:</strong> ${dataContext.generation_date_gc} &nbsp;/&nbsp; ${dataContext.generation_date_ec}</p>
+    </div>
+  `;
   
   // Rebuild the tamper-proof footer with the SAME doc_uuid and verification_id
   const hashVerifyFooterHtml = await buildTamperProofFooterHtml(doc.doc_uuid, VERIFY_BASE_URL);
@@ -71,13 +81,10 @@ async function regenerateDocument(doc) {
   
   // CRITICAL: Verify the regenerated hash matches the original stored hash.
   // If they don't match, the document content has changed (template edited, data changed,
-  // or rendering engine differs) — we MUST NOT replace the original file with a different one.
+  // or rendering engine differs). Log a warning but still save the file.
   if (fileHash !== doc.file_hash) {
-    console.warn(`[documents] regeneration hash mismatch: original=${doc.file_hash}, new=${fileHash}`);
-    // Don't throw — still save the file but log a warning. The document is "best effort"
-    // regenerated. The hash mismatch is expected if the template or data has changed since
-    // the original was generated, but the Generator still wants to view SOMETHING rather than
-    // getting a 410 error.
+    console.warn(`[documents] regeneration hash mismatch for doc ${doc.id}: original=${doc.file_hash}, new=${fileHash}`);
+    console.warn(`[documents] This is expected if the template or data has been modified since original generation.`);
   }
   
   // Save the regenerated PDF to storage
@@ -91,7 +98,7 @@ async function regenerateDocument(doc) {
   }
   
   fs.writeFileSync(newPath, pdfBuffer);
-  console.log(`[documents] regenerated doc ${doc.id} saved to ${newPath}`);
+  console.log(`[documents] regenerated doc ${doc.id} saved to ${newPath} (hash: ${fileHash})`);
   
   return { file_path: newPath, file_hash: fileHash };
 }
@@ -515,11 +522,18 @@ async function downloadDocument(req, res) {
           resolvedPath = regenerated.file_path;
           // Update DB with new file path
           await pool.query('UPDATE generated_docs SET file_path = ? WHERE id = ?', [resolvedPath, doc.id]);
+          console.log(`[documents] download: successfully regenerated doc ${doc.id}`);
         } catch (regenErr) {
-          console.error('[documents] download: regeneration failed:', regenErr.message);
+          console.error('[documents] download: regeneration failed:', regenErr);
+          console.error('[documents] download: full error stack:', regenErr.stack);
           return res.status(410).json({ 
             success: false, 
-            message: 'File no longer exists on disk and could not be regenerated. Please contact support.' 
+            message: `File no longer exists. Regeneration failed: ${regenErr.message}. The template or data source may have been modified or deleted.`,
+            details: {
+              docId: doc.doc_uuid,
+              reason: regenErr.message,
+              suggestion: 'Try regenerating this document from My Documents page with the current template and data.'
+            }
           });
         }
       }
