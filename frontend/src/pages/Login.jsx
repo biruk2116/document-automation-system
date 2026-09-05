@@ -328,10 +328,91 @@ export default function Login() {
           display: flex;
           justify-content: center;
           width: 100%;
+          margin-bottom: 40px;
         }
 
+        /* Animated descriptive section */
         .lp-headline {
-          display: none;
+          display: block;
+          text-align: center;
+          max-width: 420px;
+          margin: 0 auto;
+        }
+        .lp-headline-title {
+          font-size: 2.2rem;
+          font-weight: 800;
+          color: #FFFFFF;
+          letter-spacing: -0.02em;
+          line-height: 1.2;
+          margin-bottom: 16px;
+          animation: fade-in-up 1s ease-out;
+        }
+        .lp-headline-title span {
+          background: linear-gradient(90deg, #27B8BA, #6EE7E5);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          animation: gradient-shift 3s ease-in-out infinite;
+        }
+        @keyframes gradient-shift {
+          0%, 100% { filter: brightness(1); }
+          50% { filter: brightness(1.3); }
+        }
+        @keyframes fade-in-up {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .lp-headline-desc {
+          font-size: 0.95rem;
+          color: rgba(232,238,247,0.65);
+          line-height: 1.7;
+          animation: fade-in-up 1s ease-out 0.2s both;
+        }
+        .lp-headline-desc strong {
+          color: rgba(232,238,247,0.9);
+          font-weight: 600;
+        }
+
+        /* Feature highlights */
+        .lp-features {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+          margin-top: 32px;
+          max-width: 420px;
+          margin-left: auto;
+          margin-right: auto;
+          animation: fade-in-up 1s ease-out 0.4s both;
+        }
+        .lp-feature {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 12px 14px;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 10px;
+          transition: all 0.3s ease;
+        }
+        .lp-feature:hover {
+          background: rgba(39,184,186,0.08);
+          border-color: rgba(39,184,186,0.3);
+          transform: translateY(-2px);
+        }
+        .lp-feature-icon {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          background: rgba(39,184,186,0.15);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .lp-feature-text {
+          font-size: 0.8rem;
+          color: rgba(232,238,247,0.7);
+          font-weight: 500;
         }
 
         /* RIGHT SIDE */
@@ -578,13 +659,22 @@ export default function Login() {
             padding: 40px 30px;
           }
           .lp-brand {
-            margin-bottom: 40px;
-          }
-          .lp-illus {
+            position: static;
+            transform: none;
             margin-bottom: 30px;
           }
-          .lp-headline {
-            font-size: 2.5rem;
+          .lp-illus {
+            margin-bottom: 25px;
+          }
+          .lp-headline-title {
+            font-size: 1.8rem;
+          }
+          .lp-headline-desc {
+            font-size: 0.88rem;
+          }
+          .lp-features {
+            gap: 10px;
+            margin-top: 24px;
           }
           .lp-right {
             padding: 40px 30px;
@@ -595,8 +685,16 @@ export default function Login() {
             min-height: 35vh;
             padding: 30px 24px;
           }
-          .lp-headline {
-            font-size: 2rem;
+          .lp-headline-title {
+            font-size: 1.5rem;
+          }
+          .lp-headline-desc {
+            font-size: 0.85rem;
+          }
+          .lp-features {
+            grid-template-columns: 1fr;
+            gap: 8px;
+            margin-top: 20px;
           }
           .lp-right {
             padding: 30px 24px;
@@ -618,6 +716,56 @@ export default function Login() {
 
             <div className="lp-illus">
               <DocAutomationIllustration/>
+            </div>
+
+            <div className="lp-headline">
+              <h2 className="lp-headline-title">
+                Streamline Your <span>Document Workflow</span>
+              </h2>
+              <p className="lp-headline-desc">
+                A complete enterprise platform for <strong>generating</strong>, <strong>approving</strong>, and <strong>delivering</strong> documents with full audit trails, digital signatures, and secure distribution.
+              </p>
+              
+              <div className="lp-features">
+                <div className="lp-feature">
+                  <div className="lp-feature-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#27B8BA" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                      <line x1="16" y1="13" x2="8" y2="13"/>
+                      <line x1="16" y1="17" x2="8" y2="17"/>
+                    </svg>
+                  </div>
+                  <span className="lp-feature-text">Auto Generation</span>
+                </div>
+                <div className="lp-feature">
+                  <div className="lp-feature-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#27B8BA" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="9 11 12 14 22 4"/>
+                      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                    </svg>
+                  </div>
+                  <span className="lp-feature-text">Approval Workflow</span>
+                </div>
+                <div className="lp-feature">
+                  <div className="lp-feature-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#27B8BA" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                  </div>
+                  <span className="lp-feature-text">Secure Delivery</span>
+                </div>
+                <div className="lp-feature">
+                  <div className="lp-feature-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#27B8BA" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                      <path d="M10 18l2 2 4-4"/>
+                    </svg>
+                  </div>
+                  <span className="lp-feature-text">Digital Signatures</span>
+                </div>
+              </div>
             </div>
           </div>
         </aside>
