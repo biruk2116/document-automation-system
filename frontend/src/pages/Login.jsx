@@ -314,20 +314,16 @@ export default function Login() {
           width: 100%;
           display: flex;
           flex-direction: column;
-          align-items: center;
-          flex: 1;
-          justify-content: center;
+          height: 100%;
         }
 
         .lp-brand {
-          position: absolute;
-          top: 40px;
-          left: 50%;
-          transform: translateX(-50%);
           display: flex;
           flex-direction: column;
           align-items: center;
           gap: 12px;
+          padding-top: 40px;
+          margin-bottom: 0;
         }
         .lp-brand-logo {
           width: 64px;
@@ -363,6 +359,7 @@ export default function Login() {
           display: flex;
           justify-content: center;
           align-items: center;
+          flex: 1;
           width: 100%;
         }
 
@@ -616,12 +613,18 @@ export default function Login() {
           }
           .lp-hero {
             min-height: 45vh;
-            padding: 40px 30px;
+            padding: 30px;
           }
           .lp-brand {
-            position: static;
-            transform: none;
-            margin-bottom: 40px;
+            padding-top: 20px;
+            margin-bottom: 0;
+          }
+          .lp-brand-logo {
+            width: 56px;
+            height: 56px;
+          }
+          .lp-brand-name {
+            font-size: 1.3rem;
           }
           .lp-illus svg {
             max-width: 320px;
@@ -633,17 +636,20 @@ export default function Login() {
         @media (max-width: 640px) {
           .lp-hero {
             min-height: 40vh;
-            padding: 30px 24px;
+            padding: 24px;
           }
           .lp-brand {
-            margin-bottom: 30px;
+            padding-top: 10px;
           }
           .lp-brand-logo {
             width: 52px;
             height: 52px;
           }
           .lp-brand-name {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
+          }
+          .lp-brand-subtitle {
+            font-size: 0.7rem;
           }
           .lp-illus svg {
             max-width: 280px;
