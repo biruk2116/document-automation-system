@@ -54,7 +54,7 @@ function SunIcon() {
   );
 }
 
-export default function Navbar({ onToggleSidebar }) {
+export default function Navbar({ onToggleSidebar, sidebarOpen }) {
   const [dark, setDark] = useState(getInitialDark);
   // Apply on first render and whenever dark changes
   useEffect(() => { applyDark(dark); }, [dark]);
@@ -78,21 +78,27 @@ export default function Navbar({ onToggleSidebar }) {
 
   return (
     <header className="navbar">
-      {/* Hamburger — toggles sidebar at ALL screen sizes */}
-      <button
-        type="button"
-        className="hamburger-btn"
-        onClick={onToggleSidebar}
-        title="Toggle sidebar"
-        aria-label="Toggle sidebar"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-          stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-          <line x1="3" y1="6"  x2="21" y2="6"  />
-          <line x1="3" y1="12" x2="21" y2="12" />
-          <line x1="3" y1="18" x2="21" y2="18" />
-        </svg>
-      </button>
+      {/* Hamburger — opens the sidebar. Only shown when the sidebar is closed
+          so it never conflicts with the sidebar's own × close button. */}
+      {!sidebarOpen && (
+        <button
+          type="button"
+          className="hamburger-btn"
+          onClick={onToggleSidebar}
+          title="Open sidebar"
+          aria-label="Open sidebar"
+          aria-expanded={false}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <line x1="3" y1="6"  x2="21" y2="6"  />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+      )}
+      {/* Spacer that fills when hamburger is visible — keeps right side aligned */}
+      {sidebarOpen && <div className="hamburger-btn" style={{ visibility: 'hidden', pointerEvents: 'none' }} aria-hidden="true" />}
 
       <div className="navbar-spacer" />
 
