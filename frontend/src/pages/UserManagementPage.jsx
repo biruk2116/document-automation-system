@@ -19,6 +19,19 @@ const ROLE_LABELS = {
 
 const emptyForm = { email: '', full_name: '', role: 'generator', phone: '' };
 
+// Resolve a stored avatar_url (which may be a relative path like /uploads/avatars/...)
+// to a browser-loadable URL by prepending the backend origin.
+const API_ORIGIN_UM = (() => {
+  const v = import.meta.env?.VITE_API_URL || '';
+  if (v) { try { return new URL(v).origin; } catch {} }
+  return `${window.location.protocol}//${window.location.hostname}:5000`;
+})();
+function resolveAvatarUrl(url) {
+  if (!url) return url;
+  if (url.startsWith('blob:') || url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `${API_ORIGIN_UM}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
 /** Same "never a blank circle" initials fallback used by the sidebar's own avatar. */
 function initialsFor(fullName) {
   if (!fullName) return '?';
@@ -29,8 +42,9 @@ function initialsFor(fullName) {
 }
 
 function UserRowAvatar({ user }) {
-  if (user.avatar_url) {
-    return <img src={user.avatar_url} alt="" className="user-row-avatar-img" />;
+  const src = resolveAvatarUrl(user.avatar_url);
+  if (src) {
+    return <img src={src} alt="" className="user-row-avatar-img" />;
   }
   return (
     <div className="user-row-avatar-fallback" aria-hidden="true">
