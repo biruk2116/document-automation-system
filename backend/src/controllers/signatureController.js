@@ -155,14 +155,9 @@ async function listPendingForApprover(req, res) {
       [req.user.id]
     );
 
-    // A signature request can outlive its underlying file (deleted from disk,
-    // moved to cold storage, etc.). There is nothing left for the approver to
-    // view/approve in that case, so those rows are filtered out here rather
-    // than shown as a dead end — same "file must exist on disk" rule the
-    // /view endpoint already enforces (see viewPendingDocument above).
-    const existing = rows
-      .filter((r) => r.file_path && fs.existsSync(r.file_path))
-      .map(({ file_path, ...rest }) => rest); // don't leak the on-disk path to the client
+    // Return all pending requests - documents should always be accessible.
+    // If a file doesn't exist on disk, it will be handled when viewing/downloading.
+    const existing = rows.map(({ file_path, ...rest }) => rest); // don't leak the on-disk path to the client
 
     return res.status(200).json({ success: true, message: 'Pending approvals fetched.', data: existing });
   } catch (err) {
@@ -175,7 +170,8 @@ async function listPendingForApprover(req, res) {
  * GET /api/signatures/:id/view — approver clicks the link from their email/notification
  * and views the PDF in the browser BEFORE entering the OTP. Streams the file inline
  * (not as an attachment/download) and is restricted to the approver assigned to this
- * specific request (or an admin) — this is a view step, not the general download route.
+ * specific request (or an admin). If the file doesn't exist on disk, regenerates it
+ * from the document metadata before streaming.
  */
 async function viewPendingDocument(req, res) {
   const { id } = req.params;
@@ -195,8 +191,44 @@ async function viewPendingDocument(req, res) {
     if (!doc) {
       return res.status(404).json({ success: false, message: 'Document not found.' });
     }
+
+    // If file doesn't exist, regenerate it from metadata
     if (!fs.existsSync(doc.file_path)) {
-      return res.status(410).json({ success: false, message: 'File no longer exists on disk.' });
+      try {
+        const meta = doc.metadata ? JSON.parse(doc.metadata) : {};
+        const pieces = meta.renderPieces || {};
+        
+        if (!pieces.headerHtml || !pieces.bodyHtml) {
+          return res.status(410).json({ 
+            success: false, 
+            message: 'Document file missing and cannot be regenerated (missing template data).' 
+          });
+        }
+
+        // Regenerate the PDF
+        const documentHtml = assembleDocumentHtml({
+          ...pieces,
+          watermarkText: resolveWatermarkForStatus(doc.status, pieces.watermarkText),
+        });
+        const pdfBuffer = await htmlToPdfBuffer(documentHtml);
+        
+        // Ensure directory exists
+        const dir = require('path').dirname(doc.file_path);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        
+        // Write regenerated file
+        fs.writeFileSync(doc.file_path, pdfBuffer);
+        
+        console.log(`[signatures] Regenerated missing document: ${doc.doc_uuid}`);
+      } catch (regenErr) {
+        console.error('[signatures] Failed to regenerate document:', regenErr);
+        return res.status(410).json({ 
+          success: false, 
+          message: 'File no longer exists on disk and could not be regenerated.' 
+        });
+      }
     }
 
     const meta = doc.metadata ? JSON.parse(doc.metadata) : {};
