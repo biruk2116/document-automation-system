@@ -32,6 +32,11 @@ const pageSpec = require('../../../frontend/src/shared/documentPageSpec.json');
  *     content, which must render exactly as authored/previewed.
  */
 function assembleDocumentHtml({ headerHtml, bodyHtml, footerHtml, tamperProofFooterHtml, deliveryVerificationQrHtml, watermarkText, signatureHtml }) {
+  // Strip editor-only elements (remove buttons, etc.) before assembling the final PDF
+  const cleanHeaderHtml = stripEditorOnlyElements(headerHtml || '');
+  const cleanBodyHtml = stripEditorOnlyElements(bodyHtml || '');
+  const cleanFooterHtml = stripEditorOnlyElements(footerHtml || '');
+  
   // FR-017 color coding: DRAFT stays red (unapproved/in-progress), FINAL is green
   // (approved/complete) so the two are never visually confusable. Anything else
   // (e.g. a legacy CONFIDENTIAL value already saved on an old template row) falls
@@ -158,9 +163,9 @@ function assembleDocumentHtml({ headerHtml, bodyHtml, footerHtml, tamperProofFoo
 <body>
   <div class="page">
     ${watermarkBlock}
-    <div class="doc-header">${headerHtml || ''}</div>
-    <div class="doc-body">${bodyHtml || ''}</div>
-    <div class="doc-footer">${footerHtml || ''}</div>
+    <div class="doc-header">${cleanHeaderHtml}</div>
+    <div class="doc-body">${cleanBodyHtml}</div>
+    <div class="doc-footer">${cleanFooterHtml}</div>
     <div class="doc-footer-meta">
       ${signatureHtml || ''}
       <div class="qr-footer-row">
@@ -206,6 +211,30 @@ function resolveWatermarkForStatus(docStatus, templateWatermarkText) {
     return cleanTemplateWatermark || 'FINAL';
   }
   return cleanTemplateWatermark || null;
+}
+
+/**
+ * Strips editor-only elements from HTML before PDF generation.
+ * Removes:
+ * - Remove buttons (class="sig-field-remove-btn")
+ * - Any element with data-editor-only="true"
+ * 
+ * @param {string} html  The HTML content
+ * @returns {string}  Cleaned HTML
+ */
+function stripEditorOnlyElements(html) {
+  if (!html) return html || '';
+  
+  let cleaned = html;
+  
+  // Remove all buttons with class sig-field-remove-btn
+  cleaned = cleaned.replace(/<button[^>]*class="sig-field-remove-btn"[^>]*>.*?<\/button>/gs, '');
+  cleaned = cleaned.replace(/<button[^>]*onclick="[^"]*\.remove\(\)"[^>]*>.*?<\/button>/gs, '');
+  
+  // Remove data-editor-only attribute from divs
+  cleaned = cleaned.replace(/\s*data-editor-only="true"/g, '');
+  
+  return cleaned;
 }
 
 /**
@@ -311,4 +340,4 @@ function injectSignatureIntoFooter(footerHtml, name, photoDataUrl, signedAt) {
   return before + signedBlock + after;
 }
 
-module.exports = { assembleDocumentHtml, resolveWatermarkForStatus, injectSignatureIntoFooter };
+module.exports = { assembleDocumentHtml, resolveWatermarkForStatus, injectSignatureIntoFooter, stripEditorOnlyElements };

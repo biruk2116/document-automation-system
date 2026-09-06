@@ -927,7 +927,9 @@ export default function SecureDeliveryPage() {
                           fontFamily: 'cursive, serif', letterSpacing: '0.04em',
                           marginBottom: 16, boxSizing: 'border-box',
                           borderBottom: '2px solid var(--brand)',
-                          background: ownershipStatus !== 'CONFIRMED' ? '#F8FAFC' : '#fff',
+                          background: ownershipStatus !== 'CONFIRMED' ? '#F8FAFC' : (signText.trim() ? '#F0FDF4' : '#fff'),
+                          color: signText.trim() ? '#15803D' : 'inherit',
+                          fontWeight: signText.trim() ? 600 : 400,
                         }}
                       />
 
@@ -1173,6 +1175,9 @@ export default function SecureDeliveryPage() {
                           border: '1.5px solid var(--border-strong)', borderRadius: 8, outline: 'none',
                           resize: 'vertical', fontFamily: 'inherit', lineHeight: 1.5,
                           marginBottom: 10, boxSizing: 'border-box',
+                          background: (responding || ownershipStatus !== 'CONFIRMED') ? '#F8FAFC' : (responseText.trim() ? '#FEF3C7' : '#fff'),
+                          color: responseText.trim() ? '#92400E' : 'inherit',
+                          fontWeight: responseText.trim() ? 600 : 400,
                         }}
                       />
                       <ActionBtn onClick={handleRespond} loading={responding}

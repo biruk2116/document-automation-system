@@ -157,10 +157,12 @@ export default function TemplateForm({
     
     // The visual placeholder block that will be embedded in footer_html and
     // stored in the DB. Each field has a unique data-sig-field-id for individual removal.
+    // The × button is ONLY shown during template creation/editing (contenteditable=false wrapper)
+    // and will be removed before final PDF generation.
     const sigBlockHtml = `
-<div contenteditable="false" style="margin-top:16px;padding:12px 16px;border:1.5px dashed #0F2747;border-radius:6px;background:rgba(15,39,71,0.03);user-select:none;position:relative;" data-sig-field-id="${fieldId}">
+<div contenteditable="false" style="margin-top:16px;padding:12px 16px;border:1.5px dashed #0F2747;border-radius:6px;background:rgba(15,39,71,0.03);user-select:none;position:relative;" data-sig-field-id="${fieldId}" data-editor-only="true">
   <!-- [[SIGNATURE_FIELD:${fieldId}]] -->
-  <button type="button" onclick="this.closest('[data-sig-field-id]').remove()" style="position:absolute;top:8px;right:8px;width:24px;height:24px;border-radius:4px;border:1px solid #DC2626;background:#fff;color:#DC2626;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;transition:all 0.15s;" onmouseover="this.style.background='#DC2626';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#DC2626'" title="Remove this signature field">×</button>
+  <button type="button" class="sig-field-remove-btn" onclick="this.closest('[data-sig-field-id]').remove()" style="position:absolute;top:8px;right:8px;width:24px;height:24px;border-radius:4px;border:1px solid #DC2626;background:#fff;color:#DC2626;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;transition:all 0.15s;" onmouseover="this.style.background='#DC2626';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#DC2626'" title="Remove this signature field">×</button>
   <table style="width:100%;border-collapse:collapse;font-family:inherit;">
     <tbody>
       <tr>

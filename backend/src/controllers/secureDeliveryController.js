@@ -1551,36 +1551,21 @@ async function _sendWorkflowCompleteNotification({ delivery, doc, triggerStep, s
         actionDescription = `completed the workflow for document <b>${doc.doc_uuid}</b>.`;
     }
 
-    // Show a signature thumbnail in the email when the sign step triggered this.
+    // Show a brief status indicator if signature was captured, but NOT the actual
+    // signature/name details — those are embedded in the PDF only for security.
     let sigHtml = '';
-    if (signatureData) {
-      const nameText = signatureData.signatureText
-        ? `<p style="margin:0 0 6px;font-size:18px;font-family:cursive,serif;color:#0F2747;">
-             ${signatureData.signatureText}
-           </p>`
-        : '';
-      const photoHtml = signatureData.signaturePhoto
-        ? `<div style="margin:10px 0 0;">
-             <p style="margin:0 0 4px;font-size:11px;color:#94A3B8;text-transform:uppercase;letter-spacing:0.06em;">
-               Signature Image
-             </p>
-             <img src="${signatureData.signaturePhoto}" alt="Signature"
-                  style="max-height:80px;max-width:240px;border:1px solid #E2E8F0;
-                         border-radius:4px;padding:4px;background:#fff;" />
-           </div>`
-        : '';
-      if (nameText || photoHtml) {
-        sigHtml = `
-          <div style="margin:12px 0;padding:14px 18px;background:#F8FAFC;
-                      border:1px solid #E2E8F0;border-radius:8px;
-                      border-bottom:2px solid #0F2747;">
-            <p style="margin:0 0 4px;font-size:11px;color:#94A3B8;
-                      text-transform:uppercase;letter-spacing:0.06em;">
-              Signature Name
-            </p>
-            ${nameText}${photoHtml}
-          </div>`;
-      }
+    if (signatureData && (signatureData.signatureText || signatureData.signaturePhoto)) {
+      sigHtml = `
+        <div style="margin:12px 0;padding:14px 18px;background:#F0FDF4;
+                    border:1px solid #BBF7D0;border-radius:8px;
+                    border-left:3px solid #16A34A;">
+          <p style="margin:0;font-size:0.9rem;color:#15803D;font-weight:600;">
+            ✓ Document has been digitally signed by the recipient
+          </p>
+          <p style="margin:4px 0 0;font-size:0.8rem;color:#166534;">
+            The signature is embedded directly in the document PDF.
+          </p>
+        </div>`;
     }
 
     await sendMail({
