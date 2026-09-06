@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { ROLES } from '../utils/roles';
@@ -30,195 +30,46 @@ function EyeIcon({ off }) {
   );
 }
 
-/* ── Document automation illustration - larger and more descriptive ── */
-function DocAutomationIllustration() {
-  return (
-    <svg viewBox="0 0 400 350" fill="none" xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true" style={{ width: '100%', maxWidth: 400 }}>
-      
-      {/* Back document - largest */}
-      <g opacity="0.5">
-        <rect x="160" y="80" width="140" height="180" rx="8"
-          fill="var(--doc-bg)" stroke="var(--doc-stroke)" strokeWidth="2.5"/>
-        <rect x="175" y="100" width="80" height="4" rx="2" fill="var(--doc-line)"/>
-        <rect x="175" y="110" width="100" height="4" rx="2" fill="var(--doc-line)"/>
-        <rect x="175" y="120" width="70" height="4" rx="2" fill="var(--doc-line)"/>
-        <rect x="175" y="135" width="90" height="4" rx="2" fill="var(--doc-line)"/>
-        <rect x="175" y="145" width="85" height="4" rx="2" fill="var(--doc-line)"/>
-        <rect x="175" y="155" width="75" height="4" rx="2" fill="var(--doc-line)"/>
-      </g>
-
-      {/* Middle document */}
-      <g opacity="0.7">
-        <animateTransform attributeName="transform" type="translate"
-          values="0,0;-2,-2;0,0" dur="3.5s" repeatCount="indefinite"/>
-        <rect x="130" y="60" width="140" height="180" rx="8"
-          fill="var(--doc-bg)" stroke="var(--doc-stroke)" strokeWidth="2.5"/>
-        <rect x="145" y="80" width="80" height="4" rx="2" fill="var(--doc-line)"/>
-        <rect x="145" y="90" width="100" height="4" rx="2" fill="var(--doc-line)"/>
-        <rect x="145" y="100" width="70" height="4" rx="2" fill="var(--doc-line)"/>
-        <rect x="145" y="115" width="90" height="4" rx="2" fill="var(--doc-line)"/>
-        <rect x="145" y="125" width="85" height="4" rx="2" fill="var(--doc-line)"/>
-        <rect x="145" y="135" width="75" height="4" rx="2" fill="var(--doc-line)"/>
-        <rect x="145" y="150" width="95" height="4" rx="2" fill="var(--doc-line)"/>
-        <rect x="145" y="160" width="80" height="4" rx="2" fill="var(--doc-line)"/>
-      </g>
-
-      {/* Front document with checkmark - largest and most prominent */}
-      <g>
-        <animateTransform attributeName="transform" type="translate"
-          values="0,0;-3,-3;0,0" dur="4.5s" repeatCount="indefinite"/>
-        <rect x="100" y="40" width="140" height="180" rx="8"
-          fill="var(--doc-bg-front)" stroke="var(--doc-stroke-front)" strokeWidth="3"/>
-        <rect x="115" y="60" width="80" height="4" rx="2" fill="var(--doc-line)"/>
-        <rect x="115" y="70" width="100" height="4" rx="2" fill="var(--doc-line)"/>
-        <rect x="115" y="80" width="70" height="4" rx="2" fill="var(--doc-line)"/>
-        <rect x="115" y="95" width="90" height="4" rx="2" fill="var(--doc-line)"/>
-        <rect x="115" y="105" width="85" height="4" rx="2" fill="var(--doc-line)"/>
-        <rect x="115" y="115" width="75" height="4" rx="2" fill="var(--doc-line)"/>
-        <rect x="115" y="130" width="95" height="4" rx="2" fill="var(--doc-line)"/>
-        <rect x="115" y="140" width="80" height="4" rx="2" fill="var(--doc-line)"/>
-        <rect x="115" y="150" width="70" height="4" rx="2" fill="var(--doc-line)"/>
-        
-        {/* Large checkmark circle */}
-        <circle cx="170" cy="180" r="28" fill="var(--check-bg)" stroke="var(--check-stroke)" strokeWidth="3">
-          <animate attributeName="opacity" values="1;0.85;1" dur="2s" repeatCount="indefinite"/>
-        </circle>
-        <path d="M155 180 l10 10 20-20" stroke="var(--check-mark)" strokeWidth="4"
-          strokeLinecap="round" strokeLinejoin="round">
-          <animate attributeName="stroke-dashoffset" from="40" to="0" dur="2s" repeatCount="indefinite"/>
-          <animate attributeName="stroke-dasharray" values="0 40;40 0" dur="2s" repeatCount="indefinite"/>
-        </path>
-      </g>
-
-      {/* Left curved arrow - workflow indication */}
-      <g>
-        <path d="M 105 100 Q 50 100 50 55" stroke="var(--arrow-color)" strokeWidth="4"
-          fill="none" strokeLinecap="round" opacity="0.7">
-          <animate attributeName="stroke-dashoffset" from="100" to="0" dur="3s" repeatCount="indefinite"/>
-          <animate attributeName="stroke-dasharray" values="0 100;100 0" dur="3s" repeatCount="indefinite"/>
-        </path>
-        <circle cx="50" cy="50" r="4" fill="var(--arrow-color)">
-          <animate attributeName="opacity" values="0;1;0" dur="3s" repeatCount="indefinite"/>
-        </circle>
-      </g>
-
-      {/* Right curved arrow */}
-      <g>
-        <path d="M 235 200 Q 320 200 320 150" stroke="var(--arrow-color)" strokeWidth="4"
-          fill="none" strokeLinecap="round" opacity="0.7">
-          <animate attributeName="stroke-dashoffset" from="100" to="0" dur="3s" begin="1s" repeatCount="indefinite"/>
-          <animate attributeName="stroke-dasharray" values="0 100;100 0" dur="3s" begin="1s" repeatCount="indefinite"/>
-        </path>
-        <circle cx="320" cy="145" r="4" fill="var(--arrow-color)">
-          <animate attributeName="opacity" values="0;1;0" dur="3s" begin="1s" repeatCount="indefinite"/>
-        </circle>
-      </g>
-
-      {/* Gear icon - automation symbol (top right) */}
-      <g opacity="0.8">
-        <animateTransform attributeName="transform" type="rotate"
-          values="0 320 80; 360 320 80" dur="8s" repeatCount="indefinite"/>
-        <circle cx="320" cy="80" r="24" fill="var(--gear-bg)" stroke="var(--gear-stroke)" strokeWidth="3"/>
-        <circle cx="320" cy="80" r="9" fill="var(--gear-center)"/>
-        {[0, 60, 120, 180, 240, 300].map((angle, i) => (
-          <rect key={i}
-            x="317" y="56" width="6" height="11" rx="3"
-            fill="var(--gear-stroke)"
-            transform={`rotate(${angle} 320 80)`}/>
-        ))}
-      </g>
-
-      {/* Water drop - refresh/automation icon (bottom left) */}
-      <g opacity="0.75">
-        <animateTransform attributeName="transform" type="translate"
-          values="0,0;0,-4;0,0" dur="2.5s" repeatCount="indefinite"/>
-        <ellipse cx="65" cy="210" rx="16" ry="20" fill="var(--drop-color)" opacity="0.4"/>
-        <ellipse cx="65" cy="207" rx="13" ry="17" fill="var(--drop-color)"/>
-        <circle cx="65" cy="200" r="4" fill="var(--drop-highlight)" opacity="0.7"/>
-      </g>
-
-      {/* Signature pen icon - digital signature (bottom right) */}
-      <g opacity="0.75">
-        <animateTransform attributeName="transform" type="translate"
-          values="0,0;2,0;0,0" dur="2s" repeatCount="indefinite"/>
-        <path d="M 280 260 L 295 245 L 300 250 L 285 265 Z" 
-          fill="var(--arrow-color)" stroke="var(--arrow-color)" strokeWidth="2"/>
-        <path d="M 295 245 L 305 235" 
-          stroke="var(--arrow-color)" strokeWidth="3" strokeLinecap="round"/>
-        <circle cx="307" cy="233" r="3" fill="var(--check-bg)"/>
-        <path d="M 275 268 Q 278 265 280 260" 
-          stroke="var(--arrow-color)" strokeWidth="2" fill="none"/>
-      </g>
-
-      {/* Shield icon - security (top left) */}
-      <g opacity="0.7">
-        <path d="M 60 60 L 60 90 Q 60 105 75 110 Q 90 105 90 90 L 90 60 L 75 55 Z" 
-          fill="var(--gear-bg)" stroke="var(--gear-stroke)" strokeWidth="2.5"/>
-        <path d="M 70 75 L 73 78 L 80 70" 
-          stroke="var(--check-mark)" strokeWidth="2.5" fill="none" 
-          strokeLinecap="round" strokeLinejoin="round"/>
-      </g>
-
-      {/* Define CSS variables for theming */}
-      <defs>
-        <style>{`
-          :root {
-            --doc-bg: rgba(230, 240, 250, 0.8);
-            --doc-bg-front: #E6F0FA;
-            --doc-stroke: #4A9FD8;
-            --doc-stroke-front: #3B8FC7;
-            --doc-line: #7FBCE6;
-            --check-bg: #2DD4BF;
-            --check-stroke: #14B8A6;
-            --check-mark: #FFFFFF;
-            --arrow-color: #3B8FC7;
-            --gear-bg: #4A9FD8;
-            --gear-stroke: #2D7DB5;
-            --gear-center: #E6F0FA;
-            --drop-color: #3B8FC7;
-            --drop-highlight: rgba(255, 255, 255, 0.8);
-          }
-          @media (prefers-color-scheme: dark) {
-            :root {
-              --doc-bg: rgba(60, 80, 100, 0.5);
-              --doc-bg-front: #3C5064;
-              --doc-stroke: #5BA3D0;
-              --doc-stroke-front: #4A9FD8;
-              --doc-line: #5BA3D0;
-              --check-bg: #2DD4BF;
-              --check-stroke: #14B8A6;
-              --check-mark: #FFFFFF;
-              --arrow-color: #5BA3D0;
-              --gear-bg: #5BA3D0;
-              --gear-stroke: #3B8FC7;
-              --gear-center: #2C3E50;
-              --drop-color: #5BA3D0;
-              --drop-highlight: rgba(255, 255, 255, 0.5);
-            }
-          }
-        `}</style>
-      </defs>
-    </svg>
-  );
-}
-
 export default function Login() {
-  const { login }    = useAuth();
-  const navigate     = useNavigate();
-  const location     = useLocation();
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const [email,      setEmail]      = useState('');
-  const [password,   setPassword]   = useState('');
-  const [showPw,     setShowPw]     = useState(false);
-  const [remember,   setRemember]   = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [remember, setRemember] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error,      setError]      = useState(null);
+  const [error, setError] = useState(null);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  // Detect mobile keyboard using visualViewport API
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+
+    const handleResize = () => {
+      const viewport = window.visualViewport;
+      const windowHeight = window.innerHeight;
+      const viewportHeight = viewport.height;
+      
+      // If viewport height is significantly smaller than window height, keyboard is likely open
+      const heightDiff = windowHeight - viewportHeight;
+      setKeyboardOpen(heightDiff > 150);
+    };
+
+    window.visualViewport.addEventListener('resize', handleResize);
+    window.visualViewport.addEventListener('scroll', handleResize);
+    
+    return () => {
+      window.visualViewport.removeEventListener('resize', handleResize);
+      window.visualViewport.removeEventListener('scroll', handleResize);
+    };
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!email.trim())  { setError('Please enter your work email.');  return; }
-    if (!password)      { setError('Please enter your password.');     return; }
+    if (!email.trim()) { setError('Please enter your work email.'); return; }
+    if (!password) { setError('Please enter your password.'); return; }
     setError(null);
     setSubmitting(true);
     try {
@@ -235,40 +86,78 @@ export default function Login() {
   return (
     <>
       <style>{`
+        /* ═══════════════════════════════════════════════════════════
+           MOBILE-FIRST RESPONSIVE LOGIN - KEYBOARD AWARE
+        ═══════════════════════════════════════════════════════════ */
+        
         /* Reset */
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        /* Page container */
-        .lp {
-          display: flex;
-          width: 100vw;
-          height: 100vh;
+        *, *::before, *::after { 
+          box-sizing: border-box; 
+          margin: 0; 
+          padding: 0; 
+        }
+        
+        html {
+          /* Modern viewport units with fallbacks */
+          height: 100dvh; /* Dynamic viewport height - adjusts with keyboard */
+          height: 100svh; /* Small viewport height - fallback */
+          height: 100vh;  /* Legacy fallback */
+        }
+        
+        body {
+          margin: 0;
+          padding: 0;
           overflow: hidden;
-          font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', 'Arial', sans-serif;
-          background: #FFFFFF;
-        }
-        @media (prefers-color-scheme: dark) {
-          .lp { background: #1A2332; }
         }
 
-        /* LEFT SIDE */
-        .lp-hero {
-          flex: 0 0 50%;
-          position: relative;
+        /* ─────────────────────────────────────
+           PAGE CONTAINER - MOBILE FIRST
+        ───────────────────────────────────── */
+        .login-page {
+          /* Use modern viewport units that respect mobile keyboards */
+          min-height: 100dvh;
+          min-height: 100svh;
+          min-height: 100vh;
+          
+          width: 100%;
           display: flex;
           flex-direction: column;
-          align-items: center;
-          justify-content: space-between;
-          padding: 60px 50px;
-          background: linear-gradient(150deg, #0A1E38 0%, #0F2747 45%, #0C2244 100%);
-          overflow: hidden;
+          
+          /* Allow vertical scrolling when keyboard opens */
+          overflow-y: auto;
+          overflow-x: hidden;
+          
+          /* Smooth scrolling on iOS */
+          -webkit-overflow-scrolling: touch;
+          
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 
+                       'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          
+          background: #FAFAFA;
+          
+          /* Safe area support for notches */
+          padding-bottom: env(safe-area-inset-bottom);
         }
+        
         @media (prefers-color-scheme: dark) {
-          .lp-hero { background: linear-gradient(150deg, #0A1E38 0%, #0F2747 45%, #0C2244 100%); }
+          .login-page {
+            background: #1A2332;
+          }
         }
 
-        /* Animated orbs */
-        .lp-hero::before {
+        /* ─────────────────────────────────────
+           HERO SECTION (LEFT SIDE ON DESKTOP)
+        ───────────────────────────────────── */
+        .login-hero {
+          display: none; /* Hidden on mobile by default */
+          position: relative;
+          background: linear-gradient(135deg, #0A1E38 0%, #0F2747 50%, #27B8BA 100%);
+          overflow: hidden;
+        }
+        
+        .login-hero::before {
           content: '';
           position: absolute;
           width: 500px;
@@ -280,692 +169,987 @@ export default function Login() {
           animation: orb-float 16s ease-in-out infinite alternate;
           pointer-events: none;
         }
-        .lp-hero::after {
-          content: '';
-          position: absolute;
-          width: 360px;
-          height: 360px;
-          border-radius: 50%;
-          background: radial-gradient(circle, rgba(79,140,201,0.12) 0%, transparent 70%);
-          bottom: -80px;
-          right: -40px;
-          animation: orb-float 20s ease-in-out infinite alternate-reverse;
-          pointer-events: none;
-        }
+        
         @keyframes orb-float {
           from { transform: translate(0,0) scale(1); }
           to { transform: translate(20px,15px) scale(1.06); }
         }
-
-        /* Grid pattern */
-        .lp-grid {
-          position: absolute;
-          inset: 0;
-          background-image:
-            linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
-          background-size: 44px 44px;
-          pointer-events: none;
-        }
-
-        .lp-hi {
+        
+        .login-hero-content {
           position: relative;
           z-index: 1;
-          width: 100%;
           display: flex;
           flex-direction: column;
           height: 100%;
+          padding: 40px;
+          justify-content: flex-start;
         }
-
-        .lp-brand {
+        
+        /* Title at top middle */
+        .login-brand {
           display: flex;
           flex-direction: column;
           align-items: center;
           gap: 12px;
-          padding-top: 40px;
           margin-bottom: 0;
+          padding-top: 30px;
         }
-        .lp-brand-logo {
-          width: 64px;
-          height: 64px;
-          border-radius: 14px;
+        
+        .login-brand-logo {
+          width: 60px;
+          height: 60px;
+          border-radius: 12px;
           overflow: hidden;
           box-shadow: 0 4px 16px rgba(0,0,0,0.4);
         }
-        .lp-brand-logo img {
+        
+        .login-brand-logo img {
           width: 100%;
           height: 100%;
           object-fit: cover;
         }
-        .lp-brand-name {
-          font-size: 1.5rem;
+        
+        .login-brand-name {
+          font-size: 1.6rem;
           font-weight: 800;
           letter-spacing: 0.05em;
           text-transform: uppercase;
           color: #FFFFFF;
           text-align: center;
           text-shadow: 0 2px 12px rgba(39,184,186,0.4);
+          margin-bottom: 10px;
         }
-        .lp-brand-subtitle {
-          font-size: 0.75rem;
-          font-weight: 600;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
+        
+        /* Large centered animation container */
+        .login-hero-animation {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 40px 20px;
+        }
+        
+        .login-animation-graphic {
+          width: 100%;
+          max-width: 480px;
+          aspect-ratio: 1;
+          position: relative;
+        }
+        
+        /* Document automation visual representation */
+        .doc-flow {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 30px;
+          opacity: 0;
+          animation: fadeInUp 1s ease 0.3s forwards;
+        }
+        
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .doc-icon-group {
+          display: flex;
+          gap: 24px;
+          align-items: center;
+        }
+        
+        .doc-icon {
+          width: 80px;
+          height: 80px;
+          background: rgba(255, 255, 255, 0.1);
+          border: 2px solid rgba(39, 184, 186, 0.3);
+          border-radius: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          backdrop-filter: blur(10px);
+          animation: docPulse 3s ease-in-out infinite;
+        }
+        
+        .doc-icon:nth-child(2) {
+          animation-delay: 0.5s;
+        }
+        
+        .doc-icon:nth-child(3) {
+          animation-delay: 1s;
+        }
+        
+        @keyframes docPulse {
+          0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(39, 184, 186, 0.4);
+          }
+          50% {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px 10px rgba(39, 184, 186, 0);
+          }
+        }
+        
+        .doc-icon svg {
+          width: 40px;
+          height: 40px;
           color: #27B8BA;
-          opacity: 0.9;
         }
-
-        .lp-illus {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          flex: 1;
+        
+        .doc-flow-arrow {
           width: 100%;
+          max-width: 300px;
+          height: 2px;
+          background: linear-gradient(90deg, transparent, #27B8BA, transparent);
+          position: relative;
+          animation: flowMove 2s ease-in-out infinite;
+        }
+        
+        @keyframes flowMove {
+          0% {
+            opacity: 0.5;
+          }
+          50% {
+            opacity: 1;
+          }
+          100% {
+            opacity: 0.5;
+          }
+        }
+        
+        .doc-flow-arrow::after {
+          content: '';
+          position: absolute;
+          right: 0;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 0;
+          height: 0;
+          border-left: 8px solid #27B8BA;
+          border-top: 5px solid transparent;
+          border-bottom: 5px solid transparent;
+        }
+        
+        .doc-feature-label {
+          font-size: 0.95rem;
+          color: rgba(255, 255, 255, 0.9);
+          text-align: center;
+          font-weight: 600;
+          letter-spacing: 0.03em;
         }
 
-        /* Remove all descriptive sections */
-        .lp-headline,
-        .lp-headline-title,
-        .lp-headline-desc,
-        .lp-features,
-        .lp-feature {
-          display: none;
-        }
-
-        /* RIGHT SIDE */
-        .lp-right {
+        /* ─────────────────────────────────────
+           FORM CONTAINER - MOBILE OPTIMIZED
+        ───────────────────────────────────── */
+        .login-container {
           flex: 1;
           display: flex;
           align-items: center;
           justify-content: center;
-          padding: 60px 50px;
-          background: #FAFAFA;
+          
+          /* Flexible padding that works with keyboard */
+          padding: 20px 16px;
+          padding-bottom: calc(20px + env(safe-area-inset-bottom));
+          
+          width: 100%;
+          max-width: 100%;
         }
+        
+        .login-form-wrapper {
+          width: 100%;
+          max-width: 420px;
+          
+          /* No fixed height - let content determine size */
+          /* Allow form to shrink when keyboard opens */
+        }
+        
+        /* Mobile header (logo shown on mobile only) */
+        .login-mobile-header {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          margin-bottom: 32px;
+        }
+        
+        .login-mobile-logo {
+          width: 56px;
+          height: 56px;
+          border-radius: 12px;
+          overflow: hidden;
+          margin-bottom: 12px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .login-mobile-logo img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        
+        .login-mobile-title {
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: #1A1A1A;
+          text-align: center;
+          margin-bottom: 4px;
+        }
+        
+        .login-mobile-subtitle {
+          font-size: 0.875rem;
+          color: #6B7280;
+          text-align: center;
+        }
+        
         @media (prefers-color-scheme: dark) {
-          .lp-right { background: #1A2332; }
+          .login-mobile-title {
+            color: #FFFFFF;
+          }
+          .login-mobile-subtitle {
+            color: #9CA3AF;
+          }
         }
 
-        .lp-card {
+        /* ─────────────────────────────────────
+           FORM ELEMENTS - TOUCH OPTIMIZED
+        ───────────────────────────────────── */
+        .login-form {
           width: 100%;
-          max-width: 380px;
         }
-
-        /* Error */
-        .lp-err {
+        
+        /* Error message */
+        .login-error {
           display: flex;
+          align-items: flex-start;
           gap: 10px;
-          padding: 12px 16px;
+          padding: 12px 14px;
+          margin-bottom: 20px;
           background: #FEE2E2;
           border: 1px solid #FCA5A5;
           border-radius: 8px;
           font-size: 0.875rem;
           color: #DC2626;
-          margin-bottom: 20px;
+          line-height: 1.4;
         }
+        
         @media (prefers-color-scheme: dark) {
-          .lp-err {
+          .login-error {
             background: rgba(220, 38, 38, 0.15);
             border-color: rgba(248, 113, 113, 0.3);
             color: #FCA5A5;
           }
         }
-
-        /* Form fields */
-        .lp-field {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
+        
+        .login-error svg {
+          flex-shrink: 0;
+          margin-top: 2px;
+        }
+        
+        /* Form field */
+        .login-field {
           margin-bottom: 20px;
         }
-        .lp-lbl {
+        
+        .login-label {
+          display: block;
+          margin-bottom: 8px;
           font-size: 0.9375rem;
           font-weight: 500;
           color: #1A1A1A;
         }
+        
         @media (prefers-color-scheme: dark) {
-          .lp-lbl { color: #E5E7EB; }
+          .login-label {
+            color: #E5E7EB;
+          }
         }
-
-        .lp-wrap {
+        
+        .login-input-wrapper {
           position: relative;
         }
-        .lp-inp {
+        
+        .login-input {
           width: 100%;
-          padding: 12px 16px;
-          border: 1px solid #D1D5DB;
-          border-radius: 6px;
-          font-size: 0.9375rem;
+          
+          /* Touch-friendly sizing - minimum 44px touch target */
+          padding: 14px 16px;
+          min-height: 48px;
+          
+          font-size: 16px; /* Prevents iOS zoom on focus */
           font-family: inherit;
+          line-height: 1.5;
+          
           color: #1A1A1A;
           background: #FFFFFF;
+          
+          border: 1.5px solid #D1D5DB;
+          border-radius: 8px;
+          
           outline: none;
-          transition: all 0.2s;
+          transition: all 0.2s ease;
+          
+          /* Better touch experience */
+          -webkit-appearance: none;
+          appearance: none;
         }
-        .lp-inp:focus {
+        
+        .login-input:focus {
           border-color: #14B8A6;
           box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.1);
         }
-        .lp-inp::placeholder {
+        
+        .login-input::placeholder {
           color: #9CA3AF;
         }
+        
         @media (prefers-color-scheme: dark) {
-          .lp-inp {
+          .login-input {
+            color: #FFFFFF;
             background: #2C3E50;
             border-color: #4B5563;
-            color: #FFFFFF;
           }
-          .lp-inp:focus {
+          .login-input:focus {
             border-color: #14B8A6;
             box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.2);
           }
-          .lp-inp::placeholder {
+          .login-input::placeholder {
             color: #6B7280;
           }
         }
-        .lp-inp-pw {
-          padding-right: 48px;
+        
+        .login-input-password {
+          padding-right: 50px;
         }
-
-        /* Password toggle */
-        .lp-eye {
+        
+        /* Password visibility toggle */
+        .login-password-toggle {
           position: absolute;
           right: 12px;
           top: 50%;
           transform: translateY(-50%);
-          background: none;
-          border: none;
-          cursor: pointer;
-          color: #6B7280;
-          padding: 4px;
-          transition: color 0.2s;
-        }
-        .lp-eye:hover {
-          color: #14B8A6;
-        }
-        @media (prefers-color-scheme: dark) {
-          .lp-eye { color: #9CA3AF; }
-          .lp-eye:hover { color: #14B8A6; }
-        }
-
-        /* OR divider */
-        .lp-or {
+          
+          /* Touch-friendly button */
+          min-width: 44px;
+          min-height: 44px;
+          
           display: flex;
           align-items: center;
-          margin: 24px 0;
+          justify-content: center;
+          
+          background: none;
+          border: none;
           color: #6B7280;
-          font-size: 0.875rem;
-          font-weight: 500;
+          cursor: pointer;
+          
+          border-radius: 6px;
+          transition: all 0.2s;
         }
-        .lp-or::before,
-        .lp-or::after {
-          content: '';
-          flex: 1;
-          border-bottom: 1px solid #D1D5DB;
+        
+        .login-password-toggle:hover,
+        .login-password-toggle:focus {
+          color: #14B8A6;
+          background: rgba(20, 184, 166, 0.1);
         }
+        
+        .login-password-toggle:active {
+          transform: translateY(-50%) scale(0.95);
+        }
+        
         @media (prefers-color-scheme: dark) {
-          .lp-or { color: #9CA3AF; }
-          .lp-or::before,
-          .lp-or::after { border-color: #4B5563; }
+          .login-password-toggle {
+            color: #9CA3AF;
+          }
+          .login-password-toggle:hover,
+          .login-password-toggle:focus {
+            color: #14B8A6;
+          }
         }
-        .lp-or span {
-          padding: 0 16px;
-        }
-
-        /* Forgot password */
-        .lp-opts {
+        
+        /* Forgot password link */
+        .login-forgot-container {
           display: flex;
           justify-content: flex-end;
           margin-bottom: 24px;
         }
-        .lp-forgot {
+        
+        .login-forgot-link {
+          /* Touch-friendly link */
+          display: inline-block;
+          padding: 8px 4px;
+          
           font-size: 0.875rem;
           font-weight: 500;
-          color: #6B7280;
+          color: #14B8A6;
           text-decoration: none;
+          
           transition: color 0.2s;
         }
-        .lp-forgot:hover {
-          color: #14B8A6;
+        
+        .login-forgot-link:hover,
+        .login-forgot-link:focus {
+          color: #0D9488;
+          text-decoration: underline;
         }
+        
         @media (prefers-color-scheme: dark) {
-          .lp-forgot { color: #9CA3AF; }
-          .lp-forgot:hover { color: #14B8A6; }
+          .login-forgot-link {
+            color: #2DD4BF;
+          }
+          .login-forgot-link:hover {
+            color: #14B8A6;
+          }
         }
-
-        /* Submit button */
-        .lp-btn {
+        
+        /* Submit button - Touch optimized */
+        .login-button {
           width: 100%;
-          padding: 13px 20px;
-          background: #14B8A6;
-          color: #FFFFFF;
-          border: none;
-          border-radius: 6px;
-          font-size: 0.9375rem;
+          
+          /* Touch-friendly sizing */
+          padding: 14px 20px;
+          min-height: 48px;
+          
+          font-size: 1rem;
           font-weight: 600;
+          font-family: inherit;
+          
+          color: #FFFFFF;
+          background: #14B8A6;
+          
+          border: none;
+          border-radius: 8px;
+          
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.2s ease;
+          
           box-shadow: 0 2px 8px rgba(20, 184, 166, 0.25);
+          
+          /* Better touch experience */
+          -webkit-tap-highlight-color: transparent;
         }
-        .lp-btn:hover:not(:disabled) {
+        
+        .login-button:hover:not(:disabled) {
           background: #0D9488;
           box-shadow: 0 4px 12px rgba(20, 184, 166, 0.35);
+          transform: translateY(-1px);
         }
-        .lp-btn:disabled {
+        
+        .login-button:active:not(:disabled) {
+          transform: translateY(0);
+        }
+        
+        .login-button:disabled {
           opacity: 0.6;
           cursor: not-allowed;
+          transform: none;
         }
+        
         @media (prefers-color-scheme: dark) {
-          .lp-btn {
+          .login-button {
             background: #14B8A6;
             box-shadow: 0 2px 8px rgba(20, 184, 166, 0.3);
           }
-          .lp-btn:hover:not(:disabled) {
+          .login-button:hover:not(:disabled) {
             background: #0D9488;
             box-shadow: 0 4px 12px rgba(20, 184, 166, 0.4);
           }
         }
-        .lp-spin {
+        
+        .login-button-spinner {
           display: inline-block;
-          width: 14px;
-          height: 14px;
+          width: 16px;
+          height: 16px;
+          margin-right: 8px;
           border: 2px solid rgba(255, 255, 255, 0.3);
           border-top-color: #FFFFFF;
           border-radius: 50%;
           animation: spin 0.6s linear infinite;
-          margin-right: 8px;
         }
+        
         @keyframes spin {
           to { transform: rotate(360deg); }
         }
-
-        /* Verify link */
-        .lp-div {
+        
+        /* Divider */
+        .login-divider {
+          margin: 24px 0;
           height: 1px;
           background: #E5E7EB;
-          margin: 28px 0;
         }
+        
         @media (prefers-color-scheme: dark) {
-          .lp-div { background: #374151; }
+          .login-divider {
+            background: #374151;
+          }
         }
-
-        .lp-foot {
+        
+        /* Footer links */
+        .login-footer {
           text-align: center;
+          padding: 8px 0;
+        }
+        
+        .login-footer-link {
+          /* Touch-friendly link */
+          display: inline-block;
+          padding: 8px 4px;
+          
           font-size: 0.875rem;
-          color: #6B7280;
-        }
-        .lp-foot a {
-          color: #14B8A6;
           font-weight: 500;
+          color: #14B8A6;
           text-decoration: none;
+          
+          transition: color 0.2s;
         }
-        .lp-foot a:hover {
+        
+        .login-footer-link:hover,
+        .login-footer-link:focus {
+          color: #0D9488;
           text-decoration: underline;
         }
+        
         @media (prefers-color-scheme: dark) {
-          .lp-foot { color: #9CA3AF; }
-          .lp-foot a { color: #14B8A6; }
-        }
-
-        /* Responsive */
-        /* Extra large screens (1920px+) */
-        @media (min-width: 1920px) {
-          .lp-hero {
-            padding: 80px 100px;
+          .login-footer-link {
+            color: #2DD4BF;
           }
-          .lp-brand-logo {
-            width: 80px;
-            height: 80px;
-          }
-          .lp-brand-name {
-            font-size: 2rem;
-          }
-          .lp-brand-subtitle {
-            font-size: 0.9rem;
-          }
-          .lp-illus svg {
-            max-width: 500px;
-          }
-          .lp-right {
-            padding: 80px 100px;
-          }
-          .lp-card {
-            max-width: 450px;
+          .login-footer-link:hover {
+            color: #14B8A6;
           }
         }
 
-        /* Large desktop (1440px - 1920px) */
-        @media (min-width: 1440px) and (max-width: 1919px) {
-          .lp-hero {
-            padding: 70px 60px;
+        /* ═══════════════════════════════════════════════════════════
+           RESPONSIVE BREAKPOINTS
+        ═══════════════════════════════════════════════════════════ */
+        
+        /* ─────────────────────────────────────
+           TABLET PORTRAIT (601px+)
+        ───────────────────────────────────── */
+        @media (min-width: 601px) {
+          .login-page {
+            padding: 30px 24px;
           }
-          .lp-illus svg {
+          
+          .login-container {
+            padding: 40px 30px;
+          }
+          
+          .login-mobile-header {
+            margin-bottom: 40px;
+          }
+          
+          .login-mobile-logo {
+            width: 64px;
+            height: 64px;
+          }
+          
+          .login-mobile-title {
+            font-size: 1.5rem;
+          }
+          
+          .login-field {
+            margin-bottom: 24px;
+          }
+        }
+        
+        /* ─────────────────────────────────────
+           DESKTOP (1025px+) - SPLIT LAYOUT
+        ───────────────────────────────────── */
+        @media (min-width: 1025px) {
+          .login-page {
+            flex-direction: row;
+            padding: 0;
+            overflow: hidden;
+          }
+          
+          /* Show hero section on desktop */
+          .login-hero {
+            display: flex;
+            flex: 0 0 50%;
+            min-height: 100vh;
+            min-height: 100dvh;
+          }
+          
+          /* Hide mobile header on desktop */
+          .login-mobile-header {
+            display: none;
+          }
+          
+          .login-container {
+            flex: 1;
+            padding: 60px;
+            
+            /* Desktop can use fixed viewport */
+            min-height: 100vh;
+            overflow-y: auto;
+          }
+          
+          .login-form-wrapper {
             max-width: 420px;
           }
-          .lp-right {
-            padding: 70px 60px;
+        }
+        
+        /* ─────────────────────────────────────
+           LARGE DESKTOP (1441px+)
+        ───────────────────────────────────── */
+        @media (min-width: 1441px) {
+          .login-hero-content {
+            padding: 60px 80px;
           }
-          .lp-card {
-            max-width: 400px;
+          
+          .login-brand-logo {
+            width: 72px;
+            height: 72px;
+          }
+          
+          .login-brand-name {
+            font-size: 1.75rem;
+          }
+          
+          .login-container {
+            padding: 80px 100px;
+          }
+          
+          .login-form-wrapper {
+            max-width: 460px;
           }
         }
-
-        /* Standard desktop (1024px - 1439px) */
-        @media (min-width: 1024px) and (max-width: 1439px) {
-          .lp-hero {
-            padding: 50px 40px;
+        
+        /* ─────────────────────────────────────
+           LANDSCAPE ORIENTATION - MOBILE
+        ───────────────────────────────────── */
+        @media (max-width: 1024px) and (max-height: 500px) and (orientation: landscape) {
+          .login-page {
+            padding: 12px;
           }
-          .lp-brand-logo {
-            width: 58px;
-            height: 58px;
+          
+          .login-container {
+            padding: 16px 20px;
           }
-          .lp-brand-name {
-            font-size: 1.4rem;
-          }
-          .lp-illus svg {
-            max-width: 360px;
-          }
-          .lp-right {
-            padding: 50px 40px;
-          }
-        }
-
-        /* Tablet landscape (768px - 1023px) */
-        @media (min-width: 768px) and (max-width: 1023px) {
-          .lp {
-            flex-direction: row;
-          }
-          .lp-hero {
-            flex: 0 0 45%;
-            padding: 40px 30px;
-            min-height: 100vh;
-          }
-          .lp-brand {
-            padding-top: 20px;
-          }
-          .lp-brand-logo {
-            width: 54px;
-            height: 54px;
-          }
-          .lp-brand-name {
-            font-size: 1.25rem;
-          }
-          .lp-brand-subtitle {
-            font-size: 0.7rem;
-          }
-          .lp-illus svg {
-            max-width: 300px;
-          }
-          .lp-right {
-            flex: 1;
-            padding: 40px 30px;
-          }
-          .lp-card {
-            max-width: 100%;
-          }
-        }
-
-        /* Tablet portrait (600px - 767px) */
-        @media (min-width: 600px) and (max-width: 767px) {
-          .lp {
-            flex-direction: column;
-          }
-          .lp-hero {
-            min-height: 40vh;
-            padding: 30px 25px;
-          }
-          .lp-brand {
-            padding-top: 15px;
-          }
-          .lp-brand-logo {
-            width: 52px;
-            height: 52px;
-          }
-          .lp-brand-name {
-            font-size: 1.2rem;
-          }
-          .lp-brand-subtitle {
-            font-size: 0.68rem;
-          }
-          .lp-illus {
-            margin-top: 10px;
-          }
-          .lp-illus svg {
-            max-width: 280px;
-          }
-          .lp-right {
-            flex: 1;
-            padding: 35px 25px;
-            min-height: 60vh;
-          }
-          .lp-card {
-            max-width: 100%;
-          }
-          .lp-field {
-            margin-bottom: 18px;
-          }
-        }
-
-        /* Large phone (480px - 599px) */
-        @media (min-width: 480px) and (max-width: 599px) {
-          .lp {
-            flex-direction: column;
-          }
-          .lp-hero {
-            min-height: 35vh;
-            padding: 25px 20px;
-          }
-          .lp-brand {
-            padding-top: 10px;
-          }
-          .lp-brand-logo {
-            width: 48px;
-            height: 48px;
-          }
-          .lp-brand-name {
-            font-size: 1.1rem;
-          }
-          .lp-brand-subtitle {
-            font-size: 0.65rem;
-          }
-          .lp-illus {
-            margin-top: 10px;
-          }
-          .lp-illus svg {
-            max-width: 240px;
-          }
-          .lp-right {
-            flex: 1;
-            padding: 30px 20px;
-            min-height: 65vh;
-          }
-          .lp-inp {
-            padding: 11px 14px;
-            font-size: 0.9rem;
-          }
-          .lp-btn {
-            padding: 12px 18px;
-            font-size: 0.9rem;
-          }
-        }
-
-        /* Small phone (320px - 479px) */
-        @media (max-width: 479px) {
-          .lp {
-            flex-direction: column;
-          }
-          .lp-hero {
-            min-height: 32vh;
-            padding: 20px 16px;
-          }
-          .lp-brand {
-            padding-top: 8px;
-            gap: 8px;
-          }
-          .lp-brand-logo {
-            width: 44px;
-            height: 44px;
-          }
-          .lp-brand-name {
-            font-size: 0.95rem;
-            letter-spacing: 0.03em;
-          }
-          .lp-brand-subtitle {
-            font-size: 0.6rem;
-          }
-          .lp-illus {
-            margin-top: 8px;
-          }
-          .lp-illus svg {
-            max-width: 200px;
-          }
-          .lp-right {
-            flex: 1;
-            padding: 24px 16px;
-            min-height: 68vh;
-          }
-          .lp-card {
-            max-width: 100%;
-          }
-          .lp-field {
+          
+          .login-mobile-header {
             margin-bottom: 16px;
           }
-          .lp-lbl {
+          
+          .login-mobile-logo {
+            width: 40px;
+            height: 40px;
+            margin-bottom: 8px;
+          }
+          
+          .login-mobile-title {
+            font-size: 1rem;
+            margin-bottom: 2px;
+          }
+          
+          .login-mobile-subtitle {
+            font-size: 0.75rem;
+          }
+          
+          .login-field {
+            margin-bottom: 12px;
+          }
+          
+          .login-label {
             font-size: 0.875rem;
+            margin-bottom: 6px;
           }
-          .lp-inp {
-            padding: 10px 12px;
-            font-size: 0.875rem;
+          
+          .login-input {
+            padding: 10px 14px;
+            min-height: 42px;
           }
-          .lp-btn {
-            padding: 11px 16px;
-            font-size: 0.875rem;
+          
+          .login-forgot-container {
+            margin-bottom: 16px;
           }
-          .lp-or {
-            margin: 18px 0;
-            font-size: 0.8rem;
+          
+          .login-button {
+            padding: 11px 18px;
+            min-height: 42px;
           }
-          .lp-forgot {
-            font-size: 0.8rem;
-          }
-          .lp-foot {
-            font-size: 0.8rem;
+          
+          .login-divider {
+            margin: 16px 0;
           }
         }
-
-        /* Extra small phone (< 320px) */
-        @media (max-width: 319px) {
-          .lp-hero {
-            min-height: 30vh;
-            padding: 16px 12px;
+        
+        /* ─────────────────────────────────────
+           KEYBOARD OPEN STATE - MOBILE
+        ───────────────────────────────────── */
+        @media (max-width: 1024px) {
+          /* When keyboard is open, ensure everything is still accessible */
+          .login-page.keyboard-open {
+            /* Allow full scrolling */
+            overflow-y: auto;
           }
-          .lp-brand-logo {
+          
+          .login-page.keyboard-open .login-container {
+            /* Reduce padding to maximize space */
+            padding: 12px 16px;
+            
+            /* Remove centering */
+            align-items: flex-start;
+            justify-content: flex-start;
+          }
+          
+          .login-page.keyboard-open .login-mobile-header {
+            /* Compact header when keyboard is open */
+            margin-bottom: 16px;
+          }
+          
+          .login-page.keyboard-open .login-mobile-logo {
             width: 40px;
             height: 40px;
           }
-          .lp-brand-name {
-            font-size: 0.85rem;
+          
+          .login-page.keyboard-open .login-field {
+            margin-bottom: 14px;
           }
-          .lp-illus svg {
-            max-width: 180px;
+        }
+        
+        /* ─────────────────────────────────────
+           ACCESSIBILITY ENHANCEMENTS
+        ───────────────────────────────────── */
+        
+        /* Focus visible for keyboard navigation */
+        .login-input:focus-visible,
+        .login-button:focus-visible,
+        .login-password-toggle:focus-visible,
+        .login-forgot-link:focus-visible,
+        .login-footer-link:focus-visible {
+          outline: 2px solid #14B8A6;
+          outline-offset: 2px;
+        }
+        
+        /* High contrast mode support */
+        @media (prefers-contrast: high) {
+          .login-input {
+            border-width: 2px;
           }
-          .lp-right {
-            padding: 20px 12px;
+          
+          .login-button {
+            border: 2px solid currentColor;
+          }
+        }
+        
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+          *,
+          *::before,
+          *::after {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+          }
+        }
+        
+        /* Print styles */
+        @media print {
+          .login-hero {
+            display: none;
+          }
+          
+          .login-page {
+            height: auto;
+            overflow: visible;
           }
         }
       `}</style>
 
-      <div className="lp">
-        {/* LEFT SIDE */}
-        <aside className="lp-hero">
-          <div className="lp-grid"/>
-          <div className="lp-hi">
-            <div className="lp-brand">
-              <div className="lp-brand-logo">
-                <img src={logo} alt=""/>
+      <div className={`login-page ${keyboardOpen ? 'keyboard-open' : ''}`}>
+        {/* HERO SECTION - Desktop only */}
+        <aside className="login-hero" aria-hidden="true">
+          <div className="login-hero-content">
+            {/* Title at top */}
+            <div className="login-brand">
+              <div className="login-brand-logo">
+                <img src={logo} alt="" />
               </div>
-              <div className="lp-brand-name">Document Automation</div>
-              <div className="lp-brand-subtitle">Enterprise Platform</div>
+              <div className="login-brand-name">Document Automation</div>
             </div>
-
-            <div className="lp-illus">
-              <DocAutomationIllustration/>
+            
+            {/* Large animation in center */}
+            <div className="login-hero-animation">
+              <div className="login-animation-graphic">
+                <div className="doc-flow">
+                  {/* Document creation flow */}
+                  <div className="doc-icon-group">
+                    <div className="doc-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                      </svg>
+                    </div>
+                  </div>
+                  
+                  <div className="doc-flow-arrow"></div>
+                  
+                  {/* Processing */}
+                  <div className="doc-icon-group">
+                    <div className="doc-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="9" y1="9" x2="15" y2="9"/>
+                        <line x1="9" y1="13" x2="15" y2="13"/>
+                        <line x1="9" y1="17" x2="13" y2="17"/>
+                      </svg>
+                    </div>
+                    <div className="doc-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M12 1v6m0 6v6m7.07-13.93l-4.24 4.24m-5.66 5.66-4.24 4.24m13.93 0l-4.24-4.24M7.76 7.76L3.52 3.52"/>
+                      </svg>
+                    </div>
+                    <div className="doc-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="9 11 12 14 22 4"/>
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                      </svg>
+                    </div>
+                  </div>
+                  
+                  <div className="doc-flow-arrow"></div>
+                  
+                  {/* Delivery */}
+                  <div className="doc-icon-group">
+                    <div className="doc-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21.5 12H16c-.5 2.5-2 4.9-4 6.5-2-1.6-3.5-4-4-6.5H2.5"/>
+                        <path d="M5.5 7v4.5c0 2.9 2.3 5.3 5.2 5.5 2.9-.2 5.2-2.6 5.2-5.5V7"/>
+                        <path d="M12 2v5"/>
+                      </svg>
+                    </div>
+                  </div>
+                  
+                  <div className="doc-feature-label">
+                    Create · Process · Approve · Deliver
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </aside>
 
-        {/* RIGHT SIDE */}
-        <main className="lp-right">
-          <div className="lp-card">
+        {/* FORM SECTION */}
+        <main className="login-container">
+          <div className="login-form-wrapper">
+            {/* Mobile header */}
+            <div className="login-mobile-header">
+              <div className="login-mobile-logo">
+                <img src={logo} alt="Document Automation" />
+              </div>
+              <h1 className="login-mobile-title">Document Automation</h1>
+              <p className="login-mobile-subtitle">Sign in to your account</p>
+            </div>
+
+            {/* Error message */}
             {error && (
-              <div className="lp-err" role="alert">
+              <div className="login-error" role="alert" aria-live="polite">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                  strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"/>
-                  <line x1="12" y1="8" x2="12" y2="12"/>
-                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                  strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
                 </svg>
-                {error}
+                <span>{error}</span>
               </div>
             )}
 
-            <form onSubmit={handleSubmit} noValidate>
-              <div className="lp-field">
-                <label htmlFor="email" className="lp-lbl">Email</label>
-                <input
-                  id="email"
-                  type="email"
-                  className="lp-inp"
-                  value={email}
-                  onChange={e => { setEmail(e.target.value); setError(null); }}
-                  placeholder="john.doe@company.com"
-                  autoComplete="username"
-                  autoFocus
-                  required
-                />
+            {/* Login form */}
+            <form className="login-form" onSubmit={handleSubmit} noValidate>
+              {/* Email field */}
+              <div className="login-field">
+                <label htmlFor="email" className="login-label">
+                  Email
+                </label>
+                <div className="login-input-wrapper">
+                  <input
+                    id="email"
+                    type="email"
+                    className="login-input"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); setError(null); }}
+                    placeholder="john.doe@company.com"
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck="false"
+                    required
+                    aria-required="true"
+                    aria-invalid={error ? 'true' : 'false'}
+                  />
+                </div>
               </div>
 
-              <div className="lp-field">
-                <label htmlFor="password" className="lp-lbl">Password</label>
-                <div className="lp-wrap">
+              {/* Password field */}
+              <div className="login-field">
+                <label htmlFor="password" className="login-label">
+                  Password
+                </label>
+                <div className="login-input-wrapper">
                   <input
                     id="password"
                     type={showPw ? 'text' : 'password'}
-                    className="lp-inp lp-inp-pw"
+                    className="login-input login-input-password"
                     value={password}
-                    onChange={e => { setPassword(e.target.value); setError(null); }}
-                    placeholder="••••••••"
+                    onChange={(e) => { setPassword(e.target.value); setError(null); }}
+                    placeholder="Enter your password"
                     autoComplete="current-password"
                     required
+                    aria-required="true"
+                    aria-invalid={error ? 'true' : 'false'}
                   />
                   <button
                     type="button"
-                    className="lp-eye"
+                    className="login-password-toggle"
                     onClick={() => setShowPw(v => !v)}
                     aria-label={showPw ? 'Hide password' : 'Show password'}
+                    tabIndex={0}
                   >
-                    <EyeIcon off={showPw}/>
+                    <EyeIcon off={showPw} />
                   </button>
                 </div>
               </div>
 
-              <div className="lp-or"><span>OR</span></div>
-
-              <div className="lp-opts">
-                <Link to="/forgot-password" className="lp-forgot">Forgot Password?</Link>
+              {/* Forgot password */}
+              <div className="login-forgot-container">
+                <Link to="/forgot-password" className="login-forgot-link">
+                  Forgot password?
+                </Link>
               </div>
 
-              <button type="submit" className="lp-btn" disabled={submitting}>
+              {/* Submit button */}
+              <button
+                type="submit"
+                className="login-button"
+                disabled={submitting}
+                aria-busy={submitting}
+              >
                 {submitting ? (
-                  <><span className="lp-spin"/>Signing in…</>
+                  <>
+                    <span className="login-button-spinner" aria-hidden="true" />
+                    Signing in...
+                  </>
                 ) : (
                   'Login'
                 )}
               </button>
             </form>
 
-            <div className="lp-div"/>
-            <div className="lp-foot">
-              <Link to="/verify">Verify</Link>
+            {/* Divider */}
+            <div className="login-divider" aria-hidden="true" />
+
+            {/* Footer */}
+            <div className="login-footer">
+              <Link to="/verify" className="login-footer-link">
+                Verify a document
+              </Link>
             </div>
           </div>
         </main>
