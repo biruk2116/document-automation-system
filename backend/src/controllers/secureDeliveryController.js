@@ -1495,8 +1495,16 @@ async function _sendWorkflowCompleteNotification({ delivery, doc, triggerStep, s
 
     if (stampResult.affectedRows === 0) {
       // Another step already sent the notification — nothing to do.
+      console.log('[_sendWorkflowCompleteNotification] Email already sent - skipping duplicate');
       return false;
     }
+
+    console.log('[_sendWorkflowCompleteNotification] Sending ONE email to generator:', {
+      deliveryId: delivery.id,
+      docId: doc.id,
+      triggerStep,
+      generatorId: doc.generated_by
+    });
 
     // ── Audit: Generator-facing notification event ───────────────────────────
     await recordAudit({
@@ -1881,12 +1889,27 @@ async function workflowSign(req, res) {
           const signedAt     = new Date().toISOString();
 
           // Inject name + image into the footer HTML, replacing the locked placeholder
+          console.log('[workflowSign] Injecting signature into footer:', {
+            hasFooter: !!pieces.footerHtml,
+            footerLength: pieces.footerHtml?.length || 0,
+            name: nameToEmbed,
+            hasPhoto: !!photoToEmbed,
+            photoLength: photoToEmbed?.length || 0,
+            signedAt
+          });
+          
           const signedFooterHtml = injectSignatureIntoFooter(
             pieces.footerHtml,
             nameToEmbed,
             photoToEmbed,
             signedAt
           );
+          
+          console.log('[workflowSign] Signature injection result:', {
+            footerChanged: signedFooterHtml !== pieces.footerHtml,
+            newFooterLength: signedFooterHtml?.length || 0,
+            containsSignatureEmbedded: signedFooterHtml?.includes('SIGNATURE_EMBEDDED')
+          });
 
           // Re-assemble the full document HTML with the signed footer and
           // the correct FINAL watermark (doc was already signed/delivered)

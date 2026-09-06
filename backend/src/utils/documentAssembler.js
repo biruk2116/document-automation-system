@@ -216,8 +216,12 @@ function resolveWatermarkForStatus(docStatus, templateWatermarkText) {
 /**
  * Strips editor-only elements from HTML before PDF generation.
  * Removes:
- * - Remove buttons (class="sig-field-remove-btn")
- * - Any element with data-editor-only="true"
+ * - ALL <button> elements (signature field remove buttons)
+ * - data-editor-only attributes
+ * - contenteditable attributes from divs
+ * 
+ * This ensures the × remove buttons are ONLY visible during template
+ * creation/editing in the admin UI, never in generated PDFs or user views.
  * 
  * @param {string} html  The HTML content
  * @returns {string}  Cleaned HTML
@@ -227,12 +231,17 @@ function stripEditorOnlyElements(html) {
   
   let cleaned = html;
   
-  // Remove all buttons with class sig-field-remove-btn
-  cleaned = cleaned.replace(/<button[^>]*class="sig-field-remove-btn"[^>]*>.*?<\/button>/gs, '');
-  cleaned = cleaned.replace(/<button[^>]*onclick="[^"]*\.remove\(\)"[^>]*>.*?<\/button>/gs, '');
+  // Remove ALL <button> tags and their content (multi-line safe)
+  cleaned = cleaned.replace(/<button[^>]*>[\s\S]*?<\/button>/gi, '');
   
-  // Remove data-editor-only attribute from divs
-  cleaned = cleaned.replace(/\s*data-editor-only="true"/g, '');
+  // Remove contenteditable="false" attribute
+  cleaned = cleaned.replace(/\s*contenteditable="false"/gi, '');
+  
+  // Remove data-editor-only attribute
+  cleaned = cleaned.replace(/\s*data-editor-only="true"/gi, '');
+  
+  // Remove data-sig-field-id attribute (editor tracking only)
+  cleaned = cleaned.replace(/\s*data-sig-field-id="[^"]*"/gi, '');
   
   return cleaned;
 }
@@ -263,19 +272,12 @@ function stripEditorOnlyElements(html) {
 function injectSignatureIntoFooter(footerHtml, name, photoDataUrl, signedAt) {
   if (!footerHtml) return footerHtml || '';
 
-  // The placeholder block is delimited by these exact HTML comments, which are
-  // part of the block injected by TemplateForm's handleAddSignatureField().
-  const START_MARKER = '<!-- [[SIGNATURE_FIELD]] -->';
-  const END_MARKER   = '<!-- [[/SIGNATURE_FIELD]] -->';
-
-  const startIdx = footerHtml.indexOf(START_MARKER);
-  const endIdx   = footerHtml.indexOf(END_MARKER);
-
-  if (startIdx === -1 || endIdx === -1 || endIdx <= startIdx) {
-    // No placeholder found — footer is already signed or template did not use
-    // the footer-field approach. Return unchanged.
-    return footerHtml;
-  }
+  // The NEW placeholder format includes unique field IDs: [[SIGNATURE_FIELD:sig-field-123456789]]
+  // We need to find and replace ALL signature fields, not just one.
+  // Support both old format (without ID) and new format (with ID).
+  
+  let updated = footerHtml;
+  let replaced = false;
 
   // Format the date in a human-readable way for the PDF
   const dateStr = signedAt
@@ -288,56 +290,86 @@ function injectSignatureIntoFooter(footerHtml, name, photoDataUrl, signedAt) {
             style="display:block;max-height:48px;max-width:180px;object-fit:contain;" />`
     : `<span style="font-size:0.72rem;color:#94A3B8;font-style:italic;">No image provided</span>`;
 
-  // The filled-in block that replaces everything from START_MARKER to END_MARKER
-  // (inclusive of both markers and the wrapper div that encloses them).
-  // The outer `<div data-sig-field="1">` that wraps the block in the editor is
-  // preserved visually but replaced with a clean, locked version here.
-  const signedBlock = `<!-- [[SIGNATURE_FIELD]] -->
+  // Replace ALL signature field placeholders (handles multiple fields)
+  while (true) {
+    // Try new format first: [[SIGNATURE_FIELD:field-id]]
+    let startIdx = updated.indexOf('<!-- [[SIGNATURE_FIELD:');
+    let isNewFormat = true;
+    
+    // If not found, try old format: [[SIGNATURE_FIELD]]
+    if (startIdx === -1) {
+      startIdx = updated.indexOf('<!-- [[SIGNATURE_FIELD]] -->');
+      isNewFormat = false;
+    }
+    
+    if (startIdx === -1) break; // No more fields to replace
+
+    // Find the corresponding end marker
+    let endMarker, endIdx;
+    if (isNewFormat) {
+      // Extract field ID from start marker
+      const fieldIdMatch = updated.substring(startIdx).match(/<!-- \[\[SIGNATURE_FIELD:([^\]]+)\]\] -->/);
+      if (!fieldIdMatch) break;
+      const fieldId = fieldIdMatch[1];
+      endMarker = `<!-- [[/SIGNATURE_FIELD:${fieldId}]] -->`;
+      endIdx = updated.indexOf(endMarker, startIdx);
+    } else {
+      endMarker = '<!-- [[/SIGNATURE_FIELD]] -->';
+      endIdx = updated.indexOf(endMarker, startIdx);
+    }
+
+    if (endIdx === -1) break;
+
+    // Build the signed block - this will be visible in the PDF
+    const signedBlock = `<!-- SIGNATURE_EMBEDDED -->
 <table style="width:100%;border-collapse:collapse;font-family:inherit;font-size:12px;color:#1a1a2e;margin-top:4px;">
   <tbody>
     <tr>
       <td style="width:38%;padding:4px 8px 4px 0;vertical-align:bottom;">
-        <div style="padding-bottom:3px;min-width:80px;font-family:Georgia,serif;font-size:13px;color:#0F2747;border-bottom:1.5px solid #0F2747;">
-          ${name ? escapeHtml(name) : ''}
+        <div style="padding-bottom:3px;min-width:80px;font-family:Georgia,serif;font-size:14px;font-weight:600;color:#0F2747;border-bottom:2px solid #0F2747;">
+          ${name ? escapeHtml(name) : '&nbsp;'}
         </div>
-        <div style="margin-top:4px;font-size:9px;color:#94A3B8;letter-spacing:0.04em;text-transform:uppercase;">Name</div>
+        <div style="margin-top:4px;font-size:9px;color:#64748B;letter-spacing:0.04em;text-transform:uppercase;font-weight:600;">Name</div>
       </td>
       <td style="width:62%;padding:4px 0 4px 8px;vertical-align:bottom;">
-        <div style="border:1.5px solid #0F2747;border-radius:4px;min-height:48px;padding:4px 6px;background:#fff;display:flex;align-items:center;justify-content:center;">
+        <div style="border:2px solid #0F2747;border-radius:4px;min-height:52px;padding:6px 8px;background:#fff;display:flex;align-items:center;justify-content:center;">
           ${sigImgHtml}
         </div>
-        <div style="margin-top:4px;font-size:9px;color:#94A3B8;letter-spacing:0.04em;text-transform:uppercase;">Signature</div>
+        <div style="margin-top:4px;font-size:9px;color:#64748B;letter-spacing:0.04em;text-transform:uppercase;font-weight:600;">Signature</div>
       </td>
     </tr>
     <tr>
       <td colspan="2" style="padding:8px 0 0;vertical-align:bottom;">
-        <div style="padding-bottom:3px;border-bottom:1.5px solid #94A3B8;font-size:12px;color:#0F2747;">
+        <div style="padding-bottom:3px;border-bottom:2px solid #64748B;font-size:13px;font-weight:600;color:#0F2747;">
           ${dateStr}
         </div>
-        <div style="margin-top:4px;font-size:9px;color:#94A3B8;letter-spacing:0.04em;text-transform:uppercase;">Date</div>
+        <div style="margin-top:4px;font-size:9px;color:#64748B;letter-spacing:0.04em;text-transform:uppercase;font-weight:600;">Date</div>
       </td>
     </tr>
   </tbody>
 </table>
-<!-- [[/SIGNATURE_FIELD]] -->`;
+<!-- /SIGNATURE_EMBEDDED -->`;
 
-  // Find the outer wrapper `<div ... data-sig-field="1">` that encloses both markers.
-  // We want to replace from the opening of that div to its closing `</div>`.
-  // Strategy: walk backwards from startIdx to find the last `<div` before it,
-  // then forward from endIdx to find the matching `</div>` after END_MARKER.
-  let outerStart = footerHtml.lastIndexOf('<div', startIdx);
-  let outerEnd   = footerHtml.indexOf('</div>', endIdx + END_MARKER.length);
+    // Find the outer wrapper <div> that contains this field
+    let outerStart = updated.lastIndexOf('<div', startIdx);
+    let outerEnd = updated.indexOf('</div>', endIdx + endMarker.length);
 
-  if (outerStart === -1 || outerEnd === -1) {
-    // Fallback: just replace between the markers without touching the wrapper
-    const before = footerHtml.slice(0, startIdx);
-    const after  = footerHtml.slice(endIdx + END_MARKER.length);
-    return before + signedBlock + after;
+    if (outerStart === -1 || outerEnd === -1) {
+      // Fallback: replace just between markers
+      const before = updated.slice(0, startIdx);
+      const after = updated.slice(endIdx + endMarker.length);
+      updated = before + signedBlock + after;
+    } else {
+      // Replace entire wrapper div
+      const before = updated.slice(0, outerStart);
+      const after = updated.slice(outerEnd + '</div>'.length);
+      updated = before + signedBlock + after;
+    }
+    
+    replaced = true;
   }
 
-  const before = footerHtml.slice(0, outerStart);
-  const after  = footerHtml.slice(outerEnd + '</div>'.length);
-  return before + signedBlock + after;
+  return replaced ? updated : footerHtml;
 }
 
 module.exports = { assembleDocumentHtml, resolveWatermarkForStatus, injectSignatureIntoFooter, stripEditorOnlyElements };
