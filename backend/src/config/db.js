@@ -750,6 +750,26 @@ async function ensureSchema() {
     // the idempotency column and sending duplicate notification emails.
     throw err;
   }
+
+  // 25) Migration 021: Template soft delete support.
+  //     Adds deleted_at column to templates so they can be "deleted" even when
+  //     documents reference them, preserving referential integrity while hiding
+  //     them from the UI.
+  try {
+    const [cols] = await pool.query(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'templates' AND COLUMN_NAME = 'deleted_at'`,
+      [dbName]
+    );
+    if (cols.length === 0) {
+      await pool.query(`ALTER TABLE templates ADD COLUMN deleted_at DATETIME NULL AFTER updated_at`);
+      await pool.query(`ALTER TABLE templates ADD INDEX idx_templates_deleted_at (deleted_at)`);
+      console.log('[db] Added deleted_at to templates.');
+    }
+  } catch (err) {
+    console.error('[db] Could not ensure templates.deleted_at exists:', err.message);
+  }
 }
 
 module.exports = { pool, verifyConnection, ensureSchema };
+

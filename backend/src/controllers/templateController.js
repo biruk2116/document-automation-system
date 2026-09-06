@@ -36,6 +36,7 @@ async function listTemplates(req, res) {
 
     const conditions = [
       `NOT EXISTS (SELECT 1 FROM templates child WHERE child.parent_template_id = t.id)`,
+      `t.deleted_at IS NULL`, // Exclude soft-deleted templates
     ];
     const params = [];
 
@@ -82,7 +83,7 @@ async function getTemplateById(req, res) {
       `SELECT t.*, u.full_name AS created_by_name
        FROM templates t
        LEFT JOIN users u ON u.id = t.created_by
-       WHERE t.id = ? LIMIT 1`,
+       WHERE t.id = ? AND t.deleted_at IS NULL LIMIT 1`,
       [id]
     );
 
@@ -424,29 +425,38 @@ async function updateTemplate(req, res) {
 
 /**
  * DELETE /api/templates/:id
- * Blocked if any document has ever been generated from this version (audit integrity).
+ * Soft delete - marks the template as deleted without removing it from the database.
+ * This preserves referential integrity for documents that were generated from this template,
+ * while hiding it from the UI immediately.
  */
 async function deleteTemplate(req, res) {
   const { id } = req.params;
   try {
-    const [[{ docCount }]] = (await pool.query(
-      'SELECT COUNT(*) AS docCount FROM generated_docs WHERE template_id = ?',
+    // Check if template exists and is not already deleted
+    const [[template]] = await pool.query(
+      'SELECT id, name, deleted_at FROM templates WHERE id = ?',
       [id]
-    ));
+    );
 
-    if (docCount > 0) {
-      return res.status(409).json({
-        success: false,
-        message: `Cannot delete: ${docCount} document(s) were generated from this template. Archive it instead.`,
-      });
+    if (!template) {
+      return res.status(404).json({ success: false, message: 'Template not found.' });
     }
 
-    const [result] = await pool.query('DELETE FROM templates WHERE id = ?', [id]);
+    if (template.deleted_at) {
+      return res.status(410).json({ success: false, message: 'Template has already been deleted.' });
+    }
+
+    // Soft delete the template
+    const [result] = await pool.query(
+      'UPDATE templates SET deleted_at = NOW() WHERE id = ?',
+      [id]
+    );
+
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, message: 'Template not found.' });
     }
 
-    await recordAudit({ userId: req.user.id, action: 'DELETE_TEMPLATE', details: { templateId: Number(id) }, req });
+    await recordAudit({ userId: req.user.id, action: 'DELETE_TEMPLATE', details: { templateId: Number(id), templateName: template.name }, req });
 
     return res.status(200).json({ success: true, message: 'Template deleted successfully.' });
   } catch (err) {
