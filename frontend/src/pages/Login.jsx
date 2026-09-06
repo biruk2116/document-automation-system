@@ -607,55 +607,269 @@ export default function Login() {
         }
 
         /* Responsive */
-        @media (max-width: 1024px) {
+        /* Extra large screens (1920px+) */
+        @media (min-width: 1920px) {
+          .lp-hero {
+            padding: 80px 100px;
+          }
+          .lp-brand-logo {
+            width: 80px;
+            height: 80px;
+          }
+          .lp-brand-name {
+            font-size: 2rem;
+          }
+          .lp-brand-subtitle {
+            font-size: 0.9rem;
+          }
+          .lp-illus svg {
+            max-width: 500px;
+          }
+          .lp-right {
+            padding: 80px 100px;
+          }
+          .lp-card {
+            max-width: 450px;
+          }
+        }
+
+        /* Large desktop (1440px - 1920px) */
+        @media (min-width: 1440px) and (max-width: 1919px) {
+          .lp-hero {
+            padding: 70px 60px;
+          }
+          .lp-illus svg {
+            max-width: 420px;
+          }
+          .lp-right {
+            padding: 70px 60px;
+          }
+          .lp-card {
+            max-width: 400px;
+          }
+        }
+
+        /* Standard desktop (1024px - 1439px) */
+        @media (min-width: 1024px) and (max-width: 1439px) {
+          .lp-hero {
+            padding: 50px 40px;
+          }
+          .lp-brand-logo {
+            width: 58px;
+            height: 58px;
+          }
+          .lp-brand-name {
+            font-size: 1.4rem;
+          }
+          .lp-illus svg {
+            max-width: 360px;
+          }
+          .lp-right {
+            padding: 50px 40px;
+          }
+        }
+
+        /* Tablet landscape (768px - 1023px) */
+        @media (min-width: 768px) and (max-width: 1023px) {
+          .lp {
+            flex-direction: row;
+          }
+          .lp-hero {
+            flex: 0 0 45%;
+            padding: 40px 30px;
+            min-height: 100vh;
+          }
+          .lp-brand {
+            padding-top: 20px;
+          }
+          .lp-brand-logo {
+            width: 54px;
+            height: 54px;
+          }
+          .lp-brand-name {
+            font-size: 1.25rem;
+          }
+          .lp-brand-subtitle {
+            font-size: 0.7rem;
+          }
+          .lp-illus svg {
+            max-width: 300px;
+          }
+          .lp-right {
+            flex: 1;
+            padding: 40px 30px;
+          }
+          .lp-card {
+            max-width: 100%;
+          }
+        }
+
+        /* Tablet portrait (600px - 767px) */
+        @media (min-width: 600px) and (max-width: 767px) {
           .lp {
             flex-direction: column;
           }
           .lp-hero {
-            min-height: 45vh;
-            padding: 30px;
-          }
-          .lp-brand {
-            padding-top: 20px;
-            margin-bottom: 0;
-          }
-          .lp-brand-logo {
-            width: 56px;
-            height: 56px;
-          }
-          .lp-brand-name {
-            font-size: 1.3rem;
-          }
-          .lp-illus svg {
-            max-width: 320px;
-          }
-          .lp-right {
-            padding: 40px 30px;
-          }
-        }
-        @media (max-width: 640px) {
-          .lp-hero {
             min-height: 40vh;
-            padding: 24px;
+            padding: 30px 25px;
           }
           .lp-brand {
-            padding-top: 10px;
+            padding-top: 15px;
           }
           .lp-brand-logo {
             width: 52px;
             height: 52px;
           }
           .lp-brand-name {
-            font-size: 1.1rem;
+            font-size: 1.2rem;
           }
           .lp-brand-subtitle {
-            font-size: 0.7rem;
+            font-size: 0.68rem;
+          }
+          .lp-illus {
+            margin-top: 10px;
           }
           .lp-illus svg {
             max-width: 280px;
           }
           .lp-right {
-            padding: 30px 24px;
+            flex: 1;
+            padding: 35px 25px;
+            min-height: 60vh;
+          }
+          .lp-card {
+            max-width: 100%;
+          }
+          .lp-field {
+            margin-bottom: 18px;
+          }
+        }
+
+        /* Large phone (480px - 599px) */
+        @media (min-width: 480px) and (max-width: 599px) {
+          .lp {
+            flex-direction: column;
+          }
+          .lp-hero {
+            min-height: 35vh;
+            padding: 25px 20px;
+          }
+          .lp-brand {
+            padding-top: 10px;
+          }
+          .lp-brand-logo {
+            width: 48px;
+            height: 48px;
+          }
+          .lp-brand-name {
+            font-size: 1.1rem;
+          }
+          .lp-brand-subtitle {
+            font-size: 0.65rem;
+          }
+          .lp-illus {
+            margin-top: 10px;
+          }
+          .lp-illus svg {
+            max-width: 240px;
+          }
+          .lp-right {
+            flex: 1;
+            padding: 30px 20px;
+            min-height: 65vh;
+          }
+          .lp-inp {
+            padding: 11px 14px;
+            font-size: 0.9rem;
+          }
+          .lp-btn {
+            padding: 12px 18px;
+            font-size: 0.9rem;
+          }
+        }
+
+        /* Small phone (320px - 479px) */
+        @media (max-width: 479px) {
+          .lp {
+            flex-direction: column;
+          }
+          .lp-hero {
+            min-height: 32vh;
+            padding: 20px 16px;
+          }
+          .lp-brand {
+            padding-top: 8px;
+            gap: 8px;
+          }
+          .lp-brand-logo {
+            width: 44px;
+            height: 44px;
+          }
+          .lp-brand-name {
+            font-size: 0.95rem;
+            letter-spacing: 0.03em;
+          }
+          .lp-brand-subtitle {
+            font-size: 0.6rem;
+          }
+          .lp-illus {
+            margin-top: 8px;
+          }
+          .lp-illus svg {
+            max-width: 200px;
+          }
+          .lp-right {
+            flex: 1;
+            padding: 24px 16px;
+            min-height: 68vh;
+          }
+          .lp-card {
+            max-width: 100%;
+          }
+          .lp-field {
+            margin-bottom: 16px;
+          }
+          .lp-lbl {
+            font-size: 0.875rem;
+          }
+          .lp-inp {
+            padding: 10px 12px;
+            font-size: 0.875rem;
+          }
+          .lp-btn {
+            padding: 11px 16px;
+            font-size: 0.875rem;
+          }
+          .lp-or {
+            margin: 18px 0;
+            font-size: 0.8rem;
+          }
+          .lp-forgot {
+            font-size: 0.8rem;
+          }
+          .lp-foot {
+            font-size: 0.8rem;
+          }
+        }
+
+        /* Extra small phone (< 320px) */
+        @media (max-width: 319px) {
+          .lp-hero {
+            min-height: 30vh;
+            padding: 16px 12px;
+          }
+          .lp-brand-logo {
+            width: 40px;
+            height: 40px;
+          }
+          .lp-brand-name {
+            font-size: 0.85rem;
+          }
+          .lp-illus svg {
+            max-width: 180px;
+          }
+          .lp-right {
+            padding: 20px 12px;
           }
         }
       `}</style>
