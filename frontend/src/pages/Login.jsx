@@ -153,7 +153,7 @@ export default function Login() {
         .login-hero {
           display: none; /* Hidden on mobile by default */
           position: relative;
-          background: linear-gradient(135deg, #0A1E38 0%, #0F2747 50%, #27B8BA 100%);
+          background: linear-gradient(150deg, #0A1E38 0%, #0F2747 45%, #0C2244 100%);
           overflow: hidden;
         }
         
@@ -180,25 +180,25 @@ export default function Login() {
           z-index: 1;
           display: flex;
           flex-direction: column;
+          justify-content: center;
+          align-items: center;
           height: 100%;
-          padding: 40px;
-          justify-content: flex-start;
+          padding: 60px 40px;
+          text-align: center;
         }
         
-        /* Title at top middle */
         .login-brand {
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 12px;
-          margin-bottom: 0;
-          padding-top: 30px;
+          gap: 16px;
+          margin-bottom: 40px;
         }
         
         .login-brand-logo {
-          width: 60px;
-          height: 60px;
-          border-radius: 12px;
+          width: 80px;
+          height: 80px;
+          border-radius: 16px;
           overflow: hidden;
           box-shadow: 0 4px 16px rgba(0,0,0,0.4);
         }
@@ -210,140 +210,78 @@ export default function Login() {
         }
         
         .login-brand-name {
-          font-size: 1.6rem;
+          font-size: 2rem;
           font-weight: 800;
           letter-spacing: 0.05em;
           text-transform: uppercase;
           color: #FFFFFF;
-          text-align: center;
           text-shadow: 0 2px 12px rgba(39,184,186,0.4);
-          margin-bottom: 10px;
+          line-height: 1.2;
         }
         
-        /* Large centered animation container */
-        .login-hero-animation {
-          flex: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 40px 20px;
+        .login-brand-subtitle {
+          font-size: 0.9rem;
+          font-weight: 600;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: #27B8BA;
+          opacity: 0.95;
         }
         
-        .login-animation-graphic {
-          width: 100%;
+        .login-hero-text {
           max-width: 480px;
-          aspect-ratio: 1;
-          position: relative;
         }
         
-        /* Document automation visual representation */
-        .doc-flow {
-          width: 100%;
-          height: 100%;
+        .login-hero-title {
+          font-size: 2.2rem;
+          font-weight: 700;
+          color: #FFFFFF;
+          margin: 0 0 20px 0;
+          line-height: 1.3;
+        }
+        
+        .login-hero-description {
+          font-size: 1.05rem;
+          color: rgba(255, 255, 255, 0.85);
+          line-height: 1.7;
+          margin: 0 0 32px 0;
+        }
+        
+        .login-hero-features {
           display: flex;
           flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 30px;
-          opacity: 0;
-          animation: fadeInUp 1s ease 0.3s forwards;
+          gap: 16px;
+          text-align: left;
         }
         
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        .doc-icon-group {
+        .login-feature {
           display: flex;
-          gap: 24px;
-          align-items: center;
+          align-items: flex-start;
+          gap: 12px;
         }
         
-        .doc-icon {
-          width: 80px;
-          height: 80px;
-          background: rgba(255, 255, 255, 0.1);
-          border: 2px solid rgba(39, 184, 186, 0.3);
-          border-radius: 16px;
+        .login-feature-icon {
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: rgba(39, 184, 186, 0.2);
           display: flex;
           align-items: center;
           justify-content: center;
-          backdrop-filter: blur(10px);
-          animation: docPulse 3s ease-in-out infinite;
+          flex-shrink: 0;
+          margin-top: 2px;
         }
         
-        .doc-icon:nth-child(2) {
-          animation-delay: 0.5s;
-        }
-        
-        .doc-icon:nth-child(3) {
-          animation-delay: 1s;
-        }
-        
-        @keyframes docPulse {
-          0%, 100% {
-            transform: scale(1);
-            box-shadow: 0 0 0 0 rgba(39, 184, 186, 0.4);
-          }
-          50% {
-            transform: scale(1.05);
-            box-shadow: 0 0 20px 10px rgba(39, 184, 186, 0);
-          }
-        }
-        
-        .doc-icon svg {
-          width: 40px;
-          height: 40px;
+        .login-feature-icon svg {
+          width: 14px;
+          height: 14px;
           color: #27B8BA;
         }
         
-        .doc-flow-arrow {
-          width: 100%;
-          max-width: 300px;
-          height: 2px;
-          background: linear-gradient(90deg, transparent, #27B8BA, transparent);
-          position: relative;
-          animation: flowMove 2s ease-in-out infinite;
-        }
-        
-        @keyframes flowMove {
-          0% {
-            opacity: 0.5;
-          }
-          50% {
-            opacity: 1;
-          }
-          100% {
-            opacity: 0.5;
-          }
-        }
-        
-        .doc-flow-arrow::after {
-          content: '';
-          position: absolute;
-          right: 0;
-          top: 50%;
-          transform: translateY(-50%);
-          width: 0;
-          height: 0;
-          border-left: 8px solid #27B8BA;
-          border-top: 5px solid transparent;
-          border-bottom: 5px solid transparent;
-        }
-        
-        .doc-feature-label {
-          font-size: 0.95rem;
+        .login-feature-text {
           color: rgba(255, 255, 255, 0.9);
-          text-align: center;
-          font-weight: 600;
-          letter-spacing: 0.03em;
+          font-size: 0.95rem;
+          line-height: 1.5;
         }
 
         /* ─────────────────────────────────────
@@ -775,6 +713,11 @@ export default function Login() {
             min-height: 100dvh;
           }
           
+          .login-hero-content {
+            padding: 50px 40px;
+            zoom: 0.9;
+          }
+          
           /* Hide mobile header on desktop */
           .login-mobile-header {
             display: none;
@@ -782,11 +725,14 @@ export default function Login() {
           
           .login-container {
             flex: 1;
-            padding: 60px;
+            padding: 40px 50px;
             
             /* Desktop can use fixed viewport */
             min-height: 100vh;
             overflow-y: auto;
+            
+            /* Zoom out to fit everything on screen */
+            zoom: 0.85;
           }
           
           .login-form-wrapper {
@@ -800,19 +746,21 @@ export default function Login() {
         @media (min-width: 1441px) {
           .login-hero-content {
             padding: 60px 80px;
+            zoom: 0.95;
           }
           
           .login-brand-logo {
-            width: 72px;
-            height: 72px;
+            width: 80px;
+            height: 80px;
           }
           
           .login-brand-name {
-            font-size: 1.75rem;
+            font-size: 2rem;
           }
           
           .login-container {
-            padding: 80px 100px;
+            padding: 60px 80px;
+            zoom: 0.9;
           }
           
           .login-form-wrapper {
@@ -966,69 +914,51 @@ export default function Login() {
         {/* HERO SECTION - Desktop only */}
         <aside className="login-hero" aria-hidden="true">
           <div className="login-hero-content">
-            {/* Title at top */}
             <div className="login-brand">
               <div className="login-brand-logo">
                 <img src={logo} alt="" />
               </div>
               <div className="login-brand-name">Document Automation</div>
+              <div className="login-brand-subtitle">Enterprise Platform</div>
             </div>
             
-            {/* Large animation in center */}
-            <div className="login-hero-animation">
-              <div className="login-animation-graphic">
-                <div className="doc-flow">
-                  {/* Document creation flow */}
-                  <div className="doc-icon-group">
-                    <div className="doc-icon">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                      </svg>
-                    </div>
+            <div className="login-hero-text">
+              <h2 className="login-hero-title">Welcome Back</h2>
+              <p className="login-hero-description">
+                Streamline your document workflow with automated generation, secure approvals, and compliant delivery.
+              </p>
+              
+              <div className="login-hero-features">
+                <div className="login-feature">
+                  <div className="login-feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
                   </div>
-                  
-                  <div className="doc-flow-arrow"></div>
-                  
-                  {/* Processing */}
-                  <div className="doc-icon-group">
-                    <div className="doc-icon">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                        <line x1="9" y1="9" x2="15" y2="9"/>
-                        <line x1="9" y1="13" x2="15" y2="13"/>
-                        <line x1="9" y1="17" x2="13" y2="17"/>
-                      </svg>
-                    </div>
-                    <div className="doc-icon">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="3"/>
-                        <path d="M12 1v6m0 6v6m7.07-13.93l-4.24 4.24m-5.66 5.66-4.24 4.24m13.93 0l-4.24-4.24M7.76 7.76L3.52 3.52"/>
-                      </svg>
-                    </div>
-                    <div className="doc-icon">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="9 11 12 14 22 4"/>
-                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-                      </svg>
-                    </div>
+                  <div className="login-feature-text">
+                    Generate documents from templates with dynamic data
                   </div>
-                  
-                  <div className="doc-flow-arrow"></div>
-                  
-                  {/* Delivery */}
-                  <div className="doc-icon-group">
-                    <div className="doc-icon">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21.5 12H16c-.5 2.5-2 4.9-4 6.5-2-1.6-3.5-4-4-6.5H2.5"/>
-                        <path d="M5.5 7v4.5c0 2.9 2.3 5.3 5.2 5.5 2.9-.2 5.2-2.6 5.2-5.5V7"/>
-                        <path d="M12 2v5"/>
-                      </svg>
-                    </div>
+                </div>
+                
+                <div className="login-feature">
+                  <div className="login-feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
                   </div>
-                  
-                  <div className="doc-feature-label">
-                    Create · Process · Approve · Deliver
+                  <div className="login-feature-text">
+                    OTP-secured approvals and digital signatures
+                  </div>
+                </div>
+                
+                <div className="login-feature">
+                  <div className="login-feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </div>
+                  <div className="login-feature-text">
+                    Track delivery status and verify authenticity
                   </div>
                 </div>
               </div>
