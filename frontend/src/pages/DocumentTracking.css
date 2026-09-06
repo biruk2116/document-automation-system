@@ -231,9 +231,9 @@
   background: var(--error-bg); color: var(--error-text);
   border: 1px solid var(--error-border); 
   font-weight: 600;
-  padding: 6px 10px;
-  font-size: 0.78rem;
-  min-height: 32px;
+  padding: 5px 8px;
+  font-size: 0.75rem;
+  min-height: 28px;
 }
 .doc-btn-danger:hover:not(:disabled) { background: var(--error-text); color: #fff; }
 
@@ -339,6 +339,7 @@
   .doc-card-actions { 
     gap: 6px; 
     flex-wrap: wrap;
+    flex-direction: row;
   }
   .doc-btn { 
     font-size: 0.8rem; 
@@ -346,8 +347,9 @@
     white-space: nowrap;
   }
   .doc-btn-danger {
-    padding: 6px 9px;
-    font-size: 0.75rem;
+    padding: 5px 8px;
+    font-size: 0.72rem;
+    min-height: 28px;
   }
 
   /* Stats bar: 2 columns on phones */
