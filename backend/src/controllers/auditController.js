@@ -105,7 +105,7 @@ async function getAuditTrailCsv(req, res) {
 async function getDashboardKpis(req, res) {
   try {
     const [[{ docsToday }]] = await pool.query(
-      `SELECT COUNT(*) AS docsToday FROM generated_docs WHERE DATE(generated_at) = CURDATE()`
+      `SELECT COUNT(*) AS docsToday FROM generated_docs WHERE DATE(generated_at) = CURDATE() AND deleted_at IS NULL`
     );
 
     const [[{ avgApprovalSeconds }]] = await pool.query(
@@ -122,6 +122,7 @@ async function getDashboardKpis(req, res) {
       `SELECT MIN(t.id) AS id, t.name, COUNT(gd.id) AS usageCount
        FROM generated_docs gd
        JOIN templates t ON t.id = gd.template_id
+       WHERE gd.deleted_at IS NULL
        GROUP BY t.name
        ORDER BY usageCount DESC
        LIMIT 5`
@@ -157,7 +158,7 @@ async function buildMonthlyReportRows(month) {
             SUM(CASE WHEN gd.status = 'signed' OR gd.status = 'delivered' THEN 1 ELSE 0 END) AS documents_signed
      FROM generated_docs gd
      JOIN templates t ON t.id = gd.template_id
-     WHERE DATE_FORMAT(gd.generated_at, '%Y-%m') = ?
+     WHERE DATE_FORMAT(gd.generated_at, '%Y-%m') = ? AND gd.deleted_at IS NULL
      GROUP BY t.category`,
     [month]
   );
@@ -238,6 +239,9 @@ async function searchDocuments(req, res) {
   const conditions = [];
   const params = [];
 
+  // CRITICAL: Always exclude soft-deleted documents from the list
+  conditions.push('gd.deleted_at IS NULL');
+
   // Single-doc lookup by numeric id — used by Document Tracking's admin deep-link
   // case: an admin notified about a document rejected for someone ELSE (a non-admin
   // generator) needs to be able to open that exact document even though it wasn't
@@ -256,7 +260,7 @@ async function searchDocuments(req, res) {
     params.push(approver_id);
   }
 
-  const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const whereClause = `WHERE ${conditions.join(' AND ')}`;
 
   try {
     const [rows] = await pool.query(
@@ -351,7 +355,7 @@ async function getDashboardTrends(req, res) {
     const [dailyRows] = await pool.query(
       `SELECT DATE(generated_at) AS day, COUNT(*) AS count
        FROM generated_docs
-       WHERE generated_at >= (CURDATE() - INTERVAL 13 DAY)
+       WHERE generated_at >= (CURDATE() - INTERVAL 13 DAY) AND deleted_at IS NULL
        GROUP BY DATE(generated_at)
        ORDER BY day ASC`
     );
@@ -369,7 +373,7 @@ async function getDashboardTrends(req, res) {
     }
 
     const [statusRows] = await pool.query(
-      `SELECT status, COUNT(*) AS count FROM generated_docs GROUP BY status`
+      `SELECT status, COUNT(*) AS count FROM generated_docs WHERE deleted_at IS NULL GROUP BY status`
     );
 
     return res.status(200).json({
@@ -437,8 +441,10 @@ async function getArchiveOverview(req, res) {
               DATEDIFF(NOW(), gd.generated_at) AS age_days
        FROM generated_docs gd
        JOIN templates t ON t.id = gd.template_id
-       WHERE gd.archive_status = 'archived'
+       WHERE gd.deleted_at IS NULL AND (
+          gd.archive_status = 'archived'
           OR gd.generated_at <= (NOW() - INTERVAL (? * 365 - ?) DAY)
+       )
        ORDER BY gd.generated_at ASC`,
       [archiveYears, WARNING_DAYS]
     );

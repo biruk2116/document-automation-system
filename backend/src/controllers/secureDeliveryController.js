@@ -288,9 +288,9 @@ async function getOwnershipReport(req, res) {
   const { docId } = req.query;
   try {
     const params = [];
-    let where = '';
+    let where = 'WHERE gd.deleted_at IS NULL';
     if (docId) {
-      where = 'WHERE dd.doc_id = ?';
+      where = 'WHERE dd.doc_id = ? AND gd.deleted_at IS NULL';
       params.push(docId);
     }
 
@@ -305,6 +305,7 @@ async function getOwnershipReport(req, res) {
          SUM(CASE WHEN dd.delivery_status = 0 THEN 1 ELSE 0 END) AS blockedCount,
          SUM(CASE WHEN dd.is_resubmission = 1 THEN 1 ELSE 0 END) AS resubmittedCount
        FROM document_deliveries dd
+       JOIN generated_docs gd ON gd.id = dd.doc_id
        ${where}`,
       params
     );
@@ -316,8 +317,8 @@ async function getOwnershipReport(req, res) {
     // Requirement 7: individual rejection reasons, newest first, so a Generator/Admin
     // can see WHY recipients said "not mine", not just the count.
     const reasonsWhere = docId
-      ? "WHERE dd.doc_id = ? AND dd.ownership_status = 'REJECTED'"
-      : "WHERE dd.ownership_status = 'REJECTED'";
+      ? "WHERE dd.doc_id = ? AND dd.ownership_status = 'REJECTED' AND gd.deleted_at IS NULL"
+      : "WHERE dd.ownership_status = 'REJECTED' AND gd.deleted_at IS NULL";
     const [reasons] = await pool.query(
       `SELECT dd.doc_id, gd.doc_uuid, dd.recipient_email, dd.recipient_name,
               dd.rejection_reason, dd.ownership_rejected_at

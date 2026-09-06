@@ -150,7 +150,7 @@ async function listPendingForApprover(req, res) {
        JOIN generated_docs gd ON gd.id = sr.doc_id
        JOIN templates t ON t.id = gd.template_id
        JOIN users u ON u.id = gd.generated_by
-       WHERE sr.approver_id = ? AND sr.status = 'pending'
+       WHERE sr.approver_id = ? AND sr.status = 'pending' AND gd.deleted_at IS NULL
        ORDER BY sr.created_at DESC`,
       [req.user.id]
     );

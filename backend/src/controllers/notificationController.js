@@ -25,6 +25,7 @@ async function getNotifications(req, res) {
          AND JSON_UNQUOTE(JSON_EXTRACT(al.action_details, '$.event')) = 'initiated'
          AND sr.approver_id = ?
          AND sr.status = 'pending'
+         AND gd.deleted_at IS NULL
        ORDER BY al.timestamp DESC
        LIMIT 20`,
       [req.user.id]
@@ -47,6 +48,7 @@ async function getNotifications(req, res) {
        JOIN generated_docs gd ON gd.id = al.doc_id
        JOIN users gen ON gen.id = gd.generated_by
        WHERE (al.action = 'REJECT' OR (al.action = 'SIGN' AND JSON_UNQUOTE(JSON_EXTRACT(al.action_details, '$.event')) = 'approved'))
+         AND gd.deleted_at IS NULL
          AND (
            gd.generated_by = ?
            OR (al.action = 'REJECT' AND ? IN ('super_admin', 'system_admin') AND gen.role NOT IN ('super_admin', 'system_admin'))
@@ -70,6 +72,7 @@ async function getNotifications(req, res) {
        JOIN generated_docs gd ON gd.id = al.doc_id
        WHERE al.action = 'OWNERSHIP_REJECTED_NOTIFY'
          AND al.user_id = ?
+         AND gd.deleted_at IS NULL
        ORDER BY al.timestamp DESC
        LIMIT 20`,
       [req.user.id]
@@ -86,6 +89,7 @@ async function getNotifications(req, res) {
        JOIN generated_docs gd ON gd.id = al.doc_id
        WHERE al.action = 'DELIVERY_OWNED_NOTIFY'
          AND al.user_id = ?
+         AND gd.deleted_at IS NULL
        ORDER BY al.timestamp DESC
        LIMIT 20`,
       [req.user.id]
