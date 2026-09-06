@@ -149,24 +149,18 @@ export default function TemplateForm({
 
   /**
    * Inserts the locked [[SIGNATURE_FIELD]] HTML block at the end of the footer
-   * editor and records default signatureField config in workflow_config.
-   * Idempotent — clicking a second time replaces the existing block.
+   * editor. Creates a unique ID for each field so they can be individually removed.
    */
   const handleAddSignatureField = () => {
-    // Remove any existing [[SIGNATURE_FIELD]] block from footerHtml first so
-    // clicking the button twice doesn't duplicate it.
-    const sigBlockStart = '<!-- [[SIGNATURE_FIELD]] -->';
-    setFooterHtml(prev => {
-      const idx = prev.indexOf(sigBlockStart);
-      return idx !== -1 ? prev.slice(0, idx).trimEnd() : prev;
-    });
-
+    // Generate unique ID for this signature field
+    const fieldId = `sig-field-${Date.now()}`;
+    
     // The visual placeholder block that will be embedded in footer_html and
-    // stored in the DB. The backend later replaces this entire comment-delimited
-    // block with the actual signed name + image HTML at submission time.
+    // stored in the DB. Each field has a unique data-sig-field-id for individual removal.
     const sigBlockHtml = `
-<div contenteditable="false" style="margin-top:16px;padding:12px 16px;border:1.5px dashed #0F2747;border-radius:6px;background:rgba(15,39,71,0.03);user-select:none;pointer-events:none;" data-sig-field="1">
-  <!-- [[SIGNATURE_FIELD]] -->
+<div contenteditable="false" style="margin-top:16px;padding:12px 16px;border:1.5px dashed #0F2747;border-radius:6px;background:rgba(15,39,71,0.03);user-select:none;position:relative;" data-sig-field-id="${fieldId}">
+  <!-- [[SIGNATURE_FIELD:${fieldId}]] -->
+  <button type="button" onclick="this.closest('[data-sig-field-id]').remove()" style="position:absolute;top:8px;right:8px;width:24px;height:24px;border-radius:4px;border:1px solid #DC2626;background:#fff;color:#DC2626;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;transition:all 0.15s;" onmouseover="this.style.background='#DC2626';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#DC2626'" title="Remove this signature field">×</button>
   <table style="width:100%;border-collapse:collapse;font-family:inherit;">
     <tbody>
       <tr>
@@ -189,7 +183,7 @@ export default function TemplateForm({
       </tr>
     </tbody>
   </table>
-  <!-- [[/SIGNATURE_FIELD]] -->
+  <!-- [[/SIGNATURE_FIELD:${fieldId}]] -->
 </div>`;
 
     // Inject into the footer editor via the ref
@@ -200,58 +194,68 @@ export default function TemplateForm({
       setFooterHtml(prev => `${prev || ''}${sigBlockHtml}`);
     }
 
-    // Write signatureField config into workflow_config (used by backend to locate
-    // and replace the placeholder). No coordinate math needed — the position is
-    // defined by the placeholder's place in the footer HTML itself.
+    // Update signatureField config to track all fields
     setWf('signatureField', {
-      inFooter:   true,    // signals the "footer HTML replacement" strategy
+      inFooter:   true,
+      multiple:   true,  // Indicates multiple fields are supported
       required:   true,
       allowPhoto: true,
       allowDraw:  true,
     });
+    
     // Ensure userSignature and enabled are both on
     setWf('userSignature', true);
     setWorkflow(prev => ({ ...prev, enabled: true }));
     if (!workflowOpen) setWorkflowOpen(true);
+    
+    showToast('Signature field added. Click the × button on each field to remove individually.', 'success');
   };
 
   /**
-   * Removes the signature field from the footer and clears the signatureField config.
+   * Removes ALL signature fields from the footer.
    */
-  const handleRemoveSignatureField = () => {
-    // Remove the [[SIGNATURE_FIELD]] block from footerHtml
-    const sigBlockStart = '<!-- [[SIGNATURE_FIELD]] -->';
-    const sigBlockEnd = '<!-- [[/SIGNATURE_FIELD]] -->';
-    
+  const handleRemoveAllSignatureFields = () => {
+    // Remove all [[SIGNATURE_FIELD:*]] blocks from footerHtml
     setFooterHtml(prev => {
-      const startIdx = prev.indexOf(sigBlockStart);
-      if (startIdx === -1) return prev;
+      let updated = prev;
       
-      const endIdx = prev.indexOf(sigBlockEnd, startIdx);
-      if (endIdx === -1) return prev;
-      
-      // Find the opening <div> tag before the comment
-      let divStartIdx = startIdx;
-      while (divStartIdx > 0 && prev.substring(divStartIdx - 5, divStartIdx) !== '<div ') {
-        divStartIdx--;
+      // Keep removing signature fields until none are found
+      while (updated.includes('[[SIGNATURE_FIELD:')) {
+        const startMarker = updated.indexOf('<!-- [[SIGNATURE_FIELD:');
+        if (startMarker === -1) break;
+        
+        const endMarker = updated.indexOf('<!-- [[/SIGNATURE_FIELD:', startMarker);
+        if (endMarker === -1) break;
+        
+        // Find the containing <div> with data-sig-field-id
+        let divStart = startMarker;
+        while (divStart > 0 && !updated.substring(divStart - 20, divStart).includes('data-sig-field-id=')) {
+          divStart--;
+        }
+        // Find start of <div tag
+        while (divStart > 0 && updated.charAt(divStart) !== '<') {
+          divStart--;
+        }
+        
+        // Find closing </div>
+        const divEnd = updated.indexOf('</div>', endMarker) + 6;
+        
+        // Remove this block
+        updated = updated.substring(0, divStart).trimEnd() + 
+                  (updated.substring(divEnd).trimStart() ? '\n' + updated.substring(divEnd).trimStart() : '');
       }
-      divStartIdx = Math.max(0, divStartIdx - 5);
       
-      // Find the closing </div> tag after the comment
-      const divEndIdx = prev.indexOf('</div>', endIdx) + 6;
-      
-      // Remove the entire signature field block
-      const before = prev.substring(0, divStartIdx).trimEnd();
-      const after = prev.substring(divEndIdx).trimStart();
-      
-      return before + (after ? '\n' + after : '');
+      return updated;
     });
     
     // Clear the signatureField config
     setWf('signatureField', null);
     
-    showToast('Signature field removed from footer.', 'success');
+    showToast('All signature fields removed from footer.', 'success');
   };
+
+  // Count how many signature fields are in the footer
+  const signatureFieldCount = (footerHtml.match(/\[\[SIGNATURE_FIELD:/g) || []).length;
 
   const isExternalSource = dataSourceConnectionId !== INTERNAL_SOURCE;
 
@@ -475,21 +479,19 @@ export default function TemplateForm({
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,
                 padding: '5px 12px', fontSize: '0.78rem', fontWeight: 600,
-                background: workflow.signatureField?.inFooter ? 'rgba(15,39,71,0.08)' : '#0F2747',
-                color: workflow.signatureField?.inFooter ? '#0F2747' : '#fff',
-                border: workflow.signatureField?.inFooter ? '1.5px solid #0F2747' : 'none',
+                background: signatureFieldCount > 0 ? 'rgba(15,39,71,0.08)' : '#0F2747',
+                color: signatureFieldCount > 0 ? '#0F2747' : '#fff',
+                border: signatureFieldCount > 0 ? '1.5px solid #0F2747' : 'none',
                 borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit',
                 transition: 'background .15s',
               }}
-              title="Insert the Admin-locked signature area into the footer. Users can only sign inside this box."
+              title="Insert another signature field into the footer. Each field has its own × button to remove individually."
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                {workflow.signatureField?.inFooter
-                  ? <><polyline points="20 6 9 17 4 12"/></>
-                  : <><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>}
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
-              {workflow.signatureField?.inFooter ? 'Signature Field Added' : 'Add Signature Field'}
+              {signatureFieldCount > 0 ? `Add Another (${signatureFieldCount} added)` : 'Add Signature Field'}
             </button>
           )}
         </div>
@@ -501,7 +503,7 @@ export default function TemplateForm({
           insertBlockRef={footerInsertRef}
         />
         {/* Locked-field indicator shown after insertion */}
-        {workflow.signatureField?.inFooter && (
+        {signatureFieldCount > 0 && (
           <div style={{
             marginTop: 8, padding: '10px 12px',
             background: 'rgba(15,39,71,0.04)', border: '1px solid rgba(15,39,71,0.15)',
@@ -515,21 +517,21 @@ export default function TemplateForm({
                 <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
               </svg>
               <span style={{ flex: 1 }}>
-                <strong>Signature field locked.</strong> The user can only sign inside the boxed area in the footer above.
-                They cannot move, resize, or remove it.
+                <strong>{signatureFieldCount} signature field{signatureFieldCount > 1 ? 's' : ''} added.</strong> Each field has a × button at the top-right corner to remove it individually.
+                Users can only sign inside the boxed areas and cannot move, resize, or remove them.
                 {workflow.signatureField?.allowPhoto && ' Photo upload and drawing are enabled.'}
               </span>
             </div>
             <button
               type="button"
-              onClick={handleRemoveSignatureField}
+              onClick={handleRemoveAllSignatureFields}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 4,
                 padding: '4px 8px', fontSize: '0.72rem', fontWeight: 600,
                 background: 'transparent', color: '#DC2626',
                 border: '1px solid #DC2626', borderRadius: 4,
                 cursor: 'pointer', fontFamily: 'inherit',
-                transition: 'all 0.15s', flexShrink: 0,
+                transition: 'all 0.15s', flexShrink: 0, whiteSpace: 'nowrap',
               }}
               onMouseEnter={e => {
                 e.currentTarget.style.background = '#DC2626';
@@ -539,13 +541,13 @@ export default function TemplateForm({
                 e.currentTarget.style.background = 'transparent';
                 e.currentTarget.style.color = '#DC2626';
               }}
-              title="Remove signature field from footer"
+              title="Remove all signature fields from footer"
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                 strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
               </svg>
-              Remove
+              Remove All
             </button>
           </div>
         )}
@@ -699,7 +701,7 @@ export default function TemplateForm({
                       background: 'var(--bg-subtle)', border: '1px solid var(--border)',
                       borderRadius: 8,
                     }}>
-                      {workflow.signatureField?.inFooter ? (
+                      {signatureFieldCount > 0 ? (
                         <>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -708,12 +710,12 @@ export default function TemplateForm({
                                 <polyline points="20 6 9 17 4 12"/>
                               </svg>
                               <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: '#15803D' }}>
-                                Signature field added to footer
+                                {signatureFieldCount} signature field{signatureFieldCount > 1 ? 's' : ''} added to footer
                               </p>
                             </div>
                             <button
                               type="button"
-                              onClick={handleRemoveSignatureField}
+                              onClick={handleRemoveAllSignatureFields}
                               style={{
                                 display: 'inline-flex', alignItems: 'center', gap: 5,
                                 padding: '5px 10px', fontSize: '0.75rem', fontWeight: 600,
@@ -730,18 +732,18 @@ export default function TemplateForm({
                                 e.currentTarget.style.background = 'transparent';
                                 e.currentTarget.style.color = '#DC2626';
                               }}
-                              title="Remove signature field from footer"
+                              title="Remove all signature fields from footer"
                             >
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                                 <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
                               </svg>
-                              Remove
+                              Remove All
                             </button>
                           </div>
                           <p style={{ margin: '0 0 12px', fontSize: '0.76rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                            The locked signature area is embedded in the footer above. Users must sign inside it —
-                            they cannot move, resize, or remove it.
+                            Each signature field in the footer has a × button at the top-right corner to remove it individually.
+                            Users must sign inside these areas — they cannot move, resize, or remove them.
                           </p>
                           <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.82rem', color: 'var(--text-primary)', cursor: 'pointer' }}>
