@@ -213,6 +213,8 @@ async function previewDocument(req, res) {
   }
 
   try {
+    const { stripEditorOnlyElements } = require('../utils/documentAssembler');
+    
     const template = await loadTemplate(template_id);
     if (!template) {
       return res.status(404).json({ success: false, message: 'Template not found.' });
@@ -221,7 +223,12 @@ async function previewDocument(req, res) {
     const { dataContext, headerHtml, bodyHtml, footerHtml, automaticDateHtml, placeholderWarnings } =
       await buildRenderedDocument(template, record_id);
 
-    const combinedHtml = `${headerHtml}${bodyHtml}${automaticDateHtml}${footerHtml}`;
+    // Strip × buttons and editor-only elements from preview
+    const cleanHeaderHtml = stripEditorOnlyElements(headerHtml);
+    const cleanBodyHtml = stripEditorOnlyElements(bodyHtml);
+    const cleanFooterHtml = stripEditorOnlyElements(footerHtml);
+    
+    const combinedHtml = `${cleanHeaderHtml}${cleanBodyHtml}${automaticDateHtml}${cleanFooterHtml}`;
 
     await recordAudit({ userId: req.user.id, action: 'PREVIEW', details: { templateId: template.id, recordId: record_id }, req });
 
@@ -245,10 +252,10 @@ async function previewDocument(req, res) {
           generation_date_ec: dataContext.generation_date_ec,
         },
         watermark_text: template.watermark_text,
-        header_html: headerHtml,
-        body_html: bodyHtml,
+        header_html: cleanHeaderHtml,
+        body_html: cleanBodyHtml,
         automatic_date_html: automaticDateHtml,
-        footer_html: footerHtml,
+        footer_html: cleanFooterHtml,
         html: combinedHtml,
         placeholder_warnings: placeholderWarnings,
       },

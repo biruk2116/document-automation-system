@@ -1390,36 +1390,47 @@ async function confirmOwnershipOwn(req, res) {
       details: { deliveryId: delivery.id, result: 'confirmed', via: 'own_button' },
     });
 
-    // ── Dual notification to Generator ────────────────────────────────────────
-    try {
-      const [[generator]] = await pool.query('SELECT id, email, full_name FROM users WHERE id = ?', [doc.generated_by]);
-      if (generator) {
-        // In-app: DELIVERY_OWNED_NOTIFY audit row keyed to the generator's user_id —
-        // the getNotifications query surfaces this as 'delivery_confirmed_notify'.
-        await recordAudit({
-          userId: generator.id,
-          docId: doc.id,
-          action: 'DELIVERY_OWNED_NOTIFY',
-          details: {
-            deliveryId: delivery.id,
-            recipientEmail: delivery.recipient_email,
-            recipientName: delivery.recipient_name || delivery.recipient_email,
-          },
-        });
-
-        // Email: same event, same data as the in-app notification.
-        const deliveryConfirmedUrl = `${CLIENT_URL}/document-tracking?doc=${encodeURIComponent(doc.id)}`;
-        const { subject, html } = templates.deliveryOwned({
-          generatorName: generator.full_name,
-          docId: doc.doc_uuid,
-          recipientName: delivery.recipient_name || delivery.recipient_email,
-          reviewUrl: deliveryConfirmedUrl,
-        });
-        await sendMail({ to: generator.email, subject, html });
-      }
-    } catch (notifyErr) {
-      console.error('[secureDelivery] failed to notify generator of ownership confirmation:', notifyErr.message);
-    }
+    // ── DISABLED: No email sent for OWN button ──────────────────────────────
+    // The "confirmed by recipient" email has been permanently disabled to prevent
+    // duplicate emails. When using the signature workflow, the workflowSign endpoint
+    // sends a consolidated "action completed" email with tracking link.
+    //
+    // Sending both would create confusion:
+    //   1. "Document confirmed by recipient" (from OWN button)
+    //   2. "Document — action completed by recipient" (from signature workflow)
+    //
+    // User requirement: ONLY ONE email should be sent to the generator.
+    // Solution: Suppress OWN button email entirely. The workflow completion
+    // email is more informative (includes signature status, tracking link).
+    
+    console.log('[confirmOwnershipOwn] Ownership confirmed - email notification DISABLED (prevents duplicates)');
+    
+    // ── OLD CODE (PERMANENTLY DISABLED) ──────────────────────────────────────
+    // try {
+    //   const [[generator]] = await pool.query('SELECT id, email, full_name FROM users WHERE id = ?', [doc.generated_by]);
+    //   if (generator) {
+    //     await recordAudit({
+    //       userId: generator.id,
+    //       docId: doc.id,
+    //       action: 'DELIVERY_OWNED_NOTIFY',
+    //       details: {
+    //         deliveryId: delivery.id,
+    //         recipientEmail: delivery.recipient_email,
+    //         recipientName: delivery.recipient_name || delivery.recipient_email,
+    //       },
+    //     });
+    //     const deliveryConfirmedUrl = `${CLIENT_URL}/document-tracking?doc=${encodeURIComponent(doc.id)}`;
+    //     const { subject, html } = templates.deliveryOwned({
+    //       generatorName: generator.full_name,
+    //       docId: doc.doc_uuid,
+    //       recipientName: delivery.recipient_name || delivery.recipient_email,
+    //       reviewUrl: deliveryConfirmedUrl,
+    //     });
+    //     await sendMail({ to: generator.email, subject, html });
+    //   }
+    // } catch (notifyErr) {
+    //   console.error('[secureDelivery] failed to notify generator of ownership confirmation:', notifyErr.message);
+    // }
 
     return res.status(200).json({
       success: true,
