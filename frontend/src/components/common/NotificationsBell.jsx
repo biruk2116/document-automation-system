@@ -119,16 +119,16 @@ export default function NotificationsBell() {
   };
 
   /**
-   * Approver notifications ("awaiting your signature") still open the embedded
-   * PDF viewer here — that mirrors the review-before-OTP step they'd get from the
-   * email link. Generator notifications ("your document was approved/rejected")
-   * instead deep-link to the persistent My Documents list — the same "get
-   * notified, then land on an actionable page" pattern the Approver gets, just
-   * pointed at Download/Deliver/Secure-Link/Resubmit instead of Approve/Reject.
+   * All notifications (approval requests, approved/rejected docs, and ownership
+   * confirmations/rejections) deep-link to the appropriate management page rather
+   * than opening a PDF viewer inline.
    *
-   * Ownership-rejected notifications deep-link to Document Tracking with
-   * ?doc=<id>&action=edit_resubmit so DocumentTrackingPage can scroll to and
-   * highlight the card and surface the Edit & Resubmit button prominently.
+   * - Approval requests ("awaiting your signature"): Navigate to /approvals with
+   *   ?open=<signatureRequestId> so the exact card is highlighted.
+   * - Generator notifications ("your document was approved/rejected"): Navigate
+   *   to /document-tracking?doc=<docId> to show the card.
+   * - Ownership-rejected: Navigate to /document-tracking?doc=<docId>&action=view_rejection
+   *   so the rejection banner is shown inline.
    */
   const handleOpenNotification = async (n) => {
     // Optimistically drop it from the ring right away — clicking is the "I've
@@ -146,38 +146,21 @@ export default function NotificationsBell() {
       });
     };
 
-    if (n.notification_type !== 'awaiting_your_signature') {
-      setOpen(false);
-      markAsRead();
-      // Ownership-rejected: land on Document Tracking with action=view_rejection
-      // so the card shows the rejection banner inline. The Generator can then
-      // click "Edit & Resubmit" on the card themselves — we don't auto-navigate
-      // away from Document Tracking on a bell click (only the email deep-link
-      // uses action=edit_resubmit which auto-fires the navigation).
-      if (n.notification_type === 'ownership_rejected_notify') {
-        navigate(`/document-tracking?doc=${encodeURIComponent(n.doc_id)}&action=view_rejection`);
-      } else {
-        // Land on Document Tracking (not My Documents / generation-only page) — this is
-        // the page that actually reads ?doc= and scrolls/highlights the matching card.
-        navigate(`/document-tracking?doc=${encodeURIComponent(n.doc_id)}`);
-      }
-      return;
-    }
+    setOpen(false);
+    markAsRead();
 
-    setOpeningId(n.id);
-    try {
-      const url = await signatureService.viewPdfUrl(n.signature_request_id);
-      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-      objectUrlRef.current = url;
-      setViewerDoc({ url, title: n.doc_uuid || LABELS[n.notification_type] || 'Document' });
-      setOpen(false);
-      markAsRead();
-    } catch (err) {
-      showToast(err.message || 'Failed to open the document.', 'error');
-      // Restore it to the ring since opening actually failed.
-      if (wasUnread) setNotifications((prev) => [...prev, n]);
-    } finally {
-      setOpeningId(null);
+    if (n.notification_type === 'awaiting_your_signature') {
+      // Navigate to pending approvals page with ?open=<signatureRequestId> to
+      // highlight the specific approval request card.
+      navigate(`/approvals?open=${encodeURIComponent(n.signature_request_id)}`);
+    } else if (n.notification_type === 'ownership_rejected_notify') {
+      // Ownership-rejected: land on Document Tracking with action=view_rejection
+      // so the card shows the rejection banner inline.
+      navigate(`/document-tracking?doc=${encodeURIComponent(n.doc_id)}&action=view_rejection`);
+    } else {
+      // All other generator notifications: land on Document Tracking with ?doc=<docId>
+      // to scroll and highlight the matching card.
+      navigate(`/document-tracking?doc=${encodeURIComponent(n.doc_id)}`);
     }
   };
 
@@ -207,7 +190,13 @@ export default function NotificationsBell() {
                 onClick={() => handleOpenNotification(n)}
                 disabled={openingId === n.id}
                 style={{ display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer' }}
-                title={n.notification_type === 'ownership_rejected_notify' ? 'Click to review and edit & resubmit' : 'Click to view the document'}
+                title={
+                  n.notification_type === 'awaiting_your_signature'
+                    ? 'Click to go to pending approvals'
+                    : n.notification_type === 'ownership_rejected_notify'
+                    ? 'Click to review and edit & resubmit'
+                    : 'Click to view document tracking'
+                }
               >
                 <div>
                   <span className="notif-dot" aria-hidden="true" />
