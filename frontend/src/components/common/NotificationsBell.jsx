@@ -131,36 +131,48 @@ export default function NotificationsBell() {
    *   so the rejection banner is shown inline.
    */
   const handleOpenNotification = async (n) => {
-    // Optimistically drop it from the ring right away — clicking is the "I've
-    // seen this" signal, so the badge count decrements and the item disappears
-    // from the dropdown immediately rather than lingering in a "read" state.
-    const wasUnread = !n.is_read;
-    if (wasUnread) {
-      setNotifications((prev) => prev.filter((item) => item !== n));
-    }
+    try {
+      // Close dropdown first
+      setOpen(false);
 
-    const markAsRead = () => {
-      if (!wasUnread) return;
-      notificationService.markRead(n.notification_type, n.id).catch(() => {
-        // Non-fatal: worst case it reappears on the next poll if the server call failed.
-      });
-    };
+      // Validate navigation data before proceeding
+      if (n.notification_type === 'awaiting_your_signature') {
+        if (!n.signature_request_id && !n.id) {
+          showToast('Unable to navigate: Missing approval request ID', 'error');
+          return;
+        }
+        // Use signature_request_id if available, fallback to id
+        const requestId = n.signature_request_id || n.id;
+        navigate(`/approvals?open=${encodeURIComponent(requestId)}`);
+      } else if (n.notification_type === 'ownership_rejected_notify') {
+        if (!n.doc_id) {
+          showToast('Unable to navigate: Missing document ID', 'error');
+          return;
+        }
+        navigate(`/document-tracking?doc=${encodeURIComponent(n.doc_id)}&action=view_rejection`);
+      } else {
+        if (!n.doc_id) {
+          showToast('Unable to navigate: Missing document ID', 'error');
+          return;
+        }
+        navigate(`/document-tracking?doc=${encodeURIComponent(n.doc_id)}`);
+      }
 
-    setOpen(false);
-    markAsRead();
-
-    if (n.notification_type === 'awaiting_your_signature') {
-      // Navigate to pending approvals page with ?open=<signatureRequestId> to
-      // highlight the specific approval request card.
-      navigate(`/approvals?open=${encodeURIComponent(n.signature_request_id)}`);
-    } else if (n.notification_type === 'ownership_rejected_notify') {
-      // Ownership-rejected: land on Document Tracking with action=view_rejection
-      // so the card shows the rejection banner inline.
-      navigate(`/document-tracking?doc=${encodeURIComponent(n.doc_id)}&action=view_rejection`);
-    } else {
-      // All other generator notifications: land on Document Tracking with ?doc=<docId>
-      // to scroll and highlight the matching card.
-      navigate(`/document-tracking?doc=${encodeURIComponent(n.doc_id)}`);
+      // Mark as read AFTER successful navigation setup
+      const wasUnread = !n.is_read;
+      if (wasUnread) {
+        // Optimistically remove from UI
+        setNotifications((prev) => prev.filter((item) => item !== n));
+        
+        // Mark as read in backend
+        notificationService.markRead(n.notification_type, n.id).catch((err) => {
+          console.error('Failed to mark notification as read:', err);
+          // Non-fatal: worst case it reappears on the next poll
+        });
+      }
+    } catch (error) {
+      console.error('Error handling notification click:', error);
+      showToast('Unable to open notification. Please try again.', 'error');
     }
   };
 
