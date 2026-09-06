@@ -1669,7 +1669,7 @@ h3 { font-size: clamp(1rem, 2.5vw, 1.3rem); }
 
 /* ── 3xl: 1920px+ (large / ultrawide) ─────────────────────── */
 @media (min-width: 1920px) {
-  .app-content { padding: 32px 48px; max-width: 1800px; margin-left: auto; margin-right: auto; }
+  .app-content { padding: 32px 48px; }
   :root { --sidebar-width: 260px; }
   body { font-size: 17px; }
 }
