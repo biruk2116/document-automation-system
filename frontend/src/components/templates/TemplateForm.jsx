@@ -215,6 +215,44 @@ export default function TemplateForm({
     if (!workflowOpen) setWorkflowOpen(true);
   };
 
+  /**
+   * Removes the signature field from the footer and clears the signatureField config.
+   */
+  const handleRemoveSignatureField = () => {
+    // Remove the [[SIGNATURE_FIELD]] block from footerHtml
+    const sigBlockStart = '<!-- [[SIGNATURE_FIELD]] -->';
+    const sigBlockEnd = '<!-- [[/SIGNATURE_FIELD]] -->';
+    
+    setFooterHtml(prev => {
+      const startIdx = prev.indexOf(sigBlockStart);
+      if (startIdx === -1) return prev;
+      
+      const endIdx = prev.indexOf(sigBlockEnd, startIdx);
+      if (endIdx === -1) return prev;
+      
+      // Find the opening <div> tag before the comment
+      let divStartIdx = startIdx;
+      while (divStartIdx > 0 && prev.substring(divStartIdx - 5, divStartIdx) !== '<div ') {
+        divStartIdx--;
+      }
+      divStartIdx = Math.max(0, divStartIdx - 5);
+      
+      // Find the closing </div> tag after the comment
+      const divEndIdx = prev.indexOf('</div>', endIdx) + 6;
+      
+      // Remove the entire signature field block
+      const before = prev.substring(0, divStartIdx).trimEnd();
+      const after = prev.substring(divEndIdx).trimStart();
+      
+      return before + (after ? '\n' + after : '');
+    });
+    
+    // Clear the signatureField config
+    setWf('signatureField', null);
+    
+    showToast('Signature field removed from footer.', 'success');
+  };
+
   const isExternalSource = dataSourceConnectionId !== INTERNAL_SOURCE;
 
   useEffect(() => {
@@ -465,20 +503,50 @@ export default function TemplateForm({
         {/* Locked-field indicator shown after insertion */}
         {workflow.signatureField?.inFooter && (
           <div style={{
-            marginTop: 8, padding: '8px 12px',
+            marginTop: 8, padding: '10px 12px',
             background: 'rgba(15,39,71,0.04)', border: '1px solid rgba(15,39,71,0.15)',
             borderRadius: 6, fontSize: '0.77rem', color: '#0F2747',
-            display: 'flex', alignItems: 'center', gap: 8,
+            display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
           }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0F2747"
-              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
-            <span>
-              <strong>Signature field locked.</strong> The user can only sign inside the boxed area in the footer above.
-              They cannot move, resize, or remove it.
-              {workflow.signatureField?.allowPhoto && ' Photo upload and drawing are enabled.'}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flex: 1 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0F2747"
+                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+                style={{ marginTop: 2, flexShrink: 0 }}>
+                <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <span style={{ flex: 1 }}>
+                <strong>Signature field locked.</strong> The user can only sign inside the boxed area in the footer above.
+                They cannot move, resize, or remove it.
+                {workflow.signatureField?.allowPhoto && ' Photo upload and drawing are enabled.'}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleRemoveSignatureField}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                padding: '4px 8px', fontSize: '0.72rem', fontWeight: 600,
+                background: 'transparent', color: '#DC2626',
+                border: '1px solid #DC2626', borderRadius: 4,
+                cursor: 'pointer', fontFamily: 'inherit',
+                transition: 'all 0.15s', flexShrink: 0,
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = '#DC2626';
+                e.currentTarget.style.color = '#fff';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = '#DC2626';
+              }}
+              title="Remove signature field from footer"
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+              Remove
+            </button>
           </div>
         )}
       </div>
@@ -633,14 +701,43 @@ export default function TemplateForm({
                     }}>
                       {workflow.signatureField?.inFooter ? (
                         <>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A"
-                              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                              <polyline points="20 6 9 17 4 12"/>
-                            </svg>
-                            <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: '#15803D' }}>
-                              Signature field added to footer
-                            </p>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A"
+                                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <polyline points="20 6 9 17 4 12"/>
+                              </svg>
+                              <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 700, color: '#15803D' }}>
+                                Signature field added to footer
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleRemoveSignatureField}
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: 5,
+                                padding: '5px 10px', fontSize: '0.75rem', fontWeight: 600,
+                                background: 'transparent', color: '#DC2626',
+                                border: '1px solid #DC2626', borderRadius: 5,
+                                cursor: 'pointer', fontFamily: 'inherit',
+                                transition: 'all 0.15s',
+                              }}
+                              onMouseEnter={e => {
+                                e.currentTarget.style.background = '#DC2626';
+                                e.currentTarget.style.color = '#fff';
+                              }}
+                              onMouseLeave={e => {
+                                e.currentTarget.style.background = 'transparent';
+                                e.currentTarget.style.color = '#DC2626';
+                              }}
+                              title="Remove signature field from footer"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                              </svg>
+                              Remove
+                            </button>
                           </div>
                           <p style={{ margin: '0 0 12px', fontSize: '0.76rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
                             The locked signature area is embedded in the footer above. Users must sign inside it —
