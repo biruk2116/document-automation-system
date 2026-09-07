@@ -270,6 +270,15 @@ function stripEditorOnlyElements(html) {
  *                    If no placeholder is found, returns footerHtml unchanged.
  */
 function injectSignatureIntoFooter(footerHtml, name, photoDataUrl, signedAt) {
+  console.log('[injectSignatureIntoFooter] Called with:', {
+    hasFooter: !!footerHtml,
+    footerLength: footerHtml?.length || 0,
+    name: name,
+    hasPhoto: !!photoDataUrl,
+    signedAt: signedAt,
+    footerPreview: footerHtml?.substring(0, 300)
+  });
+  
   if (!footerHtml) return footerHtml || '';
 
   // The NEW placeholder format includes unique field IDs: [[SIGNATURE_FIELD:sig-field-123456789]]
@@ -368,6 +377,13 @@ function injectSignatureIntoFooter(footerHtml, name, photoDataUrl, signedAt) {
     
     replaced = true;
   }
+
+  console.log('[injectSignatureIntoFooter] Completed:', {
+    replaced: replaced,
+    originalLength: footerHtml?.length || 0,
+    newLength: updated?.length || 0,
+    containsEmbedded: updated?.includes('SIGNATURE_EMBEDDED')
+  });
 
   return replaced ? updated : footerHtml;
 }

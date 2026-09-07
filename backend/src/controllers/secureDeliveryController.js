@@ -1889,10 +1889,29 @@ async function workflowSign(req, res) {
     // a separate overlay. The file is overwritten in place (same pattern as
     // signatureController.applyApproval) and file_hash is updated so
     // Verify Document reports the correct fingerprint.
-    if (signatureField?.inFooter && fs.existsSync(doc.file_path)) {
+    
+    console.log('[workflowSign] Checking if signature embedding should proceed:', {
+      signatureField: signatureField,
+      hasSignatureField: !!signatureField,
+      inFooter: signatureField?.inFooter,
+      fileExists: fs.existsSync(doc.file_path),
+      filePath: doc.file_path
+    });
+    
+    // ALWAYS embed signature if we have name/photo, regardless of signatureField config
+    // This ensures signature is ALWAYS attached to the PDF
+    if (fs.existsSync(doc.file_path)) {
       try {
         const meta   = doc.metadata ? JSON.parse(doc.metadata) : {};
         const pieces = meta.renderPieces;
+
+        console.log('[workflowSign] Loaded metadata:', {
+          hasMetadata: !!doc.metadata,
+          hasPieces: !!pieces,
+          hasFooterHtml: !!pieces?.footerHtml,
+          footerLength: pieces?.footerHtml?.length || 0,
+          footerPreview: pieces?.footerHtml?.substring(0, 200)
+        });
 
         if (pieces && pieces.footerHtml !== undefined) {
           const nameToEmbed  = hasName  ? String(signature_text).trim() : null;
@@ -1906,7 +1925,8 @@ async function workflowSign(req, res) {
             name: nameToEmbed,
             hasPhoto: !!photoToEmbed,
             photoLength: photoToEmbed?.length || 0,
-            signedAt
+            signedAt,
+            hasPlaceholder: pieces.footerHtml?.includes('SIGNATURE_FIELD')
           });
           
           const signedFooterHtml = injectSignatureIntoFooter(
