@@ -1943,79 +1943,76 @@ async function workflowSign(req, res) {
           signedAt,
           hasPlaceholder: pieces.footerHtml?.includes('SIGNATURE_FIELD')
         });
-          
-          const signedFooterHtml = injectSignatureIntoFooter(
-            pieces.footerHtml,
-            nameToEmbed,
-            photoToEmbed,
-            signedAt
-          );
-          
-          console.log('[workflowSign] Signature injection result:', {
-            footerChanged: signedFooterHtml !== pieces.footerHtml,
-            newFooterLength: signedFooterHtml?.length || 0,
-            containsSignatureEmbedded: signedFooterHtml?.includes('SIGNATURE_EMBEDDED'),
-            signedFooterPreview: signedFooterHtml?.substring(0, 300)
-          });
+        
+        const signedFooterHtml = injectSignatureIntoFooter(
+          pieces.footerHtml,
+          nameToEmbed,
+          photoToEmbed,
+          signedAt
+        );
+        
+        console.log('[workflowSign] Signature injection result:', {
+          footerChanged: signedFooterHtml !== pieces.footerHtml,
+          newFooterLength: signedFooterHtml?.length || 0,
+          containsSignatureEmbedded: signedFooterHtml?.includes('SIGNATURE_EMBEDDED'),
+          signedFooterPreview: signedFooterHtml?.substring(0, 300)
+        });
 
-          if (signedFooterHtml === pieces.footerHtml) {
-            console.warn('[workflowSign] WARNING: Footer unchanged! Placeholder may be missing or format incorrect.');
-            console.warn('[workflowSign] Footer content:', pieces.footerHtml);
-          }
-
-          // Re-assemble the full document HTML with the signed footer and
-          // the correct FINAL watermark (doc was already signed/delivered)
-          console.log('[workflowSign] Assembling full HTML with signed footer');
-          
-          const fullHtml = assembleDocumentHtml({
-            headerHtml:               pieces.headerHtml  || '',
-            bodyHtml:                 pieces.bodyHtml    || '',
-            footerHtml:               signedFooterHtml,
-            tamperProofFooterHtml:    pieces.tamperProofFooterHtml    || '',
-            deliveryVerificationQrHtml: pieces.deliveryVerificationQrHtml || '',
-            watermarkText: resolveWatermarkForStatus('delivered', pieces.watermarkText),
-          });
-
-          console.log('[workflowSign] Generating new PDF with signature');
-          
-          const newBuffer = await htmlToPdfBuffer(fullHtml);
-          
-          console.log('[workflowSign] Writing new PDF to disk:', {
-            bufferSize: newBuffer.length,
-            path: doc.file_path
-          });
-          
-          fs.writeFileSync(doc.file_path, newBuffer);
-
-          const newHash = sha256(newBuffer);
-          
-          console.log('[workflowSign] Updating database with new hash:', newHash);
-          
-          await pool.query(
-            'UPDATE generated_docs SET file_hash = ? WHERE id = ?',
-            [newHash, doc.id]
-          );
-          await pool.query(
-            'UPDATE document_deliveries SET workflow_signature_embedded_at = NOW() WHERE id = ?',
-            [delivery.id]
-          );
-
-          await recordAudit({
-            docId: doc.id,
-            action: 'SIGN',
-            details: {
-              event: 'workflow_signature_embedded',
-              deliveryId: delivery.id,
-              newFileHash: newHash,
-              method: 'footer_html_replacement',
-            },
-            req,
-          });
-          
-          console.log('[workflowSign] Signature successfully embedded in PDF!');
-        } else {
-          console.error('[workflowSign] ERROR: pieces.footerHtml is undefined or null');
+        if (signedFooterHtml === pieces.footerHtml) {
+          console.warn('[workflowSign] WARNING: Footer unchanged! Placeholder may be missing or format incorrect.');
+          console.warn('[workflowSign] Footer content:', pieces.footerHtml);
         }
+
+        // Re-assemble the full document HTML with the signed footer and
+        // the correct FINAL watermark (doc was already signed/delivered)
+        console.log('[workflowSign] Assembling full HTML with signed footer');
+        
+        const fullHtml = assembleDocumentHtml({
+          headerHtml:               pieces.headerHtml  || '',
+          bodyHtml:                 pieces.bodyHtml    || '',
+          footerHtml:               signedFooterHtml,
+          tamperProofFooterHtml:    pieces.tamperProofFooterHtml    || '',
+          deliveryVerificationQrHtml: pieces.deliveryVerificationQrHtml || '',
+          watermarkText: resolveWatermarkForStatus('delivered', pieces.watermarkText),
+        });
+
+        console.log('[workflowSign] Generating new PDF with signature');
+        
+        const newBuffer = await htmlToPdfBuffer(fullHtml);
+        
+        console.log('[workflowSign] Writing new PDF to disk:', {
+          bufferSize: newBuffer.length,
+          path: doc.file_path
+        });
+        
+        fs.writeFileSync(doc.file_path, newBuffer);
+
+        const newHash = sha256(newBuffer);
+        
+        console.log('[workflowSign] Updating database with new hash:', newHash);
+        
+        await pool.query(
+          'UPDATE generated_docs SET file_hash = ? WHERE id = ?',
+          [newHash, doc.id]
+        );
+        await pool.query(
+          'UPDATE document_deliveries SET workflow_signature_embedded_at = NOW() WHERE id = ?',
+          [delivery.id]
+        );
+
+        await recordAudit({
+          docId: doc.id,
+          action: 'SIGN',
+          details: {
+            event: 'workflow_signature_embedded',
+            deliveryId: delivery.id,
+            newFileHash: newHash,
+            method: 'footer_html_replacement',
+          },
+          req,
+        });
+        
+        console.log('[workflowSign] Signature successfully embedded in PDF!');
       } catch (embedErr) {
         // Non-fatal: signature data is already stored in the DB row.
         // The Generator's tracking page still shows the name/photo even if
