@@ -299,6 +299,36 @@ function injectSignatureIntoFooter(footerHtml, name, photoDataUrl, signedAt) {
             style="display:block;max-height:48px;max-width:180px;object-fit:contain;" />`
     : `<span style="font-size:0.72rem;color:#94A3B8;font-style:italic;">No image provided</span>`;
 
+  // Build the complete signed block HTML
+  const signedBlock = `<!-- SIGNATURE_EMBEDDED -->
+<table style="width:100%;border-collapse:collapse;font-family:inherit;font-size:12px;color:#1a1a2e;margin-top:12px;">
+  <tbody>
+    <tr>
+      <td style="width:38%;padding:4px 8px 4px 0;vertical-align:bottom;">
+        <div style="padding-bottom:3px;min-width:80px;font-family:Georgia,serif;font-size:14px;font-weight:600;color:#0F2747;border-bottom:2px solid #0F2747;">
+          ${name ? escapeHtml(name) : '&nbsp;'}
+        </div>
+        <div style="margin-top:4px;font-size:9px;color:#64748B;letter-spacing:0.04em;text-transform:uppercase;font-weight:600;">Name</div>
+      </td>
+      <td style="width:62%;padding:4px 0 4px 8px;vertical-align:bottom;">
+        <div style="border:2px solid #0F2747;border-radius:4px;min-height:52px;padding:6px 8px;background:#fff;display:flex;align-items:center;justify-content:center;">
+          ${sigImgHtml}
+        </div>
+        <div style="margin-top:4px;font-size:9px;color:#64748B;letter-spacing:0.04em;text-transform:uppercase;font-weight:600;">Signature</div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2" style="padding:8px 0 0;vertical-align:bottom;">
+        <div style="padding-bottom:3px;border-bottom:2px solid #64748B;font-size:13px;font-weight:600;color:#0F2747;">
+          ${dateStr}
+        </div>
+        <div style="margin-top:4px;font-size:9px;color:#64748B;letter-spacing:0.04em;text-transform:uppercase;font-weight:600;">Date</div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<!-- /SIGNATURE_EMBEDDED -->`;
+
   // Replace ALL signature field placeholders (handles multiple fields)
   while (true) {
     // Try new format first: [[SIGNATURE_FIELD:field-id]]
@@ -329,36 +359,6 @@ function injectSignatureIntoFooter(footerHtml, name, photoDataUrl, signedAt) {
 
     if (endIdx === -1) break;
 
-    // Build the signed block - this will be visible in the PDF
-    const signedBlock = `<!-- SIGNATURE_EMBEDDED -->
-<table style="width:100%;border-collapse:collapse;font-family:inherit;font-size:12px;color:#1a1a2e;margin-top:4px;">
-  <tbody>
-    <tr>
-      <td style="width:38%;padding:4px 8px 4px 0;vertical-align:bottom;">
-        <div style="padding-bottom:3px;min-width:80px;font-family:Georgia,serif;font-size:14px;font-weight:600;color:#0F2747;border-bottom:2px solid #0F2747;">
-          ${name ? escapeHtml(name) : '&nbsp;'}
-        </div>
-        <div style="margin-top:4px;font-size:9px;color:#64748B;letter-spacing:0.04em;text-transform:uppercase;font-weight:600;">Name</div>
-      </td>
-      <td style="width:62%;padding:4px 0 4px 8px;vertical-align:bottom;">
-        <div style="border:2px solid #0F2747;border-radius:4px;min-height:52px;padding:6px 8px;background:#fff;display:flex;align-items:center;justify-content:center;">
-          ${sigImgHtml}
-        </div>
-        <div style="margin-top:4px;font-size:9px;color:#64748B;letter-spacing:0.04em;text-transform:uppercase;font-weight:600;">Signature</div>
-      </td>
-    </tr>
-    <tr>
-      <td colspan="2" style="padding:8px 0 0;vertical-align:bottom;">
-        <div style="padding-bottom:3px;border-bottom:2px solid #64748B;font-size:13px;font-weight:600;color:#0F2747;">
-          ${dateStr}
-        </div>
-        <div style="margin-top:4px;font-size:9px;color:#64748B;letter-spacing:0.04em;text-transform:uppercase;font-weight:600;">Date</div>
-      </td>
-    </tr>
-  </tbody>
-</table>
-<!-- /SIGNATURE_EMBEDDED -->`;
-
     // Find the outer wrapper <div> that contains this field
     let outerStart = updated.lastIndexOf('<div', startIdx);
     let outerEnd = updated.indexOf('</div>', endIdx + endMarker.length);
@@ -375,6 +375,13 @@ function injectSignatureIntoFooter(footerHtml, name, photoDataUrl, signedAt) {
       updated = before + signedBlock + after;
     }
     
+    replaced = true;
+  }
+
+  // FALLBACK: If no placeholder found, APPEND signature to the end of footer
+  if (!replaced && (name || photoDataUrl)) {
+    console.log('[injectSignatureIntoFooter] No placeholder found - appending signature to end of footer');
+    updated = footerHtml + '\n<div style="margin-top:20px;padding-top:12px;border-top:1px solid #e5e7eb;">' + signedBlock + '</div>';
     replaced = true;
   }
 

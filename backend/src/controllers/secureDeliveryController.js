@@ -1895,39 +1895,54 @@ async function workflowSign(req, res) {
       hasSignatureField: !!signatureField,
       inFooter: signatureField?.inFooter,
       fileExists: fs.existsSync(doc.file_path),
-      filePath: doc.file_path
+      filePath: doc.file_path,
+      docId: doc.id,
+      docUuid: doc.doc_uuid
     });
     
     // ALWAYS embed signature if we have name/photo, regardless of signatureField config
     // This ensures signature is ALWAYS attached to the PDF
     if (fs.existsSync(doc.file_path)) {
       try {
+        console.log('[workflowSign] File exists, proceeding with embedding');
+        
         const meta   = doc.metadata ? JSON.parse(doc.metadata) : {};
         const pieces = meta.renderPieces;
 
         console.log('[workflowSign] Loaded metadata:', {
           hasMetadata: !!doc.metadata,
+          metadataLength: doc.metadata?.length || 0,
           hasPieces: !!pieces,
+          piecesKeys: pieces ? Object.keys(pieces) : [],
           hasFooterHtml: !!pieces?.footerHtml,
           footerLength: pieces?.footerHtml?.length || 0,
-          footerPreview: pieces?.footerHtml?.substring(0, 200)
+          footerPreview: pieces?.footerHtml?.substring(0, 300)
         });
 
-        if (pieces && pieces.footerHtml !== undefined) {
-          const nameToEmbed  = hasName  ? String(signature_text).trim() : null;
-          const photoToEmbed = (hasPhoto && allowPhoto) ? signature_photo : null;
-          const signedAt     = new Date().toISOString();
+        if (!pieces) {
+          console.error('[workflowSign] ERROR: No renderPieces in metadata! Document may have been generated with old code.');
+          throw new Error('Document metadata missing renderPieces - cannot embed signature');
+        }
 
-          // Inject name + image into the footer HTML, replacing the locked placeholder
-          console.log('[workflowSign] Injecting signature into footer:', {
-            hasFooter: !!pieces.footerHtml,
-            footerLength: pieces.footerHtml?.length || 0,
-            name: nameToEmbed,
-            hasPhoto: !!photoToEmbed,
-            photoLength: photoToEmbed?.length || 0,
-            signedAt,
-            hasPlaceholder: pieces.footerHtml?.includes('SIGNATURE_FIELD')
-          });
+        if (!pieces.footerHtml) {
+          console.error('[workflowSign] ERROR: No footerHtml in renderPieces!');
+          throw new Error('Document metadata missing footerHtml - cannot embed signature');
+        }
+
+        const nameToEmbed  = hasName  ? String(signature_text).trim() : null;
+        const photoToEmbed = (hasPhoto && allowPhoto) ? signature_photo : null;
+        const signedAt     = new Date().toISOString();
+
+        // Inject name + image into the footer HTML, replacing the locked placeholder
+        console.log('[workflowSign] Injecting signature into footer:', {
+          hasFooter: !!pieces.footerHtml,
+          footerLength: pieces.footerHtml?.length || 0,
+          name: nameToEmbed,
+          hasPhoto: !!photoToEmbed,
+          photoLength: photoToEmbed?.length || 0,
+          signedAt,
+          hasPlaceholder: pieces.footerHtml?.includes('SIGNATURE_FIELD')
+        });
           
           const signedFooterHtml = injectSignatureIntoFooter(
             pieces.footerHtml,
@@ -1939,11 +1954,19 @@ async function workflowSign(req, res) {
           console.log('[workflowSign] Signature injection result:', {
             footerChanged: signedFooterHtml !== pieces.footerHtml,
             newFooterLength: signedFooterHtml?.length || 0,
-            containsSignatureEmbedded: signedFooterHtml?.includes('SIGNATURE_EMBEDDED')
+            containsSignatureEmbedded: signedFooterHtml?.includes('SIGNATURE_EMBEDDED'),
+            signedFooterPreview: signedFooterHtml?.substring(0, 300)
           });
+
+          if (signedFooterHtml === pieces.footerHtml) {
+            console.warn('[workflowSign] WARNING: Footer unchanged! Placeholder may be missing or format incorrect.');
+            console.warn('[workflowSign] Footer content:', pieces.footerHtml);
+          }
 
           // Re-assemble the full document HTML with the signed footer and
           // the correct FINAL watermark (doc was already signed/delivered)
+          console.log('[workflowSign] Assembling full HTML with signed footer');
+          
           const fullHtml = assembleDocumentHtml({
             headerHtml:               pieces.headerHtml  || '',
             bodyHtml:                 pieces.bodyHtml    || '',
@@ -1953,10 +1976,21 @@ async function workflowSign(req, res) {
             watermarkText: resolveWatermarkForStatus('delivered', pieces.watermarkText),
           });
 
+          console.log('[workflowSign] Generating new PDF with signature');
+          
           const newBuffer = await htmlToPdfBuffer(fullHtml);
+          
+          console.log('[workflowSign] Writing new PDF to disk:', {
+            bufferSize: newBuffer.length,
+            path: doc.file_path
+          });
+          
           fs.writeFileSync(doc.file_path, newBuffer);
 
           const newHash = sha256(newBuffer);
+          
+          console.log('[workflowSign] Updating database with new hash:', newHash);
+          
           await pool.query(
             'UPDATE generated_docs SET file_hash = ? WHERE id = ?',
             [newHash, doc.id]
@@ -1977,13 +2011,20 @@ async function workflowSign(req, res) {
             },
             req,
           });
+          
+          console.log('[workflowSign] Signature successfully embedded in PDF!');
+        } else {
+          console.error('[workflowSign] ERROR: pieces.footerHtml is undefined or null');
         }
       } catch (embedErr) {
         // Non-fatal: signature data is already stored in the DB row.
         // The Generator's tracking page still shows the name/photo even if
         // PDF regeneration failed. The original PDF remains on disk unchanged.
-        console.error('[secureDelivery] workflowSign PDF re-render error (non-fatal):', embedErr.message);
+        console.error('[secureDelivery] workflowSign PDF re-render error (non-fatal):', embedErr);
+        console.error('[secureDelivery] Full error stack:', embedErr.stack);
       }
+    } else {
+      console.error('[workflowSign] ERROR: File does not exist at path:', doc.file_path);
     }
 
     // ── ONE consolidated "workflow complete" email to the Generator ──────────
