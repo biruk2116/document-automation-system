@@ -14,18 +14,7 @@ const EMPTY_FORM = {
   username: '', password: '', database: '', file_path: '', ssl: false,
 };
 
-/**
- * Commercial-tier feature: connect this system to a CUSTOMER'S OWN external database
- * (MongoDB / PostgreSQL / SQLite) so their templates' data source map can be built from
- * their own tables — completely separate from, and never able to touch, this app's own
- * "doc_automation" database (see backend/src/utils/externalDbClients.js's
- * assertNoConflictWithInternalDb, which the backend re-checks on every test/save/browse
- * call regardless of what this form sends).
- *
- * Flow: pick a database type -> fill in credentials -> Test Connection (nothing is
- * saved yet) -> Save, which re-tests server-side and only persists if that succeeds.
- * The password is never sent back down once saved (see externalDbService.list()).
- */
+
 export default function ExternalDatabaseConnectionsPage() {
   const { showToast } = useToast();
   const [connections, setConnections] = useState([]);
