@@ -27,7 +27,11 @@ const PORT = process.env.PORT || 5000;
 
 (async () => {
   await verifyConnection();
-  await ensureSchema();
+  try {
+    await ensureSchema();
+  } catch (schemaErr) {
+    console.error('[server] Warning: ensureSchema encountered an error, continuing boot:', schemaErr.message);
+  }
 
   const server = app.listen(PORT, () => {
     console.log(`\n✅ [server] Running on http://localhost:${PORT}`);

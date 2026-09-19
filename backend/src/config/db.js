@@ -131,6 +131,35 @@ async function ensureSchema() {
         RETURN val;
       END;
       $$ LANGUAGE plpgsql IMMUTABLE;
+
+      CREATE OR REPLACE FUNCTION DATEDIFF(date1 anyelement, date2 anyelement)
+      RETURNS integer AS $$
+      BEGIN
+        RETURN (date1::date - date2::date);
+      EXCEPTION WHEN OTHERS THEN
+        RETURN 0;
+      END;
+      $$ LANGUAGE plpgsql IMMUTABLE;
+
+      CREATE OR REPLACE FUNCTION DATE_FORMAT(dt anyelement, fmt text)
+      RETURNS text AS $$
+      DECLARE
+        pg_fmt text;
+      BEGIN
+        IF dt IS NULL THEN RETURN NULL; END IF;
+        pg_fmt := fmt;
+        pg_fmt := replace(pg_fmt, '%Y', 'YYYY');
+        pg_fmt := replace(pg_fmt, '%y', 'YY');
+        pg_fmt := replace(pg_fmt, '%m', 'MM');
+        pg_fmt := replace(pg_fmt, '%d', 'DD');
+        pg_fmt := replace(pg_fmt, '%H', 'HH24');
+        pg_fmt := replace(pg_fmt, '%i', 'MI');
+        pg_fmt := replace(pg_fmt, '%s', 'SS');
+        RETURN to_char(dt::timestamp, pg_fmt);
+      EXCEPTION WHEN OTHERS THEN
+        RETURN dt::text;
+      END;
+      $$ LANGUAGE plpgsql IMMUTABLE;
     `);
     
     // 1. Create action_type enum
@@ -147,6 +176,15 @@ async function ensureSchema() {
         );
       EXCEPTION
         WHEN duplicate_object THEN null;
+      END $$;
+
+      DO $$ BEGIN
+        ALTER TYPE action_type ADD VALUE IF NOT EXISTS 'OWNERSHIP_REJECTED_NOTIFY';
+        ALTER TYPE action_type ADD VALUE IF NOT EXISTS 'DELIVERY_OWNED_NOTIFY';
+        ALTER TYPE action_type ADD VALUE IF NOT EXISTS 'REVOKE_DOCUMENT';
+        ALTER TYPE action_type ADD VALUE IF NOT EXISTS 'WORKFLOW_COMPLETE_NOTIFY';
+        ALTER TYPE action_type ADD VALUE IF NOT EXISTS 'ACKNOWLEDGE_NOTIFY';
+      EXCEPTION WHEN OTHERS THEN NULL;
       END $$;
     `);
     console.log('[db] ✓ action_type enum ready');
@@ -275,6 +313,9 @@ async function ensureSchema() {
         signed_at TIMESTAMP,
         signed_by INT,
         metadata TEXT,
+        rejection_notify_token_hash VARCHAR(64),
+        rejection_notify_token_used_at TIMESTAMP,
+        generated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         archived_at TIMESTAMP,
@@ -297,6 +338,7 @@ async function ensureSchema() {
       ALTER TABLE generated_docs ADD COLUMN IF NOT EXISTS recipient_id INT;
       ALTER TABLE generated_docs ADD COLUMN IF NOT EXISTS recipient_email VARCHAR(150);
       ALTER TABLE generated_docs ADD COLUMN IF NOT EXISTS recipient_name VARCHAR(150);
+      ALTER TABLE generated_docs ADD COLUMN IF NOT EXISTS record_identifier VARCHAR(255);
       ALTER TABLE generated_docs ADD COLUMN IF NOT EXISTS archive_status VARCHAR(20) NOT NULL DEFAULT 'active';
       ALTER TABLE generated_docs ADD COLUMN IF NOT EXISTS signature_data TEXT;
       ALTER TABLE generated_docs ADD COLUMN IF NOT EXISTS signed_at TIMESTAMP;
@@ -308,12 +350,26 @@ async function ensureSchema() {
       ALTER TABLE generated_docs ADD COLUMN IF NOT EXISTS revoked_by INT;
       ALTER TABLE generated_docs ADD COLUMN IF NOT EXISTS revocation_reason VARCHAR(255);
       ALTER TABLE generated_docs ADD COLUMN IF NOT EXISTS notify_view_token_used_at TIMESTAMP;
+      ALTER TABLE generated_docs ADD COLUMN IF NOT EXISTS rejection_notify_token_hash VARCHAR(64);
+      ALTER TABLE generated_docs ADD COLUMN IF NOT EXISTS rejection_notify_token_used_at TIMESTAMP;
+      ALTER TABLE generated_docs ADD COLUMN IF NOT EXISTS generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+      ALTER TABLE generated_docs ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+      ALTER TABLE generated_docs ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+    `);
+
+    // Sync generated_at and created_at
+    await pool.query(`
+      UPDATE generated_docs SET generated_at = created_at WHERE generated_at IS NULL AND created_at IS NOT NULL;
+      UPDATE generated_docs SET created_at = generated_at WHERE created_at IS NULL AND generated_at IS NOT NULL;
     `);
 
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_docs_uuid ON generated_docs(doc_uuid)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_docs_verification_id ON generated_docs(verification_id)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_docs_status ON generated_docs(status)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_docs_deleted_at ON generated_docs(deleted_at)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_docs_rejection_notify_token ON generated_docs(rejection_notify_token_hash)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_docs_recipient_email ON generated_docs(recipient_email)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_docs_generated_at ON generated_docs(generated_at)`);
     console.log('[db] ✓ generated_docs table ready');
 
     // 6. Create signature_requests table
@@ -336,6 +392,14 @@ async function ensureSchema() {
         FOREIGN KEY (doc_id) REFERENCES generated_docs(id) ON DELETE CASCADE,
         FOREIGN KEY (approver_id) REFERENCES users(id) ON DELETE CASCADE
       )
+    `);
+    await pool.query(`
+      ALTER TABLE signature_requests ADD COLUMN IF NOT EXISTS view_token_used_at TIMESTAMP;
+      ALTER TABLE signature_requests ADD COLUMN IF NOT EXISTS otp_verified_at TIMESTAMP;
+      ALTER TABLE signature_requests ADD COLUMN IF NOT EXISTS otp_attempts SMALLINT NOT NULL DEFAULT 0;
+      ALTER TABLE signature_requests ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP;
+      ALTER TABLE signature_requests ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+      ALTER TABLE signature_requests ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP;
     `);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_sigreq_status ON signature_requests(status)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_sigreq_doc ON signature_requests(doc_id)`);
@@ -376,6 +440,12 @@ async function ensureSchema() {
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (doc_id) REFERENCES generated_docs(id) ON DELETE CASCADE
       )
+    `);
+    await pool.query(`
+      ALTER TABLE delivery_logs ADD COLUMN IF NOT EXISTS downloaded_at TIMESTAMP;
+      ALTER TABLE delivery_logs ADD COLUMN IF NOT EXISTS downloaded_ip VARCHAR(64);
+      ALTER TABLE delivery_logs ADD COLUMN IF NOT EXISTS downloaded_user_agent VARCHAR(500);
+      ALTER TABLE delivery_logs ADD COLUMN IF NOT EXISTS email_status VARCHAR(20) DEFAULT 'queued';
     `);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_delivery_doc ON delivery_logs(doc_id)`);
     console.log('[db] ✓ delivery_logs table ready');
@@ -469,18 +539,28 @@ async function ensureSchema() {
       CREATE TABLE IF NOT EXISTS document_deliveries (
         id SERIAL PRIMARY KEY,
         doc_id INT NOT NULL,
-        recipient_email VARCHAR(150) NOT NULL,
-        recipient_name VARCHAR(150),
-        delivery_method VARCHAR(20) NOT NULL DEFAULT 'email',
-        recipient_phone VARCHAR(20),
-        token_hash VARCHAR(64) NOT NULL UNIQUE,
+        recipient_id INT,
+        recipient_email VARCHAR(255),
+        recipient_name VARCHAR(255),
+        delivery_method VARCHAR(50) NOT NULL DEFAULT 'secure_link_otp',
+        recipient_phone VARCHAR(30),
+        secure_token_hash VARCHAR(64),
+        token_hash VARCHAR(64),
         token_expiry TIMESTAMP,
-        otp_hash VARCHAR(64),
+        token_used_at TIMESTAMP,
+        otp_code VARCHAR(255),
+        otp_hash VARCHAR(255),
         otp_expiry TIMESTAMP,
+        otp_attempts SMALLINT NOT NULL DEFAULT 0,
+        otp_locked_until TIMESTAMP,
+        sent_at TIMESTAMP,
+        opened_at TIMESTAMP,
+        access_ip VARCHAR(64),
+        access_user_agent VARCHAR(500),
         otp_verified_at TIMESTAMP,
         otp_user_agent TEXT,
         ownership_status VARCHAR(20) DEFAULT 'PENDING',
-        owned BOOLEAN DEFAULT FALSE,
+        owned SMALLINT DEFAULT NULL,
         ownership_confirmed_at TIMESTAMP,
         ownership_rejected_at TIMESTAMP,
         rejection_reason TEXT,
@@ -491,6 +571,11 @@ async function ensureSchema() {
         resubmission_of INT,
         resubmitted_at TIMESTAMP,
         delivery_status INT DEFAULT 0,
+        downloaded_at TIMESTAMP,
+        download_ip VARCHAR(64),
+        download_user_agent VARCHAR(500),
+        email_status VARCHAR(50) NOT NULL DEFAULT 'queued',
+        plain_copy_email_status VARCHAR(50) NOT NULL DEFAULT 'not_sent',
         workflow_acknowledged_at TIMESTAMP,
         workflow_user_signed_at TIMESTAMP,
         workflow_completed_at TIMESTAMP,
@@ -499,6 +584,7 @@ async function ensureSchema() {
         workflow_signature_embedded_at TIMESTAMP,
         workflow_tracking_token_hash VARCHAR(64),
         workflow_tracking_token_expiry TIMESTAMP,
+        workflow_tracking_token_used_at TIMESTAMP,
         workflow_notify_sent_at TIMESTAMP,
         created_by INT NOT NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -511,7 +597,31 @@ async function ensureSchema() {
 
     // Ensure all delivery & workflow columns exist on existing table
     await pool.query(`
-      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS recipient_phone VARCHAR(20);
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS recipient_id INT;
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS recipient_email VARCHAR(255);
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS recipient_name VARCHAR(255);
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS recipient_phone VARCHAR(30);
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS delivery_method VARCHAR(50) DEFAULT 'secure_link_otp';
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS secure_token_hash VARCHAR(64);
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS token_hash VARCHAR(64);
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS token_expiry TIMESTAMP;
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS token_used_at TIMESTAMP;
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS otp_code VARCHAR(255);
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS otp_hash VARCHAR(255);
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS otp_expiry TIMESTAMP;
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS otp_attempts SMALLINT DEFAULT 0;
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS otp_locked_until TIMESTAMP;
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS sent_at TIMESTAMP;
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS opened_at TIMESTAMP;
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS access_ip VARCHAR(64);
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS access_user_agent VARCHAR(500);
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS otp_verified_at TIMESTAMP;
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS otp_user_agent TEXT;
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS ownership_status VARCHAR(20) DEFAULT 'PENDING';
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS owned SMALLINT DEFAULT NULL;
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS ownership_confirmed_at TIMESTAMP;
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS ownership_rejected_at TIMESTAMP;
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS rejection_review_token_hash VARCHAR(64);
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS rejection_review_token_expiry TIMESTAMP;
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS rejection_review_token_used_at TIMESTAMP;
@@ -519,6 +629,11 @@ async function ensureSchema() {
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS resubmission_of INT;
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS resubmitted_at TIMESTAMP;
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS delivery_status INT DEFAULT 0;
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS downloaded_at TIMESTAMP;
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS download_ip VARCHAR(64);
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS download_user_agent VARCHAR(500);
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS email_status VARCHAR(50) DEFAULT 'queued';
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS plain_copy_email_status VARCHAR(50) DEFAULT 'not_sent';
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS workflow_acknowledged_at TIMESTAMP;
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS workflow_user_signed_at TIMESTAMP;
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS workflow_completed_at TIMESTAMP;
@@ -527,13 +642,26 @@ async function ensureSchema() {
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS workflow_signature_embedded_at TIMESTAMP;
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS workflow_tracking_token_hash VARCHAR(64);
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS workflow_tracking_token_expiry TIMESTAMP;
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS workflow_tracking_token_used_at TIMESTAMP;
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS workflow_notify_sent_at TIMESTAMP;
     `);
 
+    // Sync token_hash & secure_token_hash, otp_code & otp_hash
+    await pool.query(`
+      UPDATE document_deliveries SET secure_token_hash = token_hash WHERE secure_token_hash IS NULL AND token_hash IS NOT NULL;
+      UPDATE document_deliveries SET token_hash = secure_token_hash WHERE token_hash IS NULL AND secure_token_hash IS NOT NULL;
+      UPDATE document_deliveries SET otp_code = otp_hash WHERE otp_code IS NULL AND otp_hash IS NOT NULL;
+      UPDATE document_deliveries SET otp_hash = otp_code WHERE otp_hash IS NULL AND otp_code IS NOT NULL;
+    `);
+
     console.log('[db] Creating document_deliveries indexes...');
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_deliveries_secure_token_hash ON document_deliveries(secure_token_hash)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_deliveries_token_hash ON document_deliveries(token_hash)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_deliveries_otp_code ON document_deliveries(otp_code)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_deliveries_otp_hash ON document_deliveries(otp_hash)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_deliveries_doc_id ON document_deliveries(doc_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_deliveries_workflow_token ON document_deliveries(workflow_tracking_token_hash)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_deliveries_rejection_token ON document_deliveries(rejection_review_token_hash)`);
     console.log('[db] ✓ document_deliveries indexes ready');
 
     // 14. Seed default test accounts if users table is empty
