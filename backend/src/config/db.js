@@ -151,6 +151,19 @@ async function ensureSchema() {
     `);
     console.log('[db] ✓ templates table ready');
     
+    // Ensure deleted_at column exists (for existing tables)
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'templates' AND column_name = 'deleted_at'
+        ) THEN
+          ALTER TABLE templates ADD COLUMN deleted_at TIMESTAMP;
+        END IF;
+      END $$;
+    `);
+    
     // Add indexes after table is created
     console.log('[db] Creating templates indexes...');
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_templates_status ON templates(status)`);
@@ -185,6 +198,19 @@ async function ensureSchema() {
       )
     `);
     console.log('[db] ✓ generated_docs table ready');
+    
+    // Ensure deleted_at column exists (for existing tables)
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'generated_docs' AND column_name = 'deleted_at'
+        ) THEN
+          ALTER TABLE generated_docs ADD COLUMN deleted_at TIMESTAMP;
+        END IF;
+      END $$;
+    `);
     
     // Add indexes after table is created
     console.log('[db] Creating generated_docs indexes...');
