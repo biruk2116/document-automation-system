@@ -79,7 +79,10 @@ async function verifyConnection() {
  */
 async function ensureSchema() {
   try {
+    console.log('[db] Starting PostgreSQL schema creation...');
+    
     // Create action_type enum
+    console.log('[db] Creating action_type enum...');
     await pool.query(`
       DO $$ BEGIN
         CREATE TYPE action_type AS ENUM (
@@ -94,8 +97,10 @@ async function ensureSchema() {
         WHEN duplicate_object THEN null;
       END $$;
     `);
+    console.log('[db] ✓ action_type enum ready');
 
     // Create users table
+    console.log('[db] Creating users table...');
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -110,10 +115,15 @@ async function ensureSchema() {
         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    console.log('[db] ✓ users table ready');
+    
+    console.log('[db] Creating users indexes...');
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
-    await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_reset_token ON users(reset_token)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_reset_token ON users(reset_token) WHERE reset_token IS NOT NULL`);
+    console.log('[db] ✓ users indexes ready');
 
     // Create templates table
+    console.log('[db] Creating templates table...');
     await pool.query(`
       CREATE TABLE IF NOT EXISTS templates (
         id SERIAL PRIMARY KEY,
@@ -139,10 +149,16 @@ async function ensureSchema() {
         FOREIGN KEY (parent_template_id) REFERENCES templates(id) ON DELETE SET NULL
       )
     `);
+    console.log('[db] ✓ templates table ready');
+    
+    // Add indexes after table is created
+    console.log('[db] Creating templates indexes...');
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_templates_status ON templates(status)`);
-    await pool.query(`CREATE INDEX IF NOT EXISTS idx_templates_deleted_at ON templates(deleted_at)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_templates_deleted_at ON templates(deleted_at) WHERE deleted_at IS NOT NULL`);
+    console.log('[db] ✓ templates indexes ready');
 
     // Create generated_docs table
+    console.log('[db] Creating generated_docs table...');
     await pool.query(`
       CREATE TABLE IF NOT EXISTS generated_docs (
         id SERIAL PRIMARY KEY,
@@ -168,12 +184,18 @@ async function ensureSchema() {
         FOREIGN KEY (signed_by) REFERENCES users(id) ON DELETE SET NULL
       )
     `);
+    console.log('[db] ✓ generated_docs table ready');
+    
+    // Add indexes after table is created
+    console.log('[db] Creating generated_docs indexes...');
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_docs_uuid ON generated_docs(doc_uuid)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_docs_verification_id ON generated_docs(verification_id)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_docs_status ON generated_docs(status)`);
-    await pool.query(`CREATE INDEX IF NOT EXISTS idx_docs_deleted_at ON generated_docs(deleted_at)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_docs_deleted_at ON generated_docs(deleted_at) WHERE deleted_at IS NOT NULL`);
+    console.log('[db] ✓ generated_docs indexes ready');
 
     // Create audit_logs table
+    console.log('[db] Creating audit_logs table...');
     await pool.query(`
       CREATE TABLE IF NOT EXISTS audit_logs (
         id BIGSERIAL PRIMARY KEY,
@@ -188,11 +210,16 @@ async function ensureSchema() {
         FOREIGN KEY (doc_id) REFERENCES generated_docs(id) ON DELETE CASCADE
       )
     `);
+    console.log('[db] ✓ audit_logs table ready');
+    
+    console.log('[db] Creating audit_logs indexes...');
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs(timestamp)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_audit_user_id ON audit_logs(user_id)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_audit_doc_id ON audit_logs(doc_id)`);
+    console.log('[db] ✓ audit_logs indexes ready');
 
     // Create notification_reads table
+    console.log('[db] Creating notification_reads table...');
     await pool.query(`
       CREATE TABLE IF NOT EXISTS notification_reads (
         id BIGSERIAL PRIMARY KEY,
@@ -203,8 +230,10 @@ async function ensureSchema() {
         UNIQUE (user_id, notification_key)
       )
     `);
+    console.log('[db] ✓ notification_reads table ready');
 
     // Create external_db_connections table
+    console.log('[db] Creating external_db_connections table...');
     await pool.query(`
       CREATE TABLE IF NOT EXISTS external_db_connections (
         id SERIAL PRIMARY KEY,
@@ -224,8 +253,10 @@ async function ensureSchema() {
         FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
       )
     `);
+    console.log('[db] ✓ external_db_connections table ready');
 
     // Add foreign key for templates.data_source_connection_id if not exists
+    console.log('[db] Adding templates foreign key...');
     await pool.query(`
       DO $$ BEGIN
         ALTER TABLE templates 
@@ -236,8 +267,10 @@ async function ensureSchema() {
         WHEN duplicate_object THEN null;
       END $$;
     `);
+    console.log('[db] ✓ templates foreign key ready');
 
     // Create document_deliveries table (Secure Delivery)
+    console.log('[db] Creating document_deliveries table...');
     await pool.query(`
       CREATE TABLE IF NOT EXISTS document_deliveries (
         id SERIAL PRIMARY KEY,
@@ -281,13 +314,18 @@ async function ensureSchema() {
         FOREIGN KEY (resubmission_of) REFERENCES document_deliveries(id) ON DELETE SET NULL
       )
     `);
+    console.log('[db] ✓ document_deliveries table ready');
+    
+    console.log('[db] Creating document_deliveries indexes...');
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_deliveries_token_hash ON document_deliveries(token_hash)`);
-    await pool.query(`CREATE INDEX IF NOT EXISTS idx_deliveries_otp_hash ON document_deliveries(otp_hash)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_deliveries_otp_hash ON document_deliveries(otp_hash) WHERE otp_hash IS NOT NULL`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_deliveries_doc_id ON document_deliveries(doc_id)`);
+    console.log('[db] ✓ document_deliveries indexes ready');
 
     console.log('[db] PostgreSQL schema ensured successfully');
   } catch (err) {
     console.error('[db] Could not ensure PostgreSQL schema:', err.message);
+    console.error('[db] Full error:', err);
     throw err;
   }
 }
