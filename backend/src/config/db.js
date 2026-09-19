@@ -119,7 +119,7 @@ async function ensureSchema() {
     
     console.log('[db] Creating users indexes...');
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
-    await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_reset_token ON users(reset_token) WHERE reset_token IS NOT NULL`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_reset_token ON users(reset_token)`);
     console.log('[db] ✓ users indexes ready');
 
     // Create templates table
@@ -154,7 +154,7 @@ async function ensureSchema() {
     // Add indexes after table is created
     console.log('[db] Creating templates indexes...');
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_templates_status ON templates(status)`);
-    await pool.query(`CREATE INDEX IF NOT EXISTS idx_templates_deleted_at ON templates(deleted_at) WHERE deleted_at IS NOT NULL`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_templates_deleted_at ON templates(deleted_at)`);
     console.log('[db] ✓ templates indexes ready');
 
     // Create generated_docs table
@@ -191,7 +191,7 @@ async function ensureSchema() {
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_docs_uuid ON generated_docs(doc_uuid)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_docs_verification_id ON generated_docs(verification_id)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_docs_status ON generated_docs(status)`);
-    await pool.query(`CREATE INDEX IF NOT EXISTS idx_docs_deleted_at ON generated_docs(deleted_at) WHERE deleted_at IS NOT NULL`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_docs_deleted_at ON generated_docs(deleted_at)`);
     console.log('[db] ✓ generated_docs indexes ready');
 
     // Create audit_logs table
@@ -318,7 +318,7 @@ async function ensureSchema() {
     
     console.log('[db] Creating document_deliveries indexes...');
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_deliveries_token_hash ON document_deliveries(token_hash)`);
-    await pool.query(`CREATE INDEX IF NOT EXISTS idx_deliveries_otp_hash ON document_deliveries(otp_hash) WHERE otp_hash IS NOT NULL`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_deliveries_otp_hash ON document_deliveries(otp_hash)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_deliveries_doc_id ON document_deliveries(doc_id)`);
     console.log('[db] ✓ document_deliveries indexes ready');
 
