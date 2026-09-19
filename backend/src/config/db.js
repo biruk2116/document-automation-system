@@ -106,16 +106,42 @@ async function ensureSchema() {
 
     // 0. Compatibility helper functions
     await pool.query(`
-      CREATE OR REPLACE FUNCTION JSON_EXTRACT(target text, path text)
+      CREATE OR REPLACE FUNCTION JSON_EXTRACT(target jsonb, path text)
       RETURNS text AS $$
       DECLARE
         clean_path text;
-        json_val text;
+        path_parts text[];
+        val text;
       BEGIN
         IF target IS NULL THEN RETURN NULL; END IF;
         clean_path := regexp_replace(path, '^\\$\\.?', '');
-        SELECT (target::json->>clean_path) INTO json_val;
-        RETURN json_val;
+        IF clean_path = '' OR clean_path = '$' THEN
+          RETURN target::text;
+        END IF;
+        clean_path := regexp_replace(clean_path, '\\[(\\d+)\\]', '.\\1', 'g');
+        path_parts := string_to_array(clean_path, '.');
+        val := target #>> path_parts;
+        RETURN val;
+      EXCEPTION WHEN OTHERS THEN
+        RETURN NULL;
+      END;
+      $$ LANGUAGE plpgsql IMMUTABLE;
+
+      CREATE OR REPLACE FUNCTION JSON_EXTRACT(target json, path text)
+      RETURNS text AS $$
+      BEGIN
+        IF target IS NULL THEN RETURN NULL; END IF;
+        RETURN JSON_EXTRACT(target::jsonb, path);
+      EXCEPTION WHEN OTHERS THEN
+        RETURN NULL;
+      END;
+      $$ LANGUAGE plpgsql IMMUTABLE;
+
+      CREATE OR REPLACE FUNCTION JSON_EXTRACT(target text, path text)
+      RETURNS text AS $$
+      BEGIN
+        IF target IS NULL THEN RETURN NULL; END IF;
+        RETURN JSON_EXTRACT(target::jsonb, path);
       EXCEPTION WHEN OTHERS THEN
         RETURN NULL;
       END;
@@ -131,6 +157,71 @@ async function ensureSchema() {
         RETURN val;
       END;
       $$ LANGUAGE plpgsql IMMUTABLE;
+
+      CREATE OR REPLACE FUNCTION JSON_UNQUOTE(val jsonb)
+      RETURNS text AS $$
+      BEGIN
+        IF val IS NULL THEN RETURN NULL; END IF;
+        RETURN val #>> '{}';
+      END;
+      $$ LANGUAGE plpgsql IMMUTABLE;
+
+      CREATE OR REPLACE FUNCTION JSON_UNQUOTE(val json)
+      RETURNS text AS $$
+      BEGIN
+        IF val IS NULL THEN RETURN NULL; END IF;
+        RETURN val::jsonb #>> '{}';
+      END;
+      $$ LANGUAGE plpgsql IMMUTABLE;
+
+      CREATE OR REPLACE FUNCTION text_equals_int(t text, i integer)
+      RETURNS boolean AS $$
+      BEGIN
+        RETURN t::integer = i;
+      EXCEPTION WHEN OTHERS THEN
+        RETURN false;
+      END;
+      $$ LANGUAGE plpgsql IMMUTABLE;
+
+      CREATE OR REPLACE FUNCTION int_equals_text(i integer, t text)
+      RETURNS boolean AS $$
+      BEGIN
+        RETURN i = t::integer;
+      EXCEPTION WHEN OTHERS THEN
+        RETURN false;
+      END;
+      $$ LANGUAGE plpgsql IMMUTABLE;
+
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_operator o
+          JOIN pg_type t1 ON o.oprleft = t1.oid
+          JOIN pg_type t2 ON o.oprright = t2.oid
+          WHERE o.oprname = '=' AND t1.typname = 'text' AND t2.typname = 'int4'
+        ) THEN
+          CREATE OPERATOR = (
+            PROCEDURE = text_equals_int,
+            LEFTARG = text,
+            RIGHTARG = integer,
+            COMMUTATOR = =
+          );
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_operator o
+          JOIN pg_type t1 ON o.oprleft = t1.oid
+          JOIN pg_type t2 ON o.oprright = t2.oid
+          WHERE o.oprname = '=' AND t1.typname = 'int4' AND t2.typname = 'text'
+        ) THEN
+          CREATE OPERATOR = (
+            PROCEDURE = int_equals_text,
+            LEFTARG = integer,
+            RIGHTARG = text,
+            COMMUTATOR = =
+          );
+        END IF;
+      EXCEPTION WHEN OTHERS THEN NULL;
+      END $$;
 
       CREATE OR REPLACE FUNCTION DATEDIFF(date1 anyelement, date2 anyelement)
       RETURNS integer AS $$
@@ -223,6 +314,21 @@ async function ensureSchema() {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(32);
       ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active SMALLINT NOT NULL DEFAULT 1;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+    `);
+
+    // Ensure is_active is SMALLINT (converts legacy boolean column to SMALLINT)
+    await pool.query(`
+      DO $$ BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'users' AND column_name = 'is_active' AND data_type = 'boolean'
+        ) THEN
+          ALTER TABLE users ALTER COLUMN is_active DROP DEFAULT;
+          ALTER TABLE users ALTER COLUMN is_active TYPE SMALLINT USING (CASE WHEN is_active THEN 1 ELSE 0 END);
+          ALTER TABLE users ALTER COLUMN is_active SET DEFAULT 1;
+        END IF;
+      EXCEPTION WHEN OTHERS THEN NULL;
+      END $$;
     `);
 
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
@@ -567,7 +673,7 @@ async function ensureSchema() {
         rejection_review_token_hash VARCHAR(64),
         rejection_review_token_expiry TIMESTAMP,
         rejection_review_token_used_at TIMESTAMP,
-        is_resubmission BOOLEAN DEFAULT FALSE,
+        is_resubmission SMALLINT DEFAULT 0,
         resubmission_of INT,
         resubmitted_at TIMESTAMP,
         delivery_status INT DEFAULT 0,
@@ -625,7 +731,7 @@ async function ensureSchema() {
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS rejection_review_token_hash VARCHAR(64);
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS rejection_review_token_expiry TIMESTAMP;
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS rejection_review_token_used_at TIMESTAMP;
-      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS is_resubmission BOOLEAN DEFAULT FALSE;
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS is_resubmission SMALLINT DEFAULT 0;
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS resubmission_of INT;
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS resubmitted_at TIMESTAMP;
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS delivery_status INT DEFAULT 0;
@@ -644,6 +750,30 @@ async function ensureSchema() {
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS workflow_tracking_token_expiry TIMESTAMP;
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS workflow_tracking_token_used_at TIMESTAMP;
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS workflow_notify_sent_at TIMESTAMP;
+    `);
+
+    // Ensure owned and is_resubmission are SMALLINT (converts legacy boolean column to SMALLINT)
+    await pool.query(`
+      DO $$ BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'document_deliveries' AND column_name = 'owned' AND data_type = 'boolean'
+        ) THEN
+          ALTER TABLE document_deliveries ALTER COLUMN owned DROP DEFAULT;
+          ALTER TABLE document_deliveries ALTER COLUMN owned TYPE SMALLINT USING (CASE WHEN owned THEN 1 ELSE 0 END);
+          ALTER TABLE document_deliveries ALTER COLUMN owned SET DEFAULT NULL;
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'document_deliveries' AND column_name = 'is_resubmission' AND data_type = 'boolean'
+        ) THEN
+          ALTER TABLE document_deliveries ALTER COLUMN is_resubmission DROP DEFAULT;
+          ALTER TABLE document_deliveries ALTER COLUMN is_resubmission TYPE SMALLINT USING (CASE WHEN is_resubmission THEN 1 ELSE 0 END);
+          ALTER TABLE document_deliveries ALTER COLUMN is_resubmission SET DEFAULT 0;
+        END IF;
+      EXCEPTION WHEN OTHERS THEN NULL;
+      END $$;
     `);
 
     // Sync token_hash & secure_token_hash, otp_code & otp_hash

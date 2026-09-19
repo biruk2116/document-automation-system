@@ -75,8 +75,8 @@ async function createUser(req, res) {
 
     const [result] = await pool.query(
       `INSERT INTO users (email, password_hash, full_name, role, phone, is_active, reset_token, reset_token_expires)
-       VALUES (?, ?, ?, ?, ?, 1, ?, ?)`,
-      [email.trim().toLowerCase(), passwordHash, full_name, role, phone || null, tokenHash, expires]
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [email.trim().toLowerCase(), passwordHash, full_name, role, phone || null, 1, tokenHash, expires]
     );
 
     // Welcome email with set-password link (same URL shape as forgot-password reset).
