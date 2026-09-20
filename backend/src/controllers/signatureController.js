@@ -199,7 +199,7 @@ async function viewPendingDocument(req, res) {
     // If file doesn't exist, regenerate it from metadata
     if (!fs.existsSync(doc.file_path)) {
       try {
-        const meta = doc.metadata ? JSON.parse(doc.metadata) : {};
+        const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
         const pieces = meta.renderPieces || {};
         
         if (!pieces.headerHtml || !pieces.bodyHtml) {
@@ -235,7 +235,7 @@ async function viewPendingDocument(req, res) {
       }
     }
 
-    const meta = doc.metadata ? JSON.parse(doc.metadata) : {};
+    const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
     res.setHeader('Content-Type', 'application/pdf');
     // inline (not attachment): opens/renders in the browser rather than triggering a download
     res.setHeader('Content-Disposition', `inline; filename="${meta.fileName || 'document.pdf'}"`);
@@ -322,7 +322,7 @@ async function viewDocumentByToken(req, res) {
 
     await pool.query('UPDATE signature_requests SET view_token_used_at = NOW() WHERE id = $1', [sigReq.id]);
 
-    const meta = doc.metadata ? JSON.parse(doc.metadata) : {};
+    const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${meta.fileName || 'document.pdf'}"`);
 
@@ -501,7 +501,7 @@ async function applyApproval(sigReq) {
   const { timestamp } = await getSyncedTime(); // FR-026
   const visualSignatureText = `Digitally Approved by ${approver.full_name} on ${timestamp.toISOString()}`;
 
-  const meta = doc.metadata ? JSON.parse(doc.metadata) : {};
+  const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
   const pieces = meta.renderPieces || {};
 
   const signatureHtml = `<p class="visual-signature" style="margin-top:10px;font-style:italic;">${visualSignatureText}</p>`;

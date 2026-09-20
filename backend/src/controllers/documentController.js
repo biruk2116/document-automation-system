@@ -576,7 +576,7 @@ async function downloadDocument(req, res) {
       }
     }
 
-    const meta = doc.metadata ? JSON.parse(doc.metadata) : {};
+    const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${meta.fileName || 'document.pdf'}"`);
 
@@ -633,7 +633,7 @@ async function viewDocumentByNotifyToken(req, res) {
 
     await pool.query('UPDATE generated_docs SET notify_view_token_used_at = NOW() WHERE id = ?', [doc.id]);
 
-    const meta = doc.metadata ? JSON.parse(doc.metadata) : {};
+    const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${meta.fileName || 'document.pdf'}"`);
 
@@ -766,7 +766,7 @@ async function downloadViaNotifyToken(req, res) {
       return res.status(410).json({ success: false, message: 'File no longer exists on disk.' });
     }
 
-    const meta = doc.metadata ? JSON.parse(doc.metadata) : {};
+    const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${meta.fileName || 'document.pdf'}"`);
 
@@ -876,7 +876,7 @@ async function deliverViaNotifyToken(req, res) {
       let emailStatus = 'failed';
       try {
         const pdfBuffer = fs.readFileSync(doc.file_path);
-        const meta = doc.metadata ? JSON.parse(doc.metadata) : {};
+        const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
         const { subject, html } = templates.documentAttached({ docId: doc.doc_uuid });
         const sendResult = await sendMail({
           to: recipientEmail, subject, html,
@@ -1276,13 +1276,13 @@ const [[newDocRow]] = await pool.query(
   [newDoc.id]
 );
 
-const newMetadata = newDocRow?.metadata
+const newMetadata = typeof newDocRow?.metadata === 'string' 
   ? JSON.parse(newDocRow.metadata)
-  : {};
+  : (newDocRow?.metadata || {});
 
-const previousMetadata = doc.metadata
+const previousMetadata = typeof doc.metadata === 'string'
   ? JSON.parse(doc.metadata)
-  : {};
+  : (doc.metadata || {});
 
 const previousRound = Number(
   previousMetadata.resubmissionRound || 0
