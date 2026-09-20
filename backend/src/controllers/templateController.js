@@ -267,7 +267,7 @@ async function createTemplate(req, res) {
   try {
     // Fast path: Single INSERT without transaction for better performance
     // Unique constraint on name will handle duplicates
-    const { rows } = await pool.query(
+    const result = await pool.query(
       `INSERT INTO templates
         (name, category, description, version, header_html, body_html, footer_html,
          watermark_text, data_source_table, data_source_connection_id, logo_path,
@@ -281,7 +281,9 @@ async function createTemplate(req, res) {
         req.user.id]
     );
 
-    const newId = rows[0].id;
+    const newId = result.rows[0].id;
+    
+    console.log('[templates] Template created successfully, id:', newId);
     
     // Async audit logging (non-blocking)
     recordAudit({ 
@@ -303,6 +305,7 @@ async function createTemplate(req, res) {
     });
   } catch (err) {
     console.error('[templates] create error:', err);
+    console.error('[templates] error stack:', err.stack);
     
     // Handle duplicate name error
     if (err.code === '23505') { // PostgreSQL unique violation
@@ -314,7 +317,7 @@ async function createTemplate(req, res) {
     
     return res.status(500).json({
       success: false,
-      message: describeSaveError(err) || 'Failed to create template.',
+      message: err.message || 'Failed to create template.',
     });
   }
 }
