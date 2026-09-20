@@ -68,10 +68,11 @@ function buildDocNotifyUrl(docId) {
  *              without having to dig through the rejection reason themselves.
  */
 async function runInitiateSignature({ docId, approverId, userId, req, note }) {
-  const [[doc]] = await pool.query('SELECT * FROM generated_docs WHERE id = ?', [docId]);
-  if (!doc) {
+  const [docRows] = await pool.query('SELECT * FROM generated_docs WHERE id = $1', [docId]);
+  if (docRows.length === 0) {
     return { ok: false, status: 404, message: 'Document not found.' };
   }
+  const doc = docRows[0];
   if (doc.status !== 'draft') {
     return { ok: false, status: 409, message: `Document is already "${doc.status}" — cannot initiate signing.` };
   }
@@ -81,10 +82,11 @@ async function runInitiateSignature({ docId, approverId, userId, req, note }) {
     return { ok: false, status: 403, message: 'Self-approval is not allowed: the approver cannot be the document generator.' };
   }
 
-  const [[approver]] = await pool.query('SELECT id, email, phone, full_name, role FROM users WHERE id = ?', [approverId]);
-  if (!approver || approver.role !== 'approver') {
+  const [approverRows] = await pool.query('SELECT id, email, phone, full_name, role FROM users WHERE id = $1', [approverId]);
+  if (approverRows.length === 0 || approverRows[0].role !== 'approver') {
     return { ok: false, status: 400, message: 'Selected user is not a valid approver.' };
   }
+  const approver = approverRows[0];
 
   const otpCode = generateOtp();
   const otpHash = await hashOtp(otpCode);
@@ -95,7 +97,7 @@ async function runInitiateSignature({ docId, approverId, userId, req, note }) {
     [docId, approverId, otpHash, otpExpiryDate()]
   );
 
-  await pool.query('UPDATE generated_docs SET status = ? WHERE id = ?', ['pending', docId]);
+  await pool.query('UPDATE generated_docs SET status = $1 WHERE id = $2', ['pending', docId]);
 
   const { subject, html } = templates.docReadyForSigning({
     approverName: approver.full_name,
@@ -176,10 +178,11 @@ async function listPendingForApprover(req, res) {
 async function viewPendingDocument(req, res) {
   const { id } = req.params;
   try {
-    const [[sigReq]] = await pool.query('SELECT * FROM signature_requests WHERE id = ?', [id]);
-    if (!sigReq) {
+    const [sigReqRows] = await pool.query('SELECT * FROM signature_requests WHERE id = $1', [id]);
+    if (sigReqRows.length === 0) {
       return res.status(404).json({ success: false, message: 'Signature request not found.' });
     }
+    const sigReq = sigReqRows[0];
 
     const isAssignedApprover = sigReq.approver_id === req.user.id;
     const isAdmin = ['super_admin', 'system_admin'].includes(req.user.role);
@@ -187,10 +190,11 @@ async function viewPendingDocument(req, res) {
       return res.status(403).json({ success: false, message: 'This request is not assigned to you.' });
     }
 
-    const [[doc]] = await pool.query('SELECT * FROM generated_docs WHERE id = ?', [sigReq.doc_id]);
-    if (!doc) {
+    const [docRows] = await pool.query('SELECT * FROM generated_docs WHERE id = $1', [sigReq.doc_id]);
+    if (docRows.length === 0) {
       return res.status(404).json({ success: false, message: 'Document not found.' });
     }
+    const doc = docRows[0];
 
     // If file doesn't exist, regenerate it from metadata
     if (!fs.existsSync(doc.file_path)) {
@@ -236,11 +240,21 @@ async function viewPendingDocument(req, res) {
     // inline (not attachment): opens/renders in the browser rather than triggering a download
     res.setHeader('Content-Disposition', `inline; filename="${meta.fileName || 'document.pdf'}"`);
 
-    await recordAudit({ userId: req.user.id, docId: doc.id, action: 'VIEW', details: { via: 'signature_request', signatureRequestId: sigReq.id }, req });
+    // Async audit logging (non-blocking)
+    recordAudit({ 
+      userId: req.user.id, 
+      docId: doc.id, 
+      action: 'VIEW', 
+      details: { via: 'signature_request', signatureRequestId: sigReq.id }, 
+      req 
+    }).catch(err => console.error('[audit] failed to log document view:', err));
 
+    console.log(`[signatures] Approver ${req.user.id} viewing document ${doc.doc_uuid}`);
+    
     fs.createReadStream(doc.file_path).pipe(res);
   } catch (err) {
     console.error('[signatures] view error:', err);
+    console.error('[signatures] error stack:', err.stack);
     return res.status(500).json({ success: false, message: 'Failed to load document for viewing.' });
   }
 }
@@ -270,10 +284,12 @@ async function viewDocumentByToken(req, res) {
   }
 
   try {
-    const [[sigReq]] = await pool.query('SELECT * FROM signature_requests WHERE id = ?', [decoded.sigReqId]);
-    if (!sigReq) {
+    const [sigReqRows] = await pool.query('SELECT * FROM signature_requests WHERE id = $1', [decoded.sigReqId]);
+    if (sigReqRows.length === 0) {
       return res.status(404).json({ success: false, message: 'Signature request not found.' });
     }
+    const sigReq = sigReqRows[0];
+    
     if (sigReq.status !== 'pending') {
       return res.status(410).json({ success: false, message: `This document is no longer pending review (status: ${sigReq.status}).` });
     }
@@ -295,15 +311,16 @@ async function viewDocumentByToken(req, res) {
       });
     }
 
-    const [[doc]] = await pool.query('SELECT * FROM generated_docs WHERE id = ?', [sigReq.doc_id]);
-    if (!doc) {
+    const [docRows] = await pool.query('SELECT * FROM generated_docs WHERE id = $1', [sigReq.doc_id]);
+    if (docRows.length === 0) {
       return res.status(404).json({ success: false, message: 'Document not found.' });
     }
+    const doc = docRows[0];
     if (!fs.existsSync(doc.file_path)) {
       return res.status(410).json({ success: false, message: 'File no longer exists on disk.' });
     }
 
-    await pool.query('UPDATE signature_requests SET view_token_used_at = NOW() WHERE id = ?', [sigReq.id]);
+    await pool.query('UPDATE signature_requests SET view_token_used_at = NOW() WHERE id = $1', [sigReq.id]);
 
     const meta = doc.metadata ? JSON.parse(doc.metadata) : {};
     res.setHeader('Content-Type', 'application/pdf');
