@@ -363,10 +363,12 @@ async function verifyOtpForReviewToken(req, res) {
   }
 
   try {
-    const [[sigReq]] = await pool.query('SELECT * FROM signature_requests WHERE id = ?', [decoded.sigReqId]);
-    if (!sigReq) {
+    const [sigReqRows] = await pool.query('SELECT * FROM signature_requests WHERE id = $1', [decoded.sigReqId]);
+    if (sigReqRows.length === 0) {
       return res.status(404).json({ success: false, message: 'Signature request not found.' });
     }
+    const sigReq = sigReqRows[0];
+    
     if (sigReq.status !== 'pending') {
       return res.status(409).json({ success: false, message: `Request already ${sigReq.status}.` });
     }
@@ -384,7 +386,7 @@ async function verifyOtpForReviewToken(req, res) {
     if (!isValid) {
       const attempts = sigReq.otp_attempts + 1;
       const lockedUntil = attempts >= MAX_OTP_ATTEMPTS ? lockoutExpiryDate() : null;
-      await pool.query('UPDATE signature_requests SET otp_attempts = ?, locked_until = ? WHERE id = ?', [attempts, lockedUntil, sigReq.id]);
+      await pool.query('UPDATE signature_requests SET otp_attempts = $1, locked_until = $2 WHERE id = $3', [attempts, lockedUntil, sigReq.id]);
 
       if (lockedUntil) {
         return res.status(423).json({ success: false, message: 'Incorrect OTP. Maximum attempts reached — locked for 15 minutes.' });
@@ -392,7 +394,7 @@ async function verifyOtpForReviewToken(req, res) {
       return res.status(401).json({ success: false, message: `Incorrect OTP. ${MAX_OTP_ATTEMPTS - attempts} attempt(s) remaining.` });
     }
 
-    await pool.query('UPDATE signature_requests SET otp_verified_at = NOW() WHERE id = ?', [sigReq.id]);
+    await pool.query('UPDATE signature_requests SET otp_verified_at = NOW() WHERE id = $1', [sigReq.id]);
 
     await recordAudit({
       userId: sigReq.approver_id,
@@ -422,10 +424,12 @@ async function resendOtp(req, res) {
   const { id } = req.params;
 
   try {
-    const [[sigReq]] = await pool.query('SELECT * FROM signature_requests WHERE id = ?', [id]);
-    if (!sigReq) {
+    const [sigReqRows] = await pool.query('SELECT * FROM signature_requests WHERE id = $1', [id]);
+    if (sigReqRows.length === 0) {
       return res.status(404).json({ success: false, message: 'Signature request not found.' });
     }
+    const sigReq = sigReqRows[0];
+    
     if (sigReq.approver_id !== req.user.id) {
       return res.status(403).json({ success: false, message: 'This request is not assigned to you.' });
     }
@@ -436,8 +440,15 @@ async function resendOtp(req, res) {
       return res.status(423).json({ success: false, message: `Too many failed attempts. Try again after ${sigReq.locked_until}.` });
     }
 
-    const [[doc]] = await pool.query('SELECT doc_uuid FROM generated_docs WHERE id = ?', [sigReq.doc_id]);
-    const [[approver]] = await pool.query('SELECT email, phone, full_name FROM users WHERE id = ?', [req.user.id]);
+    const [docRows] = await pool.query('SELECT doc_uuid FROM generated_docs WHERE id = $1', [sigReq.doc_id]);
+    const [approverRows] = await pool.query('SELECT email, phone, full_name FROM users WHERE id = $1', [req.user.id]);
+    
+    if (docRows.length === 0 || approverRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Document or approver not found.' });
+    }
+    
+    const doc = docRows[0];
+    const approver = approverRows[0];
 
     const otpCode = generateOtp();
     const otpHash = await hashOtp(otpCode);
@@ -447,7 +458,7 @@ async function resendOtp(req, res) {
     // Also reset view_token_used_at: a re-sent request gets a fresh one-time review
     // link, so a previously-opened (and thus spent) link doesn't strand the approver.
     await pool.query(
-      'UPDATE signature_requests SET otp_code = ?, otp_expiry = ?, otp_attempts = 0, view_token_used_at = NULL, otp_verified_at = NULL WHERE id = ?',
+      'UPDATE signature_requests SET otp_code = $1, otp_expiry = $2, otp_attempts = 0, view_token_used_at = NULL, otp_verified_at = NULL WHERE id = $3',
       [otpHash, otpExpiryDate(), id]
     );
 
@@ -477,8 +488,15 @@ async function resendOtp(req, res) {
  * lifetime (runApprovalPreVerified, below — the OTP-before-view gate).
  */
 async function applyApproval(sigReq) {
-  const [[doc]] = await pool.query('SELECT * FROM generated_docs WHERE id = ?', [sigReq.doc_id]);
-  const [[approver]] = await pool.query('SELECT id, full_name FROM users WHERE id = ?', [sigReq.approver_id]);
+  const [docRows] = await pool.query('SELECT * FROM generated_docs WHERE id = $1', [sigReq.doc_id]);
+  const [approverRows] = await pool.query('SELECT id, full_name FROM users WHERE id = $1', [sigReq.approver_id]);
+  
+  if (docRows.length === 0 || approverRows.length === 0) {
+    throw new Error('Document or approver not found');
+  }
+  
+  const doc = docRows[0];
+  const approver = approverRows[0];
 
   const { timestamp } = await getSyncedTime(); // FR-026
   const visualSignatureText = `Digitally Approved by ${approver.full_name} on ${timestamp.toISOString()}`;
@@ -501,22 +519,29 @@ async function applyApproval(sigReq) {
 
   await pool.query(
     `INSERT INTO digital_signatures (doc_id, signer_id, signature_timestamp, crypto_hmac, visual_signature_text)
-     VALUES (?, ?, ?, ?, ?)`,
+     VALUES ($1, $2, $3, $4, $5)`,
     [doc.id, approver.id, timestamp, cryptoHmac, visualSignatureText]
   );
 
-  await pool.query('UPDATE generated_docs SET status = ?, file_hash = ?, metadata = ? WHERE id = ?', [
+  await pool.query('UPDATE generated_docs SET status = $1, file_hash = $2, metadata = $3 WHERE id = $4', [
     'signed', newHash, JSON.stringify({ ...meta, signedAt: timestamp.toISOString() }), doc.id,
   ]);
-  await pool.query('UPDATE signature_requests SET status = ?, approved_at = ? WHERE id = ?', ['approved', timestamp, sigReq.id]);
+  await pool.query('UPDATE signature_requests SET status = $1, approved_at = $2 WHERE id = $3', ['approved', timestamp, sigReq.id]);
 
-  const [[generator]] = await pool.query('SELECT email, full_name FROM users WHERE id = ?', [doc.generated_by]);
+  const [generatorRows] = await pool.query('SELECT email, full_name FROM users WHERE id = $1', [doc.generated_by]);
+  if (generatorRows.length === 0) {
+    throw new Error('Generator not found');
+  }
+  const generator = generatorRows[0];
+  
   const { subject, html } = templates.docSigned({
     generatorName: generator.full_name,
     docId: doc.doc_uuid,
     reviewUrl: buildDocNotifyUrl(doc.id),
   });
   await sendMail({ to: generator.email, subject, html });
+
+  console.log(`[signatures] Document ${doc.doc_uuid} approved by ${approver.full_name}`);
 
   return {
     ok: true,
@@ -547,7 +572,7 @@ async function runApproval({ sigReq, otpCode }) {
   if (!isValid) {
     const attempts = sigReq.otp_attempts + 1;
     const lockedUntil = attempts >= MAX_OTP_ATTEMPTS ? lockoutExpiryDate() : null;
-    await pool.query('UPDATE signature_requests SET otp_attempts = ?, locked_until = ? WHERE id = ?', [attempts, lockedUntil, sigReq.id]);
+    await pool.query('UPDATE signature_requests SET otp_attempts = $1, locked_until = $2 WHERE id = $3', [attempts, lockedUntil, sigReq.id]);
 
     if (lockedUntil) {
       return { ok: false, status: 423, message: 'Incorrect OTP. Maximum attempts reached — locked for 15 minutes.' };
@@ -593,10 +618,12 @@ async function approveSignature(req, res) {
   }
 
   try {
-    const [[sigReq]] = await pool.query('SELECT * FROM signature_requests WHERE id = ?', [id]);
-    if (!sigReq) {
+    const [sigReqRows] = await pool.query('SELECT * FROM signature_requests WHERE id = $1', [id]);
+    if (sigReqRows.length === 0) {
       return res.status(404).json({ success: false, message: 'Signature request not found.' });
     }
+    const sigReq = sigReqRows[0];
+    
     if (sigReq.approver_id !== req.user.id) {
       return res.status(403).json({ success: false, message: 'This request is not assigned to you.' });
     }
@@ -615,7 +642,8 @@ async function approveSignature(req, res) {
     });
   } catch (err) {
     console.error('[signatures] approve error:', err);
-    return res.status(500).json({ success: false, message: 'Failed to approve signature.' });
+    console.error('[signatures] error stack:', err.stack);
+    return res.status(500).json({ success: false, message: err.message || 'Failed to approve signature.' });
   }
 }
 
@@ -642,10 +670,11 @@ async function approveSignatureByToken(req, res) {
   }
 
   try {
-    const [[sigReq]] = await pool.query('SELECT * FROM signature_requests WHERE id = ?', [decoded.sigReqId]);
-    if (!sigReq) {
+    const [sigReqRows] = await pool.query('SELECT * FROM signature_requests WHERE id = $1', [decoded.sigReqId]);
+    if (sigReqRows.length === 0) {
       return res.status(404).json({ success: false, message: 'Signature request not found.' });
     }
+    const sigReq = sigReqRows[0];
 
     // Identity already confirmed by OTP before the document was revealed (see
     // verifyOtpForReviewToken) — no second OTP prompt at the approve step.
@@ -669,7 +698,8 @@ async function approveSignatureByToken(req, res) {
     });
   } catch (err) {
     console.error('[signatures] approveByToken error:', err);
-    return res.status(500).json({ success: false, message: 'Failed to approve signature.' });
+    console.error('[signatures] error stack:', err.stack);
+    return res.status(500).json({ success: false, message: err.message || 'Failed to approve signature.' });
   }
 }
 
@@ -692,7 +722,7 @@ async function getRejectionCandidates(doc, generator) {
   }
 
   const [admins] = await pool.query(
-    'SELECT id, full_name, role FROM users WHERE role IN (?, ?) ORDER BY full_name ASC LIMIT 2',
+    'SELECT id, full_name, role FROM users WHERE role IN ($1, $2) ORDER BY full_name ASC LIMIT 2',
     ['super_admin', 'system_admin']
   );
   return [
@@ -703,8 +733,18 @@ async function getRejectionCandidates(doc, generator) {
 
 /** Shared lookup used by both the reject-recipients endpoints and runRejection. */
 async function loadDocAndGeneratorForSigReq(sigReq) {
-  const [[doc]] = await pool.query('SELECT id, doc_uuid, generated_by FROM generated_docs WHERE id = ?', [sigReq.doc_id]);
-  const [[generator]] = await pool.query('SELECT id, email, full_name, role FROM users WHERE id = ?', [doc.generated_by]);
+  const [docRows] = await pool.query('SELECT id, doc_uuid, generated_by FROM generated_docs WHERE id = $1', [sigReq.doc_id]);
+  if (docRows.length === 0) {
+    throw new Error('Document not found');
+  }
+  const doc = docRows[0];
+  
+  const [generatorRows] = await pool.query('SELECT id, email, full_name, role FROM users WHERE id = $1', [doc.generated_by]);
+  if (generatorRows.length === 0) {
+    throw new Error('Generator not found');
+  }
+  const generator = generatorRows[0];
+  
   return { doc, generator };
 }
 
@@ -723,8 +763,8 @@ async function runRejection({ sigReq, reason, recipientIds }) {
     return { ok: false, status: 409, message: `Request already ${sigReq.status}.` };
   }
 
-  await pool.query('UPDATE signature_requests SET status = ?, rejection_reason = ? WHERE id = ?', ['rejected', reason.trim(), sigReq.id]);
-  await pool.query('UPDATE generated_docs SET status = ? WHERE id = ?', ['draft', sigReq.doc_id]);
+  await pool.query('UPDATE signature_requests SET status = $1, rejection_reason = $2 WHERE id = $3', ['rejected', reason.trim(), sigReq.id]);
+  await pool.query('UPDATE generated_docs SET status = $1 WHERE id = $2', ['draft', sigReq.doc_id]);
 
   const { doc, generator } = await loadDocAndGeneratorForSigReq(sigReq);
   const candidates = await getRejectionCandidates(doc, generator);
@@ -754,7 +794,13 @@ async function runRejection({ sigReq, reason, recipientIds }) {
       });
       await sendMail({ to: generator.email, subject: generatorMail.subject, html: generatorMail.html });
     } else {
-      const [[admin]] = await pool.query('SELECT email FROM users WHERE id = ?', [target.id]);
+      const [adminRows] = await pool.query('SELECT email FROM users WHERE id = $1', [target.id]);
+      if (adminRows.length === 0) {
+        console.error(`[signatures] Admin ${target.id} not found for rejection notification`);
+        continue;
+      }
+      const admin = adminRows[0];
+      
       const adminMail = templates.docRejected({
         generatorName: `${target.name} (as Admin — generated by ${generator.full_name})`,
         docId: doc.doc_uuid,
@@ -816,10 +862,12 @@ async function rejectSignature(req, res) {
   }
 
   try {
-    const [[sigReq]] = await pool.query('SELECT * FROM signature_requests WHERE id = ?', [id]);
-    if (!sigReq) {
+    const [sigReqRows] = await pool.query('SELECT * FROM signature_requests WHERE id = $1', [id]);
+    if (sigReqRows.length === 0) {
       return res.status(404).json({ success: false, message: 'Signature request not found.' });
     }
+    const sigReq = sigReqRows[0];
+    
     if (sigReq.approver_id !== req.user.id) {
       return res.status(403).json({ success: false, message: 'This request is not assigned to you.' });
     }
@@ -855,10 +903,12 @@ async function loadSigReqFromReviewToken(token) {
   if (decoded.purpose !== 'signature_view' || !decoded.sigReqId) {
     return { error: { status: 401, message: 'This review link is invalid.' } };
   }
-  const [[sigReq]] = await pool.query('SELECT * FROM signature_requests WHERE id = ?', [decoded.sigReqId]);
-  if (!sigReq) {
+  const [sigReqRows] = await pool.query('SELECT * FROM signature_requests WHERE id = $1', [decoded.sigReqId]);
+  if (sigReqRows.length === 0) {
     return { error: { status: 404, message: 'Signature request not found.' } };
   }
+  const sigReq = sigReqRows[0];
+  
   if (!sigReq.otp_verified_at) {
     return { error: { status: 403, message: 'Verify the OTP and open the document before continuing.' } };
   }
@@ -951,10 +1001,12 @@ async function resendOtpByToken(req, res) {
 
   const id = decoded.sigReqId;
   try {
-    const [[sigReq]] = await pool.query('SELECT * FROM signature_requests WHERE id = ?', [id]);
-    if (!sigReq) {
+    const [sigReqRows] = await pool.query('SELECT * FROM signature_requests WHERE id = $1', [id]);
+    if (sigReqRows.length === 0) {
       return res.status(404).json({ success: false, message: 'Signature request not found.' });
     }
+    const sigReq = sigReqRows[0];
+    
     if (sigReq.status !== 'pending') {
       return res.status(409).json({ success: false, message: `Request already ${sigReq.status}.` });
     }
@@ -962,14 +1014,21 @@ async function resendOtpByToken(req, res) {
       return res.status(423).json({ success: false, message: `Too many failed attempts. Try again after ${sigReq.locked_until}.` });
     }
 
-    const [[doc]] = await pool.query('SELECT doc_uuid FROM generated_docs WHERE id = ?', [sigReq.doc_id]);
-    const [[approver]] = await pool.query('SELECT email, phone, full_name FROM users WHERE id = ?', [sigReq.approver_id]);
+    const [docRows] = await pool.query('SELECT doc_uuid FROM generated_docs WHERE id = $1', [sigReq.doc_id]);
+    const [approverRows] = await pool.query('SELECT email, phone, full_name FROM users WHERE id = $1', [sigReq.approver_id]);
+
+    if (docRows.length === 0 || approverRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Document or approver not found.' });
+    }
+    
+    const doc = docRows[0];
+    const approver = approverRows[0];
 
     const otpCode = generateOtp();
     const otpHash = await hashOtp(otpCode);
 
     await pool.query(
-      'UPDATE signature_requests SET otp_code = ?, otp_expiry = ?, otp_attempts = 0, view_token_used_at = NULL, otp_verified_at = NULL WHERE id = ?',
+      'UPDATE signature_requests SET otp_code = $1, otp_expiry = $2, otp_attempts = 0, view_token_used_at = NULL, otp_verified_at = NULL WHERE id = $3',
       [otpHash, otpExpiryDate(), id]
     );
 
@@ -1014,8 +1073,13 @@ async function checkEscalations() {
     );
 
     for (const row of rows) {
-      const [[approver]] = await pool.query('SELECT email, full_name FROM users WHERE id = ?', [row.approver_id]);
-      const [[generator]] = await pool.query('SELECT email, full_name FROM users WHERE id = ?', [row.generated_by]);
+      const [approverRows] = await pool.query('SELECT email, full_name FROM users WHERE id = $1', [row.approver_id]);
+      const [generatorRows] = await pool.query('SELECT email, full_name FROM users WHERE id = $1', [row.generated_by]);
+
+      if (approverRows.length === 0 || generatorRows.length === 0) continue;
+      
+      const approver = approverRows[0];
+      const generator = generatorRows[0];
 
       const { subject, html } = templates.escalation72h({
         generatorName: generator.full_name, approverName: approver.full_name, docId: row.doc_uuid,
@@ -1055,7 +1119,10 @@ async function checkReminders() {
     );
 
     for (const row of rows) {
-      const [[approver]] = await pool.query('SELECT email, full_name FROM users WHERE id = ?', [row.approver_id]);
+      const [approverRows] = await pool.query('SELECT email, full_name FROM users WHERE id = $1', [row.approver_id]);
+      if (approverRows.length === 0) continue;
+      
+      const approver = approverRows[0];
       const { subject, html } = templates.reminder24h({ approverName: approver.full_name, docId: row.doc_uuid });
       await sendMail({ to: approver.email, subject, html });
       await recordAudit({ action: 'SIGN', docId: null, details: { event: 'reminder_24h', signatureRequestId: row.id } });
