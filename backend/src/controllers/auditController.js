@@ -109,7 +109,7 @@ async function getDashboardKpis(req, res) {
     );
 
     const [[{ avgApprovalSeconds }]] = await pool.query(
-      `SELECT AVG(TIMESTAMPDIFF(SECOND, sr.created_at, sr.approved_at)) AS avgApprovalSeconds
+      `SELECT AVG(EXTRACT(EPOCH FROM (sr.approved_at - sr.created_at))) AS avgApprovalSeconds
        FROM signature_requests sr WHERE sr.status = 'approved' AND sr.approved_at IS NOT NULL`
     );
 
@@ -158,7 +158,7 @@ async function buildMonthlyReportRows(month) {
             SUM(CASE WHEN gd.status = 'signed' OR gd.status = 'delivered' THEN 1 ELSE 0 END) AS documents_signed
      FROM generated_docs gd
      JOIN templates t ON t.id = gd.template_id
-     WHERE DATE_FORMAT(gd.generated_at, '%Y-%m') = ? AND gd.deleted_at IS NULL
+     WHERE TO_CHAR(gd.generated_at, 'YYYY-MM') = $1 AND gd.deleted_at IS NULL
      GROUP BY t.category`,
     [month]
   );
@@ -242,22 +242,49 @@ async function searchDocuments(req, res) {
   // CRITICAL: Always exclude soft-deleted documents from the list
   conditions.push('gd.deleted_at IS NULL');
 
-  // Single-doc lookup by numeric id — used by Document Tracking's admin deep-link
-  // case: an admin notified about a document rejected for someone ELSE (a non-admin
-  // generator) needs to be able to open that exact document even though it wasn't
-  // generated_by them, without pulling every document in the system to find it.
-  if (id) { conditions.push('gd.id = ?'); params.push(id); }
-  // Filtering by name (not a specific template_id) so picking "Employment Verification
-  // Letter" in the UI matches documents generated under any version of that template,
-  // not just whichever single version row happened to be selected.
-  if (template_name) { conditions.push('t.name = ?'); params.push(template_name); }
-  if (date_from) { conditions.push('gd.generated_at >= ?'); params.push(date_from); }
-  if (date_to) { conditions.push('gd.generated_at <= ?'); params.push(date_to); }
-  if (status) { conditions.push('gd.status = ?'); params.push(status); }
-  if (generated_by) { conditions.push('gd.generated_by = ?'); params.push(generated_by); }
+  let paramIndex = 1;
+  
+  // Single-doc lookup by numeric id
+  if (id) { 
+    conditions.push(`gd.id = $${paramIndex}`); 
+    params.push(id); 
+    paramIndex++;
+  }
+  
+  if (template_name) { 
+    conditions.push(`t.name = $${paramIndex}`); 
+    params.push(template_name); 
+    paramIndex++;
+  }
+  
+  if (date_from) { 
+    conditions.push(`gd.generated_at >= $${paramIndex}`); 
+    params.push(date_from); 
+    paramIndex++;
+  }
+  
+  if (date_to) { 
+    conditions.push(`gd.generated_at <= $${paramIndex}`); 
+    params.push(date_to); 
+    paramIndex++;
+  }
+  
+  if (status) { 
+    conditions.push(`gd.status = $${paramIndex}`); 
+    params.push(status); 
+    paramIndex++;
+  }
+  
+  if (generated_by) { 
+    conditions.push(`gd.generated_by = $${paramIndex}`); 
+    params.push(generated_by); 
+    paramIndex++;
+  }
+  
   if (approver_id) {
-    conditions.push('EXISTS (SELECT 1 FROM signature_requests sr WHERE sr.doc_id = gd.id AND sr.approver_id = ?)');
+    conditions.push(`EXISTS (SELECT 1 FROM signature_requests sr WHERE sr.doc_id = gd.id AND sr.approver_id = $${paramIndex})`);
     params.push(approver_id);
+    paramIndex++;
   }
 
   const whereClause = `WHERE ${conditions.join(' AND ')}`;
@@ -270,34 +297,39 @@ async function searchDocuments(req, res) {
               latest_sr.approver_id, approver_u.full_name AS approver_name,
               latest_sr.status AS signature_status, latest_sr.rejection_reason,
               latest_sr.created_at AS sent_for_approval_at, latest_sr.approved_at,
-              TIMESTAMPDIFF(MINUTE, latest_sr.created_at, latest_sr.approved_at) AS approval_time_minutes,
+              EXTRACT(EPOCH FROM (latest_sr.approved_at - latest_sr.created_at))/60 AS approval_time_minutes,
               latest_dd.recipient_email AS delivered_to, latest_dd.sent_at AS delivered_at,
               latest_dd.email_status AS delivery_email_status
        FROM generated_docs gd
        JOIN templates t ON t.id = gd.template_id
        JOIN users u ON u.id = gd.generated_by
-       LEFT JOIN signature_requests latest_sr
-         ON latest_sr.id = (
-           SELECT sr2.id FROM signature_requests sr2
-           WHERE sr2.doc_id = gd.id
-           ORDER BY sr2.created_at DESC
-           LIMIT 1
-         )
+       LEFT JOIN LATERAL (
+         SELECT sr2.id, sr2.approver_id, sr2.status, sr2.rejection_reason, 
+                sr2.created_at, sr2.approved_at
+         FROM signature_requests sr2
+         WHERE sr2.doc_id = gd.id
+         ORDER BY sr2.created_at DESC
+         LIMIT 1
+       ) latest_sr ON true
        LEFT JOIN users approver_u ON approver_u.id = latest_sr.approver_id
-       LEFT JOIN document_deliveries latest_dd
-         ON latest_dd.id = (
-           SELECT dd2.id FROM document_deliveries dd2
-           WHERE dd2.doc_id = gd.id AND dd2.email_status = 'sent'
-           ORDER BY dd2.sent_at DESC, dd2.id DESC
-           LIMIT 1
-         )
+       LEFT JOIN LATERAL (
+         SELECT dd2.id, dd2.recipient_email, dd2.sent_at, dd2.email_status
+         FROM document_deliveries dd2
+         WHERE dd2.doc_id = gd.id AND dd2.email_status = 'sent'
+         ORDER BY dd2.sent_at DESC, dd2.id DESC
+         LIMIT 1
+       ) latest_dd ON true
        ${whereClause}
        ORDER BY gd.generated_at DESC`,
       params
     );
+    
+    console.log(`[audit] searchDocuments: Found ${rows.length} document(s) for user ${generated_by || 'all'}`);
+    
     return res.status(200).json({ success: true, message: 'Documents fetched.', data: rows });
   } catch (err) {
     console.error('[audit] search error:', err);
+    console.error('[audit] error stack:', err.stack);
     return res.status(500).json({ success: false, message: 'Failed to search documents.' });
   }
 }
