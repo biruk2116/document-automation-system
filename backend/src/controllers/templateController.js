@@ -267,7 +267,8 @@ async function createTemplate(req, res) {
   try {
     // Fast path: Single INSERT without transaction for better performance
     // Unique constraint on name will handle duplicates
-    const result = await pool.query(
+    // Note: pool.query wrapper returns MySQL-style [rows, fields] format
+    const [rows] = await pool.query(
       `INSERT INTO templates
         (name, category, description, version, header_html, body_html, footer_html,
          watermark_text, data_source_table, data_source_connection_id, logo_path,
@@ -281,7 +282,7 @@ async function createTemplate(req, res) {
         req.user.id]
     );
 
-    const newId = result.rows[0].id;
+    const newId = rows[0].id;
     
     console.log('[templates] Template created successfully, id:', newId);
     
