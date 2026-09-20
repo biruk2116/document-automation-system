@@ -25,11 +25,10 @@ async function listDataSources(req, res) {
     const { rows } = await pool.query(
       `SELECT table_name
        FROM information_schema.tables
-       WHERE table_schema = $1 AND table_type = 'BASE TABLE'`,
-      [process.env.DB_NAME || 'neondb']
+       WHERE table_schema = 'public' AND table_type = 'BASE TABLE'`
     );
 
-    const dataSources = rows
+    const dataSources = (rows || [])
       .map((r) => r.table_name)
       .filter((name) => !SYSTEM_TABLES.has(name))
       .filter((name) => DATA_SOURCE_ALLOW_LIST_FOR_NOW.has(name));
@@ -60,12 +59,12 @@ async function listDataSourceFields(req, res) {
     const { rows } = await pool.query(
       `SELECT column_name AS field_name, data_type
        FROM information_schema.columns
-       WHERE table_schema = $1 AND table_name = $2
+       WHERE table_schema = 'public' AND table_name = $1
        ORDER BY ordinal_position`,
-      [process.env.DB_NAME || 'neondb', table]
+      [table]
     );
 
-    if (rows.length === 0) {
+    if (!rows || rows.length === 0) {
       return res.status(404).json({ success: false, message: `Table "${table}" not found.` });
     }
 
@@ -98,23 +97,23 @@ async function listDataSourceFields(req, res) {
 async function fetchRecordById(table, recordId) {
   const { rows: tableCheck } = await pool.query(
     `SELECT table_name FROM information_schema.tables
-     WHERE table_schema = $1 AND table_name = $2 AND table_type = 'BASE TABLE'`,
-    [process.env.DB_NAME || 'neondb', table]
+     WHERE table_schema = 'public' AND table_name = $1 AND table_type = 'BASE TABLE'`,
+    [table]
   );
-  if (tableCheck.length === 0 || SYSTEM_TABLES.has(table)) {
+  if (!tableCheck || tableCheck.length === 0 || SYSTEM_TABLES.has(table)) {
     throw new Error(`Invalid data source table: ${table}`);
   }
 
   const { rows: columns } = await pool.query(
-    `SELECT column_name FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2`,
-    [process.env.DB_NAME || 'neondb', table]
+    `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1`,
+    [table]
   );
-  const columnNames = columns.map((c) => c.column_name);
+  const columnNames = (columns || []).map((c) => c.column_name);
   const businessKeyColumn = `${table.replace(/s$/, '')}_id`; // e.g. "employees" -> "employee_id"
   const lookupColumn = columnNames.includes(businessKeyColumn) ? businessKeyColumn : 'id';
 
   const { rows } = await pool.query(`SELECT * FROM "${table}" WHERE "${lookupColumn}" = $1 LIMIT 1`, [recordId]);
-  return rows[0] || null;
+  return (rows && rows.length > 0) ? rows[0] : null;
 }
 
 /**
@@ -138,19 +137,19 @@ async function listRecordsForTable(req, res) {
   try {
     const { rows: tableCheck } = await pool.query(
       `SELECT table_name FROM information_schema.tables
-       WHERE table_schema = $1 AND table_name = $2 AND table_type = 'BASE TABLE'`,
-      [process.env.DB_NAME || 'neondb', table]
+       WHERE table_schema = 'public' AND table_name = $1 AND table_type = 'BASE TABLE'`,
+      [table]
     );
-    if (tableCheck.length === 0) {
+    if (!tableCheck || tableCheck.length === 0) {
       return res.status(404).json({ success: false, message: `Table "${table}" not found.` });
     }
 
     const { rows: columns } = await pool.query(
       `SELECT column_name FROM information_schema.columns
-       WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position`,
-      [process.env.DB_NAME || 'neondb', table]
+       WHERE table_schema = 'public' AND table_name = $1 ORDER BY ordinal_position`,
+      [table]
     );
-    const columnNames = columns.map((c) => c.column_name);
+    const columnNames = (columns || []).map((c) => c.column_name);
     const businessKeyColumn = `${table.replace(/s$/, '')}_id`;
     const idColumn = columnNames.includes(businessKeyColumn) ? businessKeyColumn : 'id';
     const labelColumn = ['full_name', 'name', 'title'].find((c) => columnNames.includes(c));
@@ -163,7 +162,7 @@ async function listRecordsForTable(req, res) {
       message: 'Records fetched.',
       columns: columnNames,
       idColumn,
-      data: rows.map((r) => ({
+      data: (rows || []).map((r) => ({
         recordId: r[idColumn],
         label: r[labelColumn] ? `${r[idColumn]} — ${r[labelColumn]}` : `Record ${r[idColumn]}`,
         values: r,

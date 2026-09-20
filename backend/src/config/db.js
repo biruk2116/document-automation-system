@@ -660,7 +660,7 @@ async function ensureSchema() {
     
     // Seed sample employee data if table is empty
     const { rows: empCount } = await pool.query(`SELECT COUNT(*) as count FROM employees`);
-    if (parseInt(empCount[0].count) === 0) {
+    if (empCount && empCount.length > 0 && parseInt(empCount[0].count) === 0) {
       console.log('[db] Seeding employees table with sample data...');
       await pool.query(`
         INSERT INTO employees (employee_id, full_name, department, position, salary, email, hire_date, status, salary_breakdown, leave_history) VALUES
