@@ -294,10 +294,14 @@ async function generateSingleDocument({ template, recordId, userId }) {
 
   const docId = generateDocId(); // FR-015
   const verificationId = generateVerificationId(); // Secure Delivery module: opaque public QR identifier
-  const hashVerifyFooterHtml = await buildTamperProofFooterHtml(docId, VERIFY_BASE_URL); // FR-016, FR-034
-  const deliveryVerifyFooterHtml = await buildDeliveryVerificationQrHtml(verificationId, VERIFY_BASE_URL);
-  // Keep the concatenated version for metadata persistence (signatureController reads
-  // renderPieces.tamperProofFooterHtml and re-stamps the PDF unchanged at signing time).
+  
+  // Generate QR codes in parallel for faster execution
+  const [hashVerifyFooterHtml, deliveryVerifyFooterHtml] = await Promise.all([
+    buildTamperProofFooterHtml(docId, VERIFY_BASE_URL), // FR-016, FR-034
+    buildDeliveryVerificationQrHtml(verificationId, VERIFY_BASE_URL)
+  ]);
+  
+  // Keep the concatenated version for metadata persistence
   const tamperProofFooterHtml = `${hashVerifyFooterHtml}${deliveryVerifyFooterHtml}`;
 
   const fullHtml = assembleDocumentHtml({
@@ -323,24 +327,38 @@ async function generateSingleDocument({ template, recordId, userId }) {
   const storagePath = buildStoragePath(storageFileName);
   fs.writeFileSync(storagePath, pdfBuffer);
 
-  const [result] = await pool.query(
-    `INSERT INTO generated_docs
-      (doc_uuid, verification_id, template_id, generated_by, record_identifier, file_path, file_hash, status, metadata)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?)`,
-    [docId, verificationId, template.id, userId, String(recordId), storagePath, fileHash, JSON.stringify({
-      fileName,
-      // Persisted so the e-signature step (Phase 4) can regenerate the PDF with a
-      // visual signature block appended, without re-fetching the source record.
-      renderPieces: { headerHtml, bodyHtml: `${bodyHtml}${automaticDateHtml}`, footerHtml, tamperProofFooterHtml: hashVerifyFooterHtml, deliveryVerificationQrHtml: deliveryVerifyFooterHtml, watermarkText: template.watermark_text },
-    })]
-  );
-
-  await recordAudit({
-    userId, docId: result.insertId, action: 'GENERATE',
-    details: { docUuid: docId, templateId: template.id, recordId },
+  const metadata = JSON.stringify({
+    fileName,
+    renderPieces: { 
+      headerHtml, 
+      bodyHtml: `${bodyHtml}${automaticDateHtml}`, 
+      footerHtml, 
+      tamperProofFooterHtml: hashVerifyFooterHtml, 
+      deliveryVerificationQrHtml: deliveryVerifyFooterHtml, 
+      watermarkText: template.watermark_text 
+    },
   });
 
-  return { id: result.insertId, docUuid: docId, fileName, fileHash, sizeBytes: pdfBuffer.length };
+  // Fast INSERT without transaction - use pool.query directly
+  const [rows] = await pool.query(
+    `INSERT INTO generated_docs
+      (doc_uuid, verification_id, template_id, generated_by, record_identifier, file_path, file_hash, status, metadata)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, 'draft', $8)
+     RETURNING id`,
+    [docId, verificationId, template.id, userId, String(recordId), storagePath, fileHash, metadata]
+  );
+
+  const insertedId = rows[0].id;
+
+  // Async audit logging (non-blocking)
+  recordAudit({
+    userId, docId: insertedId, action: 'GENERATE',
+    details: { docUuid: docId, templateId: template.id, recordId },
+  }).catch(err => console.error('[audit] failed to log document generation:', err));
+
+  console.log(`[documents] Generated doc ${insertedId} (${docId}) in ${fileSizeMb.toFixed(2)}MB`);
+
+  return { id: insertedId, docUuid: docId, fileName, fileHash, sizeBytes: pdfBuffer.length };
 }
 
 /**
