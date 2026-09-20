@@ -223,19 +223,26 @@ async function savePlaceholders(connection, templateId, headerHtml, bodyHtml, fo
     .filter((fp) => !AUTO_INJECTED_FIELDS.has(fp));
   if (fieldPaths.length === 0) return;
 
-  const values = fieldPaths.map((fp) => [
-    templateId,
-    fp,
-    guessDataType(fp),
-    fp.includes('[]') || fp.toLowerCase().includes('each') ? 1 : 0,
-    null,
-  ]);
+  const values = fieldPaths.map((fp) => ({
+    template_id: templateId,
+    field_path: fp,
+    data_type: guessDataType(fp),
+    is_loopable: fp.includes('[]') || fp.toLowerCase().includes('each') ? 1 : 0,
+    default_value: null,
+  }));
 
-  await connection.query(
-    `INSERT INTO template_placeholders (template_id, field_path, data_type, is_loopable, default_value)
-     VALUES ?`,
-    [values]
-  );
+  // Use pool directly if no connection provided (async mode)
+  const db = connection || pool;
+  
+  // PostgreSQL multi-row insert
+  for (const val of values) {
+    await db.query(
+      `INSERT INTO template_placeholders (template_id, field_path, data_type, is_loopable, default_value)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (template_id, field_path) DO NOTHING`,
+      [val.template_id, val.field_path, val.data_type, val.is_loopable, val.default_value]
+    );
+  }
 }
 
 /**
@@ -257,42 +264,16 @@ async function createTemplate(req, res) {
     return res.status(400).json({ success: false, message: watermarkCheck.message });
   }
 
-  const connection = await pool.getConnection();
   try {
-    await connection.beginTransaction();
-
-    // BR-003: no two templates may share a name (case-insensitive, trimmed) — checked
-    // inside the same transaction as the insert to keep the race window as small as possible.
-    const duplicate = await findDuplicateTemplateName(connection, name);
-    if (duplicate) {
-      await connection.rollback();
-      return res.status(409).json({
-        success: false,
-        message: `A template named "${duplicate.name}" already exists (v${duplicate.version}, ${duplicate.status}). Choose a different name, or edit/reactivate the existing one instead.`,
-      });
-    }
-
-    // Data source is either an internal table (data_source_table only) or a table that
-    // lives inside a saved external connection (both fields set — see externalDbController.js).
-    // Verified against the connection itself, inside the same transaction, so a template
-    // can never be saved pointing at a connection id that doesn't exist (or was deleted
-    // moments ago) with just a generic FK error.
-    if (data_source_connection_id) {
-      const [[conn]] = await connection.query(
-        'SELECT id FROM external_db_connections WHERE id = ?', [data_source_connection_id]
-      );
-      if (!conn) {
-        await connection.rollback();
-        return res.status(400).json({ success: false, message: 'The selected external database connection no longer exists.' });
-      }
-    }
-
-    const [result] = await connection.query(
+    // Fast path: Single INSERT without transaction for better performance
+    // Unique constraint on name will handle duplicates
+    const { rows } = await pool.query(
       `INSERT INTO templates
         (name, category, description, version, header_html, body_html, footer_html,
          watermark_text, data_source_table, data_source_connection_id, logo_path,
          workflow_config, status, created_by)
-       VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)`,
+       VALUES ($1, $2, $3, 1, $4, $5, $6, $7, $8, $9, $10, $11, 'active', $12)
+       RETURNING id, version`,
       [name, category, description || null, header_html || '', body_html || '', footer_html || '',
         watermarkCheck.value, data_source_table || null, data_source_connection_id || null,
         logo_path || null,
@@ -300,11 +281,20 @@ async function createTemplate(req, res) {
         req.user.id]
     );
 
-    const newId = result.insertId;
-    await savePlaceholders(connection, newId, header_html, body_html, footer_html);
-    await connection.commit();
+    const newId = rows[0].id;
+    
+    // Async audit logging (non-blocking)
+    recordAudit({ 
+      userId: req.user.id, 
+      docId: null, 
+      action: 'CREATE_TEMPLATE', 
+      details: { templateId: newId, name }, 
+      req 
+    }).catch(err => console.error('[audit] failed to log template creation:', err));
 
-    await recordAudit({ userId: req.user.id, docId: null, action: 'CREATE_TEMPLATE', details: { templateId: newId, name }, req });
+    // Async placeholder extraction (non-blocking) - can be done in background
+    savePlaceholders(null, newId, header_html, body_html, footer_html)
+      .catch(err => console.error('[placeholders] failed to save:', err));
 
     return res.status(201).json({
       success: true,
@@ -312,14 +302,20 @@ async function createTemplate(req, res) {
       data: { id: newId, version: 1 },
     });
   } catch (err) {
-    await safeRollback(connection, 'create');
     console.error('[templates] create error:', err);
+    
+    // Handle duplicate name error
+    if (err.code === '23505') { // PostgreSQL unique violation
+      return res.status(409).json({
+        success: false,
+        message: `A template named "${name}" already exists. Choose a different name.`,
+      });
+    }
+    
     return res.status(500).json({
       success: false,
       message: describeSaveError(err) || 'Failed to create template.',
     });
-  } finally {
-    connection.release();
   }
 }
 

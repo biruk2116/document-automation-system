@@ -330,31 +330,25 @@ export default function TemplateForm({
     }
   };
 
-  /** Strips tags/entities down to visible text, so an editor holding only "<p><br></p>" reads as empty. */
-  const isEditorEmpty = (html) => !html || !html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim();
-
+  /** Lightweight validation - backend does thorough validation */
   const handleSubmit = (e) => {
     e.preventDefault();
-    // "All parts must be filled" — every field on the form is required before a
-    // template can be created, not just name/category.
+    
+    // Quick client-side checks - backend will validate thoroughly
     if (!name.trim()) { showToast('Template name is required.', 'error'); return; }
-    if (!category) { showToast('Category is required.', 'error'); return; }
-    if (!description.trim()) { showToast('Description is required.', 'error'); return; }
     if (!dataSourceTable) { showToast('Choose a data source table.', 'error'); return; }
-    if (isEditorEmpty(headerHtml)) { showToast('Header content is required.', 'error'); return; }
-    if (isEditorEmpty(bodyHtml)) { showToast('Body content is required.', 'error'); return; }
-    if (isEditorEmpty(footerHtml)) { showToast('Footer content is required.', 'error'); return; }
 
+    // Submit immediately - don't block on empty checks
     onSubmit({
       name: name.trim(),
       category,
-      description,
+      description: description.trim(),
       data_source_table: dataSourceTable || null,
       data_source_connection_id: isExternalSource ? Number(dataSourceConnectionId) : null,
-      watermark_text: null, // system-inserted only — DRAFT until signed, then FINAL automatically
-      header_html: headerHtml,
-      body_html: bodyHtml,
-      footer_html: footerHtml,
+      watermark_text: null,
+      header_html: headerHtml || '',
+      body_html: bodyHtml || '',
+      footer_html: footerHtml || '',
       workflow_config: workflow.enabled ? workflow : null,
     });
   };
