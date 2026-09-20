@@ -118,6 +118,7 @@ export default function TemplateForm({
   const [connections, setConnections] = useState([]);
   const [connectionTables, setConnectionTables] = useState([]);
   const [loadingTables, setLoadingTables] = useState(false);
+  const [loadingDataSources, setLoadingDataSources] = useState(true);
   const [fields, setFields] = useState([]);
 
   // ── User Workflow config ──────────────────────────────────────────────────
@@ -262,9 +263,20 @@ export default function TemplateForm({
   const isExternalSource = dataSourceConnectionId !== INTERNAL_SOURCE;
 
   useEffect(() => {
+    console.log('[TemplateForm] Component mounted, fetching data sources...');
+    setLoadingDataSources(true);
     dataSourceService.getAll()
-      .then((res) => setDataSources(res.data))
-      .catch(() => showToast('Could not load data sources.', 'error'));
+      .then((res) => {
+        console.log('[TemplateForm] Data sources API response:', res);
+        console.log('[TemplateForm] Data sources loaded:', res.data);
+        setDataSources(res.data || []);
+        setLoadingDataSources(false);
+      })
+      .catch((err) => {
+        console.error('[TemplateForm] Failed to load data sources:', err);
+        showToast('Could not load data sources: ' + (err.message || 'Unknown error'), 'error');
+        setLoadingDataSources(false);
+      });
     externalDbService.list()
       .then((res) => setConnections(res.data || []))
       .catch(() => {}); // non-fatal — the internal source still works without this
@@ -408,11 +420,20 @@ export default function TemplateForm({
             value={dataSourceTable}
             onChange={(e) => setDataSourceTable(e.target.value)}
             className={dataSourceTable ? '' : 'field-invalid'}
-            disabled={isExternalSource && loadingTables}
+            disabled={(isExternalSource && loadingTables) || (!isExternalSource && loadingDataSources)}
           >
-            <option value="">{isExternalSource && loadingTables ? 'Loading tables…' : '— choose a table —'}</option>
+            <option value="">
+              {isExternalSource && loadingTables ? 'Loading tables…' : 
+               !isExternalSource && loadingDataSources ? 'Loading tables…' :
+               '— choose a table —'}
+            </option>
             {(isExternalSource ? connectionTables : dataSources).map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
+          {!isExternalSource && dataSources.length === 0 && !loadingDataSources && (
+            <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'var(--error)' }}>
+              No data sources available. Check server logs.
+            </p>
+          )}
         </div>
 
         <div className="form-field form-field-wide">
