@@ -114,11 +114,11 @@ export default function TemplateForm({
   const [headerHtml, setHeaderHtml] = useState(initialData?.header_html || '');
   const [bodyHtml, setBodyHtml] = useState(initialData?.body_html || '');
   const [footerHtml, setFooterHtml] = useState(initialData?.footer_html || '');
-  const [dataSources, setDataSources] = useState([]);
+  const [dataSources, setDataSources] = useState(['employees']); // Hardcoded for internal source
   const [connections, setConnections] = useState([]);
   const [connectionTables, setConnectionTables] = useState([]);
   const [loadingTables, setLoadingTables] = useState(false);
-  const [loadingDataSources, setLoadingDataSources] = useState(true);
+  const [loadingDataSources, setLoadingDataSources] = useState(false);
   const [fields, setFields] = useState([]);
 
   // ── User Workflow config ──────────────────────────────────────────────────
@@ -263,33 +263,12 @@ export default function TemplateForm({
   const isExternalSource = dataSourceConnectionId !== INTERNAL_SOURCE;
 
   useEffect(() => {
-    console.log('[TemplateForm] Component mounted, fetching data sources...');
-    setLoadingDataSources(true);
-    dataSourceService.getAll()
-      .then((res) => {
-        console.log('[TemplateForm] Data sources API response:', res);
-        console.log('[TemplateForm] Data sources loaded:', res.data);
-        setDataSources(res.data || []);
-        setLoadingDataSources(false);
-      })
-      .catch((err) => {
-        console.error('[TemplateForm] Failed to load data sources:', err);
-        console.error('[TemplateForm] Error status:', err.status);
-        console.error('[TemplateForm] Error payload:', err.payload);
-        let errorMsg = 'Could not load data sources';
-        if (err.status === 401) {
-          errorMsg = 'Not authenticated. Please login again.';
-        } else if (err.status === 403) {
-          errorMsg = 'Access denied. You need admin privileges to create templates.';
-        } else if (err.message) {
-          errorMsg = err.message;
-        }
-        showToast(errorMsg, 'error');
-        setLoadingDataSources(false);
-      });
+    console.log('[TemplateForm] Component mounted');
+    // Internal datasource is hardcoded to 'employees' - no API call needed
+    // Only fetch external database connections
     externalDbService.list()
       .then((res) => setConnections(res.data || []))
-      .catch(() => {}); // non-fatal — the internal source still works without this
+      .catch(() => {}); // non-fatal
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -439,11 +418,6 @@ export default function TemplateForm({
             </option>
             {(isExternalSource ? connectionTables : dataSources).map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
-          {!isExternalSource && dataSources.length === 0 && !loadingDataSources && (
-            <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: 'var(--error)' }}>
-              No data sources available. Check server logs.
-            </p>
-          )}
         </div>
 
         <div className="form-field form-field-wide">
