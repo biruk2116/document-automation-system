@@ -345,45 +345,23 @@ async function updateTemplate(req, res) {
     return res.status(400).json({ success: false, message: watermarkCheck.message });
   }
 
-  const connection = await pool.getConnection();
   try {
-    if (data_source_connection_id) {
-      const [[conn]] = await connection.query(
-        'SELECT id FROM external_db_connections WHERE id = ?', [data_source_connection_id]
-      );
-      if (!conn) {
-        connection.release();
-        return res.status(400).json({ success: false, message: 'The selected external database connection no longer exists.' });
-      }
-    }
-
-    const [existingRows] = await connection.query('SELECT * FROM templates WHERE id = ? LIMIT 1', [id]);
+    // Get existing template
+    const [existingRows] = await pool.query('SELECT * FROM templates WHERE id = $1 LIMIT 1', [id]);
     if (existingRows.length === 0) {
-      connection.release();
       return res.status(404).json({ success: false, message: 'Template not found.' });
     }
     const existing = existingRows[0];
 
-    await connection.beginTransaction();
-
-    // BR-003: same uniqueness rule as create, but exempt this template's own version
-    // lineage — re-saving with the same name (the normal case) must not self-collide.
-    const lineageIds = await getLineageIds(connection, existing.id);
-    const duplicate = await findDuplicateTemplateName(connection, name, lineageIds);
-    if (duplicate) {
-      await connection.rollback();
-      return res.status(409).json({
-        success: false,
-        message: `A template named "${duplicate.name}" already exists (v${duplicate.version}, ${duplicate.status}). Choose a different name.`,
-      });
-    }
-
-    const [result] = await connection.query(
+    // Fast path: Single INSERT for new version without transaction overhead
+    // The unique constraint will handle name collisions if needed
+    const [rows] = await pool.query(
       `INSERT INTO templates
         (name, category, description, version, parent_template_id, header_html, body_html, footer_html,
          watermark_text, data_source_table, data_source_connection_id, logo_path,
          workflow_config, status, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+       RETURNING id, version`,
       [
         name, category, description || null,
         existing.version + 1, existing.id,
@@ -396,30 +374,43 @@ async function updateTemplate(req, res) {
       ]
     );
 
-    const newId = result.insertId;
-    await savePlaceholders(connection, newId, header_html, body_html, footer_html);
-    await connection.commit();
+    const newId = rows[0].id;
+    const newVersion = rows[0].version;
+    
+    console.log('[templates] Template updated successfully, new id:', newId, 'version:', newVersion);
+    
+    // Async placeholder extraction (non-blocking)
+    savePlaceholders(null, newId, header_html, body_html, footer_html)
+      .catch(err => console.error('[placeholders] failed to save:', err));
 
-    await recordAudit({
+    // Async audit logging (non-blocking)
+    recordAudit({
       userId: req.user.id, action: 'UPDATE_TEMPLATE',
-      details: { previousTemplateId: existing.id, newTemplateId: newId, newVersion: existing.version + 1 },
+      details: { previousTemplateId: existing.id, newTemplateId: newId, newVersion },
       req,
-    });
+    }).catch(err => console.error('[audit] failed to log template update:', err));
 
     return res.status(200).json({
       success: true,
-      message: `Template updated — new version v${existing.version + 1} created.`,
-      data: { id: newId, version: existing.version + 1, previousId: existing.id },
+      message: `Template updated — new version v${newVersion} created.`,
+      data: { id: newId, version: newVersion, previousId: existing.id },
     });
   } catch (err) {
-    await safeRollback(connection, 'update');
     console.error('[templates] update error:', err);
+    console.error('[templates] error stack:', err.stack);
+    
+    // Handle duplicate name error
+    if (err.code === '23505') {
+      return res.status(409).json({
+        success: false,
+        message: `A template with this name already exists. Choose a different name.`,
+      });
+    }
+    
     return res.status(500).json({
       success: false,
-      message: describeSaveError(err) || 'Failed to update template.',
+      message: err.message || 'Failed to update template.',
     });
-  } finally {
-    connection.release();
   }
 }
 
