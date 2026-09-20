@@ -2000,11 +2000,11 @@ async function workflowSign(req, res) {
         console.log('[workflowSign] Updating database with new hash:', newHash);
         
         await pool.query(
-          'UPDATE generated_docs SET file_hash = ? WHERE id = ?',
+          'UPDATE generated_docs SET file_hash = $1 WHERE id = $2',
           [newHash, doc.id]
         );
         await pool.query(
-          'UPDATE document_deliveries SET workflow_signature_embedded_at = NOW() WHERE id = ?',
+          'UPDATE document_deliveries SET workflow_signature_embedded_at = NOW() WHERE id = $1',
           [delivery.id]
         );
 
