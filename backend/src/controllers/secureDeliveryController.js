@@ -603,11 +603,11 @@ async function getDeliveryDetails(req, res) {
   const { delivery, doc } = resolved;
 
   try {
-    const [[tpl]] = await pool.query('SELECT name, workflow_config FROM templates WHERE id = ?', [doc.template_id]);
-    const meta = doc.metadata ? JSON.parse(doc.metadata) : {};
+    const [tplRows] = await pool.query('SELECT name, workflow_config FROM templates WHERE id = $1', [doc.template_id]);
+    const tpl = tplRows[0];
+    const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
 
-    // Parse workflow_config — stored as JSON string in MySQL, already parsed by mysql2
-    // when the column type is JSON, but guard either way.
+    // Parse workflow_config — PostgreSQL returns JSON columns as objects already
     let workflowConfig = null;
     if (tpl?.workflow_config) {
       workflowConfig = typeof tpl.workflow_config === 'string'
@@ -630,6 +630,8 @@ async function getDeliveryDetails(req, res) {
         ownershipStatus: delivery.ownership_status,
         // Workflow state (for re-hydrating the portal on page reload)
         workflowAcknowledgedAt:  delivery.workflow_acknowledged_at  || null,
+        workflowSignedAt:        delivery.workflow_signed_at        || null,
+        workflowRespondedAt:     delivery.workflow_responded_at     || null,
         workflowUserSignedAt:    delivery.workflow_user_signed_at   || null,
         workflowResponse:        delivery.workflow_response         || null,
         // The template's workflow configuration — drives which steps are shown
@@ -1795,18 +1797,22 @@ async function workflowSign(req, res) {
   let signatureField = null;
   let allowPhoto     = true;
   try {
-    const [[tpl]] = await pool.query(
-      'SELECT workflow_config FROM templates WHERE id = ?',
+    const [tplRows] = await pool.query(
+      'SELECT workflow_config FROM templates WHERE id = $1',
       [doc.template_id]
     );
+    const tpl = tplRows[0];
     if (tpl?.workflow_config) {
       const wfConfig = typeof tpl.workflow_config === 'string'
         ? JSON.parse(tpl.workflow_config)
         : tpl.workflow_config;
-      if (wfConfig?.signatureField) {
-        signatureField = wfConfig.signatureField;
+      
+      // Check if signature step is configured
+      const signStep = wfConfig?.steps?.find(s => s.type === 'sign');
+      if (signStep?.signatureField) {
+        signatureField = signStep.signatureField;
         allowPhoto     = signatureField.allowPhoto !== false; // default true
-        const required = signatureField.required !== false;   // default true
+        const required = signStep.required !== false;   // default true
         if (required && !hasName) {
           return res.status(400).json({
             success: false,
@@ -1846,23 +1852,25 @@ async function workflowSign(req, res) {
     // gets affectedRows === 0 and returns the idempotent 200.
     const [signResult] = await pool.query(
       `UPDATE document_deliveries
-          SET workflow_user_signed_at = NOW(),
+          SET workflow_signed_at = NOW(),
+              workflow_user_signed_at = NOW(),
               workflow_completed_at   = NOW(),
-              workflow_signature_data = ?
-        WHERE id = ? AND workflow_user_signed_at IS NULL`,
+              workflow_signature_data = $1
+        WHERE id = $2 AND workflow_user_signed_at IS NULL`,
       [signatureData, delivery.id]
     );
 
-    if (signResult.affectedRows === 0) {
+    if (signResult.rowCount === 0) {
       // Lost the race — another request already recorded this signature.
-      const [[fresh]] = await pool.query(
-        'SELECT workflow_user_signed_at FROM document_deliveries WHERE id = ?',
+      const [freshRows] = await pool.query(
+        'SELECT workflow_user_signed_at, workflow_signed_at FROM document_deliveries WHERE id = $1',
         [delivery.id]
       );
+      const fresh = freshRows[0];
       return res.status(200).json({
         success: true,
         message: 'Already signed.',
-        data: { signedAt: fresh?.workflow_user_signed_at || signedAt },
+        data: { signedAt: fresh?.workflow_signed_at || fresh?.workflow_user_signed_at || signedAt },
       });
     }
 
@@ -2081,7 +2089,7 @@ async function workflowRespond(req, res) {
   try {
     const responseText = String(response).trim();
     await pool.query(
-      'UPDATE document_deliveries SET workflow_response = ? WHERE id = ?',
+      'UPDATE document_deliveries SET workflow_response = $1, workflow_responded_at = NOW(), workflow_completed_at = COALESCE(workflow_completed_at, NOW()) WHERE id = $2',
       [responseText, delivery.id]
     );
     await recordAudit({

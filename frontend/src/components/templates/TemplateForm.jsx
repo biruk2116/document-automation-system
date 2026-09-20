@@ -9,20 +9,17 @@ const INTERNAL_SOURCE = 'internal';
 
 const USER_TYPES = ['Employee', 'Student', 'Supplier', 'Customer', 'Other'];
 
-/** Default workflow config — all steps off, no user type */
+/** Default workflow config — dynamic steps */
 const DEFAULT_WORKFLOW = {
   enabled: false,
-  userType: '',
-  otpVerification:         true,
-  viewDocument:            false,
-  confirmOwnership:        true,
-  download:                true,
-  acknowledge:             false,
-  userSignature:           false,
-  signatureField:          null,  // { page, x, y, width, height, required, allowPhoto } — set by Admin
-  requireResponse:         false,
-  sendResponseToGenerator: false,
+  steps: [],
 };
+
+const WORKFLOW_STEP_TYPES = [
+  { value: 'acknowledge', label: 'Acknowledge Receipt', description: 'Recipient confirms they received the document' },
+  { value: 'sign', label: 'Add Signature', description: 'Recipient provides their name and signature' },
+  { value: 'respond', label: 'Provide Response', description: 'Recipient can add comments or feedback' },
+];
 
 /** Small toggle row component rendered inline */
 function WorkflowToggle({ id, label, description, checked, onChange, locked = false }) {
