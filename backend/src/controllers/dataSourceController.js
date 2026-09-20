@@ -5,6 +5,7 @@ require('dotenv').config();
 const SYSTEM_TABLES = new Set([
   'users', 'templates', 'template_placeholders', 'generated_docs',
   'signature_requests', 'digital_signatures', 'delivery_logs', 'audit_logs',
+  'notification_reads', 'external_db_connections', 'document_deliveries',
 ]);
 
 // This endpoint only ever lists tables from THIS app's own doc_automation database
@@ -22,16 +23,21 @@ const DATA_SOURCE_ALLOW_LIST_FOR_NOW = new Set(['employees']);
  */
 async function listDataSources(req, res) {
   try {
+    console.log('[dataSources] listDataSources called');
     const { rows } = await pool.query(
       `SELECT table_name
        FROM information_schema.tables
        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'`
     );
+    console.log('[dataSources] Query returned', rows?.length || 0, 'tables');
+    console.log('[dataSources] Raw tables:', rows?.map(r => r.table_name));
 
     const dataSources = (rows || [])
       .map((r) => r.table_name)
       .filter((name) => !SYSTEM_TABLES.has(name))
       .filter((name) => DATA_SOURCE_ALLOW_LIST_FOR_NOW.has(name));
+
+    console.log('[dataSources] After filtering, returning:', dataSources);
 
     return res.status(200).json({
       success: true,
