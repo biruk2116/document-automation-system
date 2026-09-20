@@ -59,7 +59,7 @@ async function getNotifications(req, res) {
               'ownership_rejected_notify' AS notification_type
        FROM audit_logs al
        JOIN generated_docs gd ON gd.id = al.doc_id
-       WHERE al.action = 'OWNERSHIP_REJECTED_NOTIFY'
+       WHERE al.action = 'OWNERSHIP_REJECT'
          AND al.user_id = $1
          AND gd.deleted_at IS NULL
        ORDER BY al.timestamp DESC
@@ -75,7 +75,7 @@ async function getNotifications(req, res) {
               'delivery_confirmed_notify' AS notification_type
        FROM audit_logs al
        JOIN generated_docs gd ON gd.id = al.doc_id
-       WHERE al.action = 'DELIVERY_OWNED_NOTIFY'
+       WHERE al.action = 'OWNERSHIP_CONFIRM'
          AND al.user_id = $1
          AND gd.deleted_at IS NULL
        ORDER BY al.timestamp DESC
