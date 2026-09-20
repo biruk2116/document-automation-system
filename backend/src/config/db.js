@@ -884,21 +884,6 @@ async function ensureSchema() {
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_deliveries_rejection_token ON document_deliveries(rejection_review_token_hash)`);
     console.log('[db] ✓ document_deliveries indexes ready');
 
-    // 14. Seed default test accounts if users table is empty
-    const [userCount] = await pool.query('SELECT COUNT(*) AS count FROM users');
-    if (parseInt(userCount[0]?.count || 0, 10) === 0) {
-      console.log('[db] Seeding default test users...');
-      await pool.query(`
-        INSERT INTO users (email, password_hash, full_name, role) VALUES
-        ('superadmin@example.com', '$2b$10$enSBt4rEV13mz5AXVUiH.OIoKox7eAUBzR6ibNBqXGzS4YsgIm6lm', 'Super Admin', 'super_admin'),
-        ('sysadmin@example.com',   '$2b$10$enSBt4rEV13mz5AXVUiH.OIoKox7eAUBzR6ibNBqXGzS4YsgIm6lm', 'System Admin', 'system_admin'),
-        ('generator@example.com',  '$2b$10$enSBt4rEV13mz5AXVUiH.OIoKox7eAUBzR6ibNBqXGzS4YsgIm6lm', 'Document Generator', 'generator'),
-        ('approver@example.com',   '$2b$10$enSBt4rEV13mz5AXVUiH.OIoKox7eAUBzR6ibNBqXGzS4YsgIm6lm', 'Director Approver', 'approver'),
-        ('recipient@example.com',  '$2b$10$enSBt4rEV13mz5AXVUiH.OIoKox7eAUBzR6ibNBqXGzS4YsgIm6lm', 'John Doe (Recipient)', 'recipient')
-      `);
-      console.log('[db] ✓ Default users seeded (password: Passw0rd!)');
-    }
-
     console.log('[db] PostgreSQL schema ensured successfully');
   } catch (err) {
     console.error('[db] Could not ensure PostgreSQL schema:', err.message);
