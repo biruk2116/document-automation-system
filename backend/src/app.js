@@ -15,6 +15,7 @@ const auditRoutes = require('./routes/auditRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const userRoutes = require('./routes/userRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 
@@ -101,6 +102,7 @@ app.use('/api', auditRoutes);    // /api/audit-logs, /api/dashboard/kpis, /api/r
 app.use('/api/settings', settingsRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/admin', adminRoutes); // POST /api/admin/schema/update, GET /api/admin/schema/verify
 
 // 404 fallback
 app.use((req, res) => {

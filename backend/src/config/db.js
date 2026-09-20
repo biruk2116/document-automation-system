@@ -844,7 +844,17 @@ async function ensureSchema() {
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS workflow_notify_sent_at TIMESTAMP;
     `);
     
-    console.log('[db] ✓ Workflow columns added to document_deliveries');
+    console.log('[db] ✓ Workflow columns ALTER statements executed');
+    
+    // Verify columns were actually created
+    const [verifyRows] = await pool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'document_deliveries' 
+        AND column_name LIKE 'workflow%'
+      ORDER BY column_name
+    `);
+    console.log('[db] ✓ Workflow columns verified:', verifyRows.map(r => r.column_name).join(', '));
 
     // Ensure owned and is_resubmission are SMALLINT (converts legacy boolean column to SMALLINT)
     await pool.query(`
