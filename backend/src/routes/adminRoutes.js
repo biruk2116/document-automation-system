@@ -4,7 +4,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { authenticateToken, requireRole } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
 const { ensureSchema } = require('../config/db');
 
 /**
@@ -12,7 +12,7 @@ const { ensureSchema } = require('../config/db');
  * Manually trigger database schema update
  * Requires: ADMIN role
  */
-router.post('/schema/update', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
+router.post('/schema/update', requireAuth, requireRole('ADMIN'), async (req, res) => {
   try {
     console.log('[admin] Manual schema update triggered by:', req.user.email);
     
@@ -39,7 +39,7 @@ router.post('/schema/update', authenticateToken, requireRole(['ADMIN']), async (
  * Verify database schema status
  * Requires: ADMIN role
  */
-router.get('/schema/verify', authenticateToken, requireRole(['ADMIN']), async (req, res) => {
+router.get('/schema/verify', requireAuth, requireRole('ADMIN'), async (req, res) => {
   try {
     const { pool } = require('../config/db');
     
