@@ -114,12 +114,17 @@ async function listDataSourceFields(req, res) {
  * never the internal auto-increment id.
  */
 async function fetchRecordById(table, recordId) {
+  console.log('[dataSources] fetchRecordById called - table:', table, 'recordId:', recordId);
+  
   // Check if table exists using pg_tables
   const { rows: tableCheck } = await pool.query(
     `SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = $1) as exists`,
     [table]
   );
+  console.log('[dataSources] Table exists check:', tableCheck[0]?.exists);
+  
   if (!tableCheck || !tableCheck[0]?.exists || SYSTEM_TABLES.has(table)) {
+    console.error('[dataSources] Invalid table:', table);
     throw new Error(`Invalid data source table: ${table}`);
   }
 
@@ -128,11 +133,22 @@ async function fetchRecordById(table, recordId) {
     [table]
   );
   const columnNames = (columns || []).map((c) => c.column_name);
+  console.log('[dataSources] Columns:', columnNames);
+  
   const businessKeyColumn = `${table.replace(/s$/, '')}_id`; // e.g. "employees" -> "employee_id"
   const lookupColumn = columnNames.includes(businessKeyColumn) ? businessKeyColumn : 'id';
+  console.log('[dataSources] Using lookup column:', lookupColumn);
 
   const { rows } = await pool.query(`SELECT * FROM "${table}" WHERE "${lookupColumn}" = $1 LIMIT 1`, [recordId]);
-  return (rows && rows.length > 0) ? rows[0] : null;
+  console.log('[dataSources] Query returned', rows?.length || 0, 'rows');
+  
+  if (rows && rows.length > 0) {
+    console.log('[dataSources] Found record:', Object.keys(rows[0]));
+    return rows[0];
+  }
+  
+  console.log('[dataSources] No record found for recordId:', recordId);
+  return null;
 }
 
 /**

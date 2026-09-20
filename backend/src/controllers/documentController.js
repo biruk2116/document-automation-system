@@ -123,7 +123,11 @@ async function loadTemplate(templateId) {
  * connection and table were both valid.
  */
 async function fetchTemplateRecord(template, recordId) {
+  console.log('[documents] fetchTemplateRecord - template.data_source_table:', template.data_source_table, 'recordId:', recordId);
+  console.log('[documents] template.data_source_connection_id:', template.data_source_connection_id);
+  
   if (template.data_source_connection_id) {
+    console.log('[documents] Using external datasource');
     const config = await loadConnectionConfig(template.data_source_connection_id);
     if (!config) {
       throw Object.assign(
@@ -133,7 +137,13 @@ async function fetchTemplateRecord(template, recordId) {
     }
     return fetchExternalRecordById(config, template.data_source_table, recordId);
   }
-  return fetchInternalRecordById(template.data_source_table, recordId);
+  console.log('[documents] Using internal datasource - calling fetchInternalRecordById');
+  const record = await fetchInternalRecordById(template.data_source_table, recordId);
+  console.log('[documents] Record fetched:', record ? 'SUCCESS' : 'NULL');
+  if (record) {
+    console.log('[documents] Record fields:', Object.keys(record));
+  }
+  return record;
 }
 
 /**
