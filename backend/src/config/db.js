@@ -333,6 +333,21 @@ async function ensureSchema() {
 
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_reset_token ON users(reset_token)`);
+    
+    // Create default admin user if no users exist
+    const { rows: userCount } = await pool.query(`SELECT COUNT(*) as count FROM users`);
+    if (parseInt(userCount[0]?.count || 0) === 0) {
+      console.log('[db] No users found, creating default admin...');
+      const bcrypt = require('bcryptjs');
+      const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'Admin@123';
+      const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+      await pool.query(`
+        INSERT INTO users (email, password, full_name, role, is_active, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      `, ['admin@example.com', hashedPassword, 'System Administrator', 'super_admin']);
+      console.log('[db] ✓ Default admin created: admin@example.com / ' + defaultPassword);
+    }
+    
     console.log('[db] ✓ users table ready');
 
     // 3. Create templates table

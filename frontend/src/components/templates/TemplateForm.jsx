@@ -274,7 +274,17 @@ export default function TemplateForm({
       })
       .catch((err) => {
         console.error('[TemplateForm] Failed to load data sources:', err);
-        showToast('Could not load data sources: ' + (err.message || 'Unknown error'), 'error');
+        console.error('[TemplateForm] Error status:', err.status);
+        console.error('[TemplateForm] Error payload:', err.payload);
+        let errorMsg = 'Could not load data sources';
+        if (err.status === 401) {
+          errorMsg = 'Not authenticated. Please login again.';
+        } else if (err.status === 403) {
+          errorMsg = 'Access denied. You need admin privileges to create templates.';
+        } else if (err.message) {
+          errorMsg = err.message;
+        }
+        showToast(errorMsg, 'error');
         setLoadingDataSources(false);
       });
     externalDbService.list()

@@ -23,7 +23,7 @@ const DATA_SOURCE_ALLOW_LIST_FOR_NOW = new Set(['employees']);
  */
 async function listDataSources(req, res) {
   try {
-    console.log('[dataSources] listDataSources called');
+    console.log('[dataSources] listDataSources called by user:', req.user?.id, 'role:', req.user?.role);
     
     // Direct query to check if employees table exists
     const { rows: employeeCheck } = await pool.query(
@@ -54,7 +54,12 @@ async function listDataSources(req, res) {
     });
   } catch (err) {
     console.error('[dataSources] list error:', err);
-    return res.status(500).json({ success: false, message: 'Failed to fetch data sources.' });
+    console.error('[dataSources] Full error stack:', err.stack);
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch data sources.',
+      error: err.message 
+    });
   }
 }
 
