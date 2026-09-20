@@ -24,10 +24,18 @@ const DATA_SOURCE_ALLOW_LIST_FOR_NOW = new Set(['employees']);
 async function listDataSources(req, res) {
   try {
     console.log('[dataSources] listDataSources called');
+    
+    // Direct query to check if employees table exists
+    const { rows: employeeCheck } = await pool.query(
+      `SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'employees') as exists`
+    );
+    console.log('[dataSources] Employees table exists:', employeeCheck[0]?.exists);
+    
+    // Alternative query that works better with Neon/pooled connections
     const { rows } = await pool.query(
-      `SELECT table_name
-       FROM information_schema.tables
-       WHERE table_schema = 'public' AND table_type = 'BASE TABLE'`
+      `SELECT tablename as table_name
+       FROM pg_tables
+       WHERE schemaname = 'public'`
     );
     console.log('[dataSources] Query returned', rows?.length || 0, 'tables');
     console.log('[dataSources] Raw tables:', rows?.map(r => r.table_name));
@@ -101,12 +109,12 @@ async function listDataSourceFields(req, res) {
  * never the internal auto-increment id.
  */
 async function fetchRecordById(table, recordId) {
+  // Check if table exists using pg_tables
   const { rows: tableCheck } = await pool.query(
-    `SELECT table_name FROM information_schema.tables
-     WHERE table_schema = 'public' AND table_name = $1 AND table_type = 'BASE TABLE'`,
+    `SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = $1) as exists`,
     [table]
   );
-  if (!tableCheck || tableCheck.length === 0 || SYSTEM_TABLES.has(table)) {
+  if (!tableCheck || !tableCheck[0]?.exists || SYSTEM_TABLES.has(table)) {
     throw new Error(`Invalid data source table: ${table}`);
   }
 
@@ -141,12 +149,12 @@ async function listRecordsForTable(req, res) {
   }
 
   try {
+    // Check if table exists using pg_tables
     const { rows: tableCheck } = await pool.query(
-      `SELECT table_name FROM information_schema.tables
-       WHERE table_schema = 'public' AND table_name = $1 AND table_type = 'BASE TABLE'`,
+      `SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = $1) as exists`,
       [table]
     );
-    if (!tableCheck || tableCheck.length === 0) {
+    if (!tableCheck || !tableCheck[0]?.exists) {
       return res.status(404).json({ success: false, message: `Table "${table}" not found.` });
     }
 
