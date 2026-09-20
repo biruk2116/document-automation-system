@@ -843,6 +843,8 @@ async function ensureSchema() {
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS workflow_tracking_token_used_at TIMESTAMP;
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS workflow_notify_sent_at TIMESTAMP;
     `);
+    
+    console.log('[db] ✓ Workflow columns added to document_deliveries');
 
     // Ensure owned and is_resubmission are SMALLINT (converts legacy boolean column to SMALLINT)
     await pool.query(`
