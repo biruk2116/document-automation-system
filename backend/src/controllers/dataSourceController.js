@@ -22,11 +22,11 @@ const DATA_SOURCE_ALLOW_LIST_FOR_NOW = new Set(['employees']);
  */
 async function listDataSources(req, res) {
   try {
-    const [rows] = await pool.query(
-      `SELECT TABLE_NAME AS table_name
-       FROM information_schema.TABLES
-       WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE'`,
-      [process.env.DB_NAME || 'doc_automation']
+    const { rows } = await pool.query(
+      `SELECT table_name
+       FROM information_schema.tables
+       WHERE table_schema = $1 AND table_type = 'BASE TABLE'`,
+      [process.env.DB_NAME || 'neondb']
     );
 
     const dataSources = rows
@@ -57,12 +57,12 @@ async function listDataSourceFields(req, res) {
   }
 
   try {
-    const [rows] = await pool.query(
-      `SELECT COLUMN_NAME AS field_name, DATA_TYPE AS data_type
-       FROM information_schema.COLUMNS
-       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
-       ORDER BY ORDINAL_POSITION`,
-      [process.env.DB_NAME || 'doc_automation', table]
+    const { rows } = await pool.query(
+      `SELECT column_name AS field_name, data_type
+       FROM information_schema.columns
+       WHERE table_schema = $1 AND table_name = $2
+       ORDER BY ordinal_position`,
+      [process.env.DB_NAME || 'neondb', table]
     );
 
     if (rows.length === 0) {
@@ -96,24 +96,24 @@ async function listDataSourceFields(req, res) {
  * never the internal auto-increment id.
  */
 async function fetchRecordById(table, recordId) {
-  const [tableCheck] = await pool.query(
-    `SELECT TABLE_NAME FROM information_schema.TABLES
-     WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND TABLE_TYPE = 'BASE TABLE'`,
-    [process.env.DB_NAME || 'doc_automation', table]
+  const { rows: tableCheck } = await pool.query(
+    `SELECT table_name FROM information_schema.tables
+     WHERE table_schema = $1 AND table_name = $2 AND table_type = 'BASE TABLE'`,
+    [process.env.DB_NAME || 'neondb', table]
   );
   if (tableCheck.length === 0 || SYSTEM_TABLES.has(table)) {
     throw new Error(`Invalid data source table: ${table}`);
   }
 
-  const [columns] = await pool.query(
-    `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?`,
-    [process.env.DB_NAME || 'doc_automation', table]
+  const { rows: columns } = await pool.query(
+    `SELECT column_name FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2`,
+    [process.env.DB_NAME || 'neondb', table]
   );
-  const columnNames = columns.map((c) => c.COLUMN_NAME);
+  const columnNames = columns.map((c) => c.column_name);
   const businessKeyColumn = `${table.replace(/s$/, '')}_id`; // e.g. "employees" -> "employee_id"
   const lookupColumn = columnNames.includes(businessKeyColumn) ? businessKeyColumn : 'id';
 
-  const [rows] = await pool.query(`SELECT * FROM \`${table}\` WHERE \`${lookupColumn}\` = ? LIMIT 1`, [recordId]);
+  const { rows } = await pool.query(`SELECT * FROM "${table}" WHERE "${lookupColumn}" = $1 LIMIT 1`, [recordId]);
   return rows[0] || null;
 }
 
@@ -136,27 +136,27 @@ async function listRecordsForTable(req, res) {
   }
 
   try {
-    const [tableCheck] = await pool.query(
-      `SELECT TABLE_NAME FROM information_schema.TABLES
-       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND TABLE_TYPE = 'BASE TABLE'`,
-      [process.env.DB_NAME || 'doc_automation', table]
+    const { rows: tableCheck } = await pool.query(
+      `SELECT table_name FROM information_schema.tables
+       WHERE table_schema = $1 AND table_name = $2 AND table_type = 'BASE TABLE'`,
+      [process.env.DB_NAME || 'neondb', table]
     );
     if (tableCheck.length === 0) {
       return res.status(404).json({ success: false, message: `Table "${table}" not found.` });
     }
 
-    const [columns] = await pool.query(
-      `SELECT COLUMN_NAME FROM information_schema.COLUMNS
-       WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION`,
-      [process.env.DB_NAME || 'doc_automation', table]
+    const { rows: columns } = await pool.query(
+      `SELECT column_name FROM information_schema.columns
+       WHERE table_schema = $1 AND table_name = $2 ORDER BY ordinal_position`,
+      [process.env.DB_NAME || 'neondb', table]
     );
-    const columnNames = columns.map((c) => c.COLUMN_NAME);
+    const columnNames = columns.map((c) => c.column_name);
     const businessKeyColumn = `${table.replace(/s$/, '')}_id`;
     const idColumn = columnNames.includes(businessKeyColumn) ? businessKeyColumn : 'id';
     const labelColumn = ['full_name', 'name', 'title'].find((c) => columnNames.includes(c));
 
     // Cap at 500 rows — this is a browse/reference view, not a full export.
-    const [rows] = await pool.query(`SELECT * FROM \`${table}\` LIMIT 500`);
+    const { rows } = await pool.query(`SELECT * FROM "${table}" LIMIT 500`);
 
     return res.status(200).json({
       success: true,

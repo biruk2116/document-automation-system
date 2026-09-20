@@ -639,7 +639,49 @@ async function ensureSchema() {
     `);
     console.log('[db] ✓ templates foreign key ready');
 
-    // 13. Create document_deliveries table (Secure Delivery)
+    // 13. Create employees table (business data source for templates)
+    console.log('[db] Creating employees table...');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS employees (
+        id SERIAL PRIMARY KEY,
+        employee_id VARCHAR(20) NOT NULL UNIQUE,
+        full_name VARCHAR(255) NOT NULL,
+        department VARCHAR(100) NOT NULL,
+        position VARCHAR(100) NOT NULL,
+        salary DECIMAL(12,2) NOT NULL,
+        email VARCHAR(255),
+        hire_date DATE NOT NULL,
+        status VARCHAR(30) NOT NULL DEFAULT 'active',
+        salary_breakdown JSONB,
+        leave_history JSONB,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    // Seed sample employee data if table is empty
+    const { rows: empCount } = await pool.query(`SELECT COUNT(*) as count FROM employees`);
+    if (parseInt(empCount[0].count) === 0) {
+      console.log('[db] Seeding employees table with sample data...');
+      await pool.query(`
+        INSERT INTO employees (employee_id, full_name, department, position, salary, email, hire_date, status, salary_breakdown, leave_history) VALUES
+        ('EMP001', 'Abebe Kebede', 'Human Resources', 'HR Officer', 6200.00, 'abebe.kebede@example.com', '2022-03-14', 'active',
+          '[{"label":"Base Salary","amount":5000}, {"label":"Bonus","amount":1200}]'::jsonb,
+          '[{"year":2025,"note":"12 days taken, 8 remaining"}, {"year":2026,"note":"3 days taken, 17 remaining"}]'::jsonb),
+        ('EMP002', 'Sara Tesfaye', 'Finance', 'Accountant', 4800.00, 'sara.tesfaye@example.com', '2021-07-01', 'active',
+          '[{"label":"Base Salary","amount":4500}, {"label":"Bonus","amount":300}]'::jsonb,
+          '[{"year":2025,"note":"9 days taken, 11 remaining"}]'::jsonb),
+        ('EMP003', 'Dawit Getachew', 'Engineering', 'Software Engineer', 7500.00, 'dawit.getachew@example.com', '2020-01-20', 'active',
+          '[{"label":"Base Salary","amount":6500}, {"label":"Bonus","amount":1000}]'::jsonb,
+          '[{"year":2025,"note":"20 days taken, 0 remaining"}, {"year":2026,"note":"2 days taken, 18 remaining"}]'::jsonb),
+        ('EMP004', 'Marta Alemu', 'Procurement', 'Junior Officer', 3200.00, 'marta.alemu@example.com', '2023-09-05', 'active',
+          '[{"label":"Base Salary","amount":3200}]'::jsonb,
+          '[{"year":2025,"note":"4 days taken, 16 remaining"}]'::jsonb)
+      `);
+      console.log('[db] ✓ Employees data seeded');
+    }
+    console.log('[db] ✓ employees table ready');
+
+    // 14. Create document_deliveries table (Secure Delivery)
     console.log('[db] Creating document_deliveries table...');
     await pool.query(`
       CREATE TABLE IF NOT EXISTS document_deliveries (
