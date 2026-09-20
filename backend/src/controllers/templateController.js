@@ -39,20 +39,23 @@ async function listTemplates(req, res) {
       `t.deleted_at IS NULL`, // Exclude soft-deleted templates
     ];
     const params = [];
+    let paramIndex = 1;
 
     if (category) {
-      conditions.push('t.category = ?');
+      conditions.push(`t.category = $${paramIndex}`);
       params.push(category);
+      paramIndex++;
     }
     if (status) {
-      conditions.push('t.status = ?');
+      conditions.push(`t.status = $${paramIndex}`);
       params.push(status);
+      paramIndex++;
     }
 
     const [rows] = await pool.query(
       `SELECT t.id, t.name, t.category, t.description, t.version, t.status,
               t.watermark_text, t.data_source_table, t.data_source_connection_id,
-              t.created_at, t.updated_at, u.full_name AS created_by_name
+              t.workflow_config, t.created_at, t.updated_at, u.full_name AS created_by_name
        FROM templates t
        LEFT JOIN users u ON u.id = t.created_by
        WHERE ${conditions.join(' AND ')}
@@ -60,10 +63,20 @@ async function listTemplates(req, res) {
       params
     );
 
+    // Parse workflow_config for each template
+    const templates = rows.map(template => {
+      if (template.workflow_config) {
+        template.workflow_config = typeof template.workflow_config === 'string'
+          ? JSON.parse(template.workflow_config)
+          : template.workflow_config;
+      }
+      return template;
+    });
+
     return res.status(200).json({
       success: true,
       message: 'Templates fetched successfully.',
-      data: rows,
+      data: templates,
     });
   } catch (err) {
     console.error('[templates] list error:', err);
@@ -83,7 +96,7 @@ async function getTemplateById(req, res) {
       `SELECT t.*, u.full_name AS created_by_name
        FROM templates t
        LEFT JOIN users u ON u.id = t.created_by
-       WHERE t.id = ? AND t.deleted_at IS NULL LIMIT 1`,
+       WHERE t.id = $1 AND t.deleted_at IS NULL LIMIT 1`,
       [id]
     );
 
@@ -91,16 +104,25 @@ async function getTemplateById(req, res) {
       return res.status(404).json({ success: false, message: 'Template not found.' });
     }
 
+    const template = rows[0];
+    
+    // Parse workflow_config if it's a string (for backward compatibility)
+    if (template.workflow_config) {
+      template.workflow_config = typeof template.workflow_config === 'string' 
+        ? JSON.parse(template.workflow_config) 
+        : template.workflow_config;
+    }
+
     const [placeholders] = await pool.query(
       `SELECT id, field_path, data_type, is_loopable, default_value
-       FROM template_placeholders WHERE template_id = ?`,
+       FROM template_placeholders WHERE template_id = $1`,
       [id]
     );
 
     return res.status(200).json({
       success: true,
       message: 'Template fetched successfully.',
-      data: { ...rows[0], placeholders },
+      data: { ...template, placeholders },
     });
   } catch (err) {
     console.error('[templates] getById error:', err);
@@ -128,10 +150,11 @@ async function findDuplicateTemplateName(connection, name, excludeIds = []) {
   const trimmed = (name || '').trim();
   if (!trimmed) return null;
 
-  let sql = 'SELECT id, name, version, status FROM templates WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))';
+  let sql = 'SELECT id, name, version, status FROM templates WHERE LOWER(TRIM(name)) = LOWER(TRIM($1))';
   const params = [trimmed];
   if (excludeIds.length > 0) {
-    sql += ` AND id NOT IN (${excludeIds.map(() => '?').join(',')})`;
+    const placeholders = excludeIds.map((_, i) => `$${i + 2}`).join(',');
+    sql += ` AND id NOT IN (${placeholders})`;
     params.push(...excludeIds);
   }
   sql += ' LIMIT 1';

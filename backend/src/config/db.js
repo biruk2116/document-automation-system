@@ -831,6 +831,8 @@ async function ensureSchema() {
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS email_status VARCHAR(50) DEFAULT 'queued';
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS plain_copy_email_status VARCHAR(50) DEFAULT 'not_sent';
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS workflow_acknowledged_at TIMESTAMP;
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS workflow_signed_at TIMESTAMP;
+      ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS workflow_responded_at TIMESTAMP;
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS workflow_user_signed_at TIMESTAMP;
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS workflow_completed_at TIMESTAMP;
       ALTER TABLE document_deliveries ADD COLUMN IF NOT EXISTS workflow_response TEXT;
