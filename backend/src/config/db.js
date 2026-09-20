@@ -269,13 +269,46 @@ async function ensureSchema() {
         WHEN duplicate_object THEN null;
       END $$;
 
-      DO $$ BEGIN
-        ALTER TYPE action_type ADD VALUE IF NOT EXISTS 'OWNERSHIP_REJECTED_NOTIFY';
-        ALTER TYPE action_type ADD VALUE IF NOT EXISTS 'DELIVERY_OWNED_NOTIFY';
-        ALTER TYPE action_type ADD VALUE IF NOT EXISTS 'REVOKE_DOCUMENT';
-        ALTER TYPE action_type ADD VALUE IF NOT EXISTS 'WORKFLOW_COMPLETE_NOTIFY';
-        ALTER TYPE action_type ADD VALUE IF NOT EXISTS 'ACKNOWLEDGE_NOTIFY';
+      -- Add new enum values if they don't exist (for existing enums)
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'OWNERSHIP_REJECTED_NOTIFY' AND enumtypid = 'action_type'::regtype) THEN
+          ALTER TYPE action_type ADD VALUE 'OWNERSHIP_REJECTED_NOTIFY';
+        END IF;
       EXCEPTION WHEN OTHERS THEN NULL;
+      END $$;
+      
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'DELIVERY_OWNED_NOTIFY' AND enumtypid = 'action_type'::regtype) THEN
+          ALTER TYPE action_type ADD VALUE 'DELIVERY_OWNED_NOTIFY';
+        END IF;
+      EXCEPTION WHEN OTHERS THEN NULL;
+      END $$;
+      
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'REVOKE_DOCUMENT' AND enumtypid = 'action_type'::regtype) THEN
+          ALTER TYPE action_type ADD VALUE 'REVOKE_DOCUMENT';
+        END IF;
+      EXCEPTION WHEN OTHERS THEN NULL;
+      END $$;
+      
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'WORKFLOW_COMPLETE_NOTIFY' AND enumtypid = 'action_type'::regtype) THEN
+          ALTER TYPE action_type ADD VALUE 'WORKFLOW_COMPLETE_NOTIFY';
+        END IF;
+      EXCEPTION WHEN OTHERS THEN NULL;
+      END $$;
+      
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'ACKNOWLEDGE_NOTIFY' AND enumtypid = 'action_type'::regtype) THEN
+          ALTER TYPE action_type ADD VALUE 'ACKNOWLEDGE_NOTIFY';
+        END IF;
+      EXCEPTION WHEN OTHERS THEN NULL;
+      END $$;
       END $$;
     `);
     console.log('[db] ✓ action_type enum ready');
