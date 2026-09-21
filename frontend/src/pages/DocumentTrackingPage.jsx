@@ -516,6 +516,7 @@ function DocumentCard({ doc, highlighted, isAdmin, user, onNeedsApprover, onSecu
   const [viewingDoc, setViewingDoc] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [markingDelivered, setMarkingDelivered] = useState(false);
+  const [sendingDocument, setSendingDocument] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -587,6 +588,13 @@ function DocumentCard({ doc, highlighted, isAdmin, user, onNeedsApprover, onSecu
     } finally {
       setMarkingDelivered(false);
     }
+  };
+
+  const handleSend = () => {
+    setSendingDocument(true);
+    onSecureDeliver();
+    // Reset after a delay (modal will open, user will interact)
+    setTimeout(() => setSendingDocument(false), 1000);
   };
 
   const handleDelete = async () => {
@@ -676,14 +684,21 @@ function DocumentCard({ doc, highlighted, isAdmin, user, onNeedsApprover, onSecu
               </button>
             )}
             {isSignedOrDelivered && (
-              <button type="button" onClick={onSecureDeliver} className="doc-btn doc-btn-primary">Send</button>
+              <button 
+                type="button" 
+                onClick={handleSend} 
+                className="doc-btn doc-btn-primary"
+                disabled={markingDelivered || sendingDocument}
+              >
+                {sendingDocument ? 'Opening...' : 'Send'}
+              </button>
             )}
             {/* Hand Delivered — primary action for signed/delivered docs */}
             {canMarkHandDelivered && (
               <button
                 type="button"
                 onClick={handleMarkDelivered}
-                disabled={markingDelivered}
+                disabled={markingDelivered || sendingDocument}
                 className="doc-btn doc-btn-secondary"
                 title="Record that a physical copy was handed to the recipient"
               >

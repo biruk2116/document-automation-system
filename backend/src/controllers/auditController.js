@@ -505,26 +505,27 @@ async function getArchiveOverview(req, res) {
   try {
     const { archiveYears } = require('../utils/appSettings').getAppSettings();
     const WARNING_DAYS = 60; // documents entering this window show as "approaching"
+    const retentionDays = archiveYears * 365;
 
+    // PostgreSQL query with INTERVAL syntax
     const [rows] = await pool.query(
       `SELECT gd.id, gd.doc_uuid, gd.record_identifier, gd.status, gd.archive_status,
               gd.archived_at, gd.file_path, gd.generated_at, t.name AS template_name,
-              DATEDIFF(NOW(), gd.generated_at) AS age_days
+              EXTRACT(DAY FROM (NOW() - gd.generated_at)) AS age_days
        FROM generated_docs gd
        JOIN templates t ON t.id = gd.template_id
        WHERE gd.deleted_at IS NULL AND (
           gd.archive_status = 'archived'
-          OR gd.generated_at <= (NOW() - INTERVAL (? * 365 - ?) DAY)
+          OR gd.generated_at <= (NOW() - INTERVAL '${retentionDays - WARNING_DAYS} days')
        )
-       ORDER BY gd.generated_at ASC`,
-      [archiveYears, WARNING_DAYS]
+       ORDER BY gd.generated_at ASC`
     );
 
-    const retentionDays = archiveYears * 365;
     const data = rows.map((r) => {
+      const ageDays = parseInt(r.age_days) || 0;
       let retentionState;
       if (r.archive_status === 'archived') retentionState = 'archived';
-      else if (r.age_days >= retentionDays) retentionState = 'overdue';
+      else if (ageDays >= retentionDays) retentionState = 'overdue';
       else retentionState = 'approaching';
 
       return {
@@ -534,7 +535,7 @@ async function getArchiveOverview(req, res) {
         template_name: r.template_name,
         status: r.status,
         retention_state: retentionState,
-        age_days: r.age_days,
+        age_days: ageDays,
         generated_at: r.generated_at,
         archived_at: r.archived_at,
         storage_location: r.archive_status === 'archived'
@@ -545,9 +546,19 @@ async function getArchiveOverview(req, res) {
       };
     });
 
+    console.log('[getArchiveOverview] Archive data calculated:', {
+      retentionYears: archiveYears,
+      totalDocuments: data.length,
+      approaching: data.filter((d) => d.retention_state === 'approaching').length,
+      overdue: data.filter((d) => d.retention_state === 'overdue').length,
+      archived: data.filter((d) => d.retention_state === 'archived').length
+    });
+
     return res.status(200).json({
       success: true,
-      message: 'Archive overview fetched.',
+      message: data.length > 0 
+        ? 'Archive overview fetched.' 
+        : 'No documents matching archive criteria found.',
       data: {
         retentionYears: archiveYears,
         documents: data,
@@ -560,6 +571,7 @@ async function getArchiveOverview(req, res) {
     });
   } catch (err) {
     console.error('[audit] archive overview error:', err);
+    console.error('[audit] archive overview stack:', err.stack);
     return res.status(500).json({ success: false, message: 'Failed to fetch archive overview.' });
   }
 }

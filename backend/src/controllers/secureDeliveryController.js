@@ -290,34 +290,34 @@ async function getOwnershipReport(req, res) {
     const params = [];
     let where = 'WHERE gd.deleted_at IS NULL';
     if (docId) {
-      where = 'WHERE dd.doc_id = ? AND gd.deleted_at IS NULL';
+      where = 'WHERE dd.doc_id = $1 AND gd.deleted_at IS NULL';
       params.push(docId);
     }
 
-    const [[summary]] = await pool.query(
+    // PostgreSQL query - no delivery_status or is_resubmission columns
+    const [summaryRows] = await pool.query(
       `SELECT
-         COUNT(*)                                           AS totalDelivered,
-         SUM(CASE WHEN dd.owned = 1 THEN 1 ELSE 0 END)    AS ownedCount,
-         SUM(CASE WHEN dd.owned = 0 THEN 1 ELSE 0 END)    AS notOwnedCount,
-         SUM(CASE WHEN dd.owned IS NULL THEN 1 ELSE 0 END) AS pendingCount,
-         SUM(CASE WHEN dd.downloaded_at IS NOT NULL THEN 1 ELSE 0 END) AS downloadedCount,
-         SUM(CASE WHEN dd.delivery_status = 1 THEN 1 ELSE 0 END) AS completedCount,
-         SUM(CASE WHEN dd.delivery_status = 0 THEN 1 ELSE 0 END) AS blockedCount,
-         SUM(CASE WHEN dd.is_resubmission = 1 THEN 1 ELSE 0 END) AS resubmittedCount
+         COUNT(*)                                                      AS "totalDelivered",
+         SUM(CASE WHEN dd.owned = 1 THEN 1 ELSE 0 END)               AS "ownedCount",
+         SUM(CASE WHEN dd.owned = 0 THEN 1 ELSE 0 END)               AS "notOwnedCount",
+         SUM(CASE WHEN dd.owned IS NULL THEN 1 ELSE 0 END)           AS "pendingCount",
+         SUM(CASE WHEN dd.downloaded_at IS NOT NULL THEN 1 ELSE 0 END) AS "downloadedCount"
        FROM document_deliveries dd
        JOIN generated_docs gd ON gd.id = dd.doc_id
        ${where}`,
       params
     );
 
+    const summary = summaryRows[0] || {};
     const totalDelivered = Number(summary.totalDelivered) || 0;
     const ownedCount = Number(summary.ownedCount) || 0;
     const notOwnedCount = Number(summary.notOwnedCount) || 0;
+    const pendingCount = Number(summary.pendingCount) || 0;
+    const downloadedCount = Number(summary.downloadedCount) || 0;
 
-    // Requirement 7: individual rejection reasons, newest first, so a Generator/Admin
-    // can see WHY recipients said "not mine", not just the count.
+    // Requirement 7: individual rejection reasons, newest first
     const reasonsWhere = docId
-      ? "WHERE dd.doc_id = ? AND dd.ownership_status = 'REJECTED' AND gd.deleted_at IS NULL"
+      ? "WHERE dd.doc_id = $1 AND dd.ownership_status = 'REJECTED' AND gd.deleted_at IS NULL"
       : "WHERE dd.ownership_status = 'REJECTED' AND gd.deleted_at IS NULL";
     const [reasons] = await pool.query(
       `SELECT dd.doc_id, gd.doc_uuid, dd.recipient_email, dd.recipient_name,
@@ -325,9 +325,18 @@ async function getOwnershipReport(req, res) {
        FROM document_deliveries dd
        JOIN generated_docs gd ON gd.id = dd.doc_id
        ${reasonsWhere}
-       ORDER BY dd.ownership_rejected_at DESC`,
+       ORDER BY dd.ownership_rejected_at DESC
+       LIMIT 50`,
       params
     );
+
+    console.log('[getOwnershipReport] Report calculated:', {
+      totalDelivered,
+      ownedCount,
+      notOwnedCount,
+      pendingCount,
+      confirmationRate: totalDelivered > 0 ? Math.round((ownedCount / totalDelivered) * 1000) / 10 : 0
+    });
 
     return res.status(200).json({
       success: true,
@@ -336,11 +345,11 @@ async function getOwnershipReport(req, res) {
         totalDelivered,
         ownedCount,
         notOwnedCount,
-        pendingCount: Number(summary.pendingCount) || 0,
-        downloadedCount: Number(summary.downloadedCount) || 0,
-        completedCount: Number(summary.completedCount) || 0,
-        blockedCount: Number(summary.blockedCount) || 0,
-        resubmittedCount: Number(summary.resubmittedCount) || 0,
+        pendingCount,
+        downloadedCount,
+        completedCount: ownedCount, // Completed = Confirmed ownership
+        blockedCount: notOwnedCount, // Blocked = Rejected ownership
+        resubmittedCount: 0, // Not tracked yet
         confirmationRate: totalDelivered > 0 ? Math.round((ownedCount / totalDelivered) * 1000) / 10 : 0,
         rejectionReasons: reasons.map((r) => ({
           docId: r.doc_uuid,
@@ -352,6 +361,7 @@ async function getOwnershipReport(req, res) {
     });
   } catch (err) {
     console.error('[secureDelivery] getOwnershipReport error:', err);
+    console.error('[secureDelivery] getOwnershipReport stack:', err.stack);
     return res.status(500).json({ success: false, message: 'Failed to fetch ownership report.' });
   }
 }
@@ -1983,7 +1993,10 @@ async function workflowSign(req, res) {
           // ═══════════════════════════════════════════════════════════════════
           console.log('[workflowSign] Using HTML footer placeholder replacement');
           
-          const meta   = doc.metadata ? JSON.parse(doc.metadata) : {};
+          // Parse metadata if it's a string, otherwise use as-is
+          const meta = typeof doc.metadata === 'string' 
+            ? JSON.parse(doc.metadata) 
+            : (doc.metadata || {});
           const pieces = meta.renderPieces;
 
           if (!pieces) {
@@ -2108,9 +2121,10 @@ async function workflowRespond(req, res) {
       recipientEmail: delivery.recipient_email
     });
     
-    // Store response in existing columns
-    // Use notes column to store recipient response
+    // Store response in rejection_reason column (TEXT field that exists)
+    // We'll store it as JSON to preserve structure
     const responseData = JSON.stringify({
+      type: 'workflow_response',
       response: responseText,
       respondedAt: new Date().toISOString(),
       recipientEmail: delivery.recipient_email
@@ -2119,7 +2133,7 @@ async function workflowRespond(req, res) {
     console.log('[workflowRespond] Saving to database...');
     
     await pool.query(
-      'UPDATE document_deliveries SET notes = $1, updated_at = NOW() WHERE id = $2',
+      'UPDATE document_deliveries SET rejection_reason = $1, updated_at = NOW() WHERE id = $2',
       [responseData, delivery.id]
     );
     
