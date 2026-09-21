@@ -309,7 +309,6 @@ async function ensureSchema() {
         END IF;
       EXCEPTION WHEN OTHERS THEN NULL;
       END $$;
-      END $$;
     `);
     console.log('[db] ✓ action_type enum ready');
 
@@ -368,7 +367,7 @@ async function ensureSchema() {
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_reset_token ON users(reset_token)`);
     
     // Create default admin user if no users exist
-    const { rows: userCount } = await pool.query(`SELECT COUNT(*) as count FROM users`);
+    const [userCount] = await pool.query(`SELECT COUNT(*) as count FROM users`);
     if (parseInt(userCount[0]?.count || 0) === 0) {
       console.log('[db] No users found, creating default admin...');
       const bcrypt = require('bcryptjs');
@@ -707,7 +706,7 @@ async function ensureSchema() {
     `);
     
     // Seed sample employee data if table is empty
-    const { rows: empCount } = await pool.query(`SELECT COUNT(*) as count FROM employees`);
+    const [empCount] = await pool.query(`SELECT COUNT(*) as count FROM employees`);
     if (empCount && empCount.length > 0 && parseInt(empCount[0].count) === 0) {
       console.log('[db] Seeding employees table with sample data...');
       await pool.query(`
