@@ -1134,8 +1134,55 @@ export default function SecureDeliveryPage() {
                 </Card>
               )}
 
-              {/* ── STEP: Send Response ── DISABLED */}
-              {/* Response section removed per requirement - recipients should not submit responses */}
+              {/* ── STEP: Send Response ── */}
+              {wfEnabled && (wf?.requireResponse || wf?.sendResponseToGenerator) && (
+                <Card style={sectionStyle('respond')}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                    <StepBadge n={steps.findIndex(s => s.id === 'respond') + 1} active={activeStep === 'respond'} done={isStepDone('respond')}/>
+                    <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {wf?.requireResponse ? 'Your Response' : 'Send Response to Issuer'}
+                    </h3>
+                  </div>
+                  {wfResponse ? (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#16A34A', fontWeight: 600, fontSize: '0.88rem', marginBottom: 8 }}>
+                        <CheckCircleIcon size={18} color="#16A34A"/> Response recorded
+                      </div>
+                      <blockquote style={{
+                        margin: 0, padding: '10px 14px',
+                        borderLeft: '3px solid #159A9C', background: '#F0FDFA',
+                        borderRadius: '0 8px 8px 0', fontSize: '0.87rem', color: 'var(--text-primary)', fontStyle: 'italic',
+                      }}>
+                        "{wfResponse}"
+                      </blockquote>
+                    </div>
+                  ) : (
+                    <>
+                      <p style={{ margin: '0 0 10px', fontSize: '0.87rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                        {wf?.requireResponse
+                          ? 'A response is required before you can proceed.'
+                          : 'Optionally send a comment or message back to the document issuer.'}
+                      </p>
+                      <textarea
+                        value={responseText}
+                        onChange={e => { setResponseText(e.target.value); setRespondError(null); }}
+                        placeholder="Write your response or comment here…"
+                        rows={4}
+                        disabled={responding || ownershipStatus !== 'CONFIRMED'}
+                        style={{
+                          width: '100%', padding: '10px 13px', fontSize: '0.88rem',
+                        }}
+                      />
+                      <ActionBtn onClick={handleRespond} loading={responding}
+                        disabled={responding || !responseText.trim() || ownershipStatus !== 'CONFIRMED'}
+                        variant="primary">
+                        Send Response
+                      </ActionBtn>
+                      {respondError && <FeedbackMsg msg={respondError} type="error"/>}
+                    </>
+                  )}
+                </Card>
+              )}
 
               {/* ── STEP: Download ── */}
               <Card style={sectionStyle('download')}>

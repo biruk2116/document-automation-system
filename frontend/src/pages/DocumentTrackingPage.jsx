@@ -545,11 +545,8 @@ function DocumentCard({ doc, highlighted, isAdmin, user, onNeedsApprover, onSecu
   const wasSecureDelivered = doc.status === 'delivered' && doc.delivered_to;
   const wasHandDelivered = doc.status === 'delivered' && !doc.delivered_to;
 
-  // Hand Delivered button - available for signed or delivered (not yet hand-delivered) docs
-  const canMarkHandDelivered = !isDeleted && isSignedOrDelivered && !wasHandDelivered;
-  
-  // Send button - available for signed or not-yet-delivered docs
-  const canSend = !isDeleted && isSignedOrDelivered && !wasSecureDelivered;
+  // Both buttons available for signed/delivered docs, but mutually exclusive
+  const showDeliveryButtons = !isDeleted && isSignedOrDelivered;
 
   // Delete rules:
   // - Pending: GENERATOR (owner), assigned APPROVER, or ADMIN can delete
@@ -691,25 +688,26 @@ function DocumentCard({ doc, highlighted, isAdmin, user, onNeedsApprover, onSecu
                 Edit &amp; Resubmit
               </button>
             )}
-            {canSend && (
+            {/* Send button - disabled if hand delivered */}
+            {showDeliveryButtons && (
               <button 
                 type="button" 
                 onClick={handleSend} 
                 className="doc-btn doc-btn-primary"
-                disabled={markingDelivered || sendingDocument || wasSecureDelivered}
-                title={wasSecureDelivered ? 'Document has already been sent via secure delivery' : ''}
+                disabled={wasHandDelivered || markingDelivered || sendingDocument}
+                title={wasHandDelivered ? 'Document has been marked as hand delivered' : ''}
               >
                 {sendingDocument ? 'Opening...' : 'Send'}
               </button>
             )}
-            {/* Hand Delivered — primary action for signed/delivered docs */}
-            {canMarkHandDelivered && (
+            {/* Hand Delivered button - disabled if sent via secure delivery */}
+            {showDeliveryButtons && (
               <button
                 type="button"
                 onClick={handleMarkDelivered}
-                disabled={markingDelivered || sendingDocument || wasHandDelivered}
+                disabled={wasSecureDelivered || markingDelivered || sendingDocument}
                 className="doc-btn doc-btn-secondary"
-                title={wasHandDelivered ? 'Document has already been marked as hand delivered' : 'Record that a physical copy was handed to the recipient'}
+                title={wasSecureDelivered ? 'Document has been sent via secure delivery' : 'Record that a physical copy was handed to the recipient'}
               >
                 {markingDelivered ? 'Updating…' : 'Hand Delivered'}
               </button>
