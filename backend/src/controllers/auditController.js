@@ -104,29 +104,42 @@ async function getAuditTrailCsv(req, res) {
  */
 async function getDashboardKpis(req, res) {
   try {
-    const [[{ docsToday }]] = await pool.query(
-      `SELECT COUNT(*) AS docsToday FROM generated_docs WHERE DATE(generated_at) = CURDATE() AND deleted_at IS NULL`
+    // Documents generated today - PostgreSQL syntax
+    const [docsRows] = await pool.query(
+      `SELECT COUNT(*) AS "docsToday" 
+       FROM generated_docs 
+       WHERE DATE(generated_at) = CURRENT_DATE 
+         AND deleted_at IS NULL`
     );
+    const docsToday = parseInt(docsRows[0].docsToday) || 0;
 
-    const [[{ avgApprovalSeconds }]] = await pool.query(
-      `SELECT AVG(EXTRACT(EPOCH FROM (sr.approved_at - sr.created_at))) AS avgApprovalSeconds
-       FROM signature_requests sr WHERE sr.status = 'approved' AND sr.approved_at IS NOT NULL`
+    // Average approval time in seconds - PostgreSQL EXTRACT syntax
+    const [avgRows] = await pool.query(
+      `SELECT AVG(EXTRACT(EPOCH FROM (sr.approved_at - sr.created_at))) AS "avgApprovalSeconds"
+       FROM signature_requests sr 
+       WHERE sr.status = 'approved' 
+         AND sr.approved_at IS NOT NULL`
     );
+    const avgApprovalSeconds = avgRows[0]?.avgApprovalSeconds;
 
-    // Editing a template inserts a NEW row (new id, same name, version + 1) rather than
-    // overwriting the old one — see updateTemplate() — so generated_docs.template_id can
-    // point at any past version. Grouping by name (not id) merges a template's usage
-    // across all its versions instead of showing "Employment Verification Letter" three
-    // times with the count split between them.
+    // Top 5 templates by usage - grouped by name across versions
     const [topTemplates] = await pool.query(
-      `SELECT MIN(t.id) AS id, t.name, COUNT(gd.id) AS usageCount
+      `SELECT MIN(t.id) AS id, 
+              t.name, 
+              COUNT(gd.id) AS "usageCount"
        FROM generated_docs gd
        JOIN templates t ON t.id = gd.template_id
        WHERE gd.deleted_at IS NULL
        GROUP BY t.name
-       ORDER BY usageCount DESC
+       ORDER BY "usageCount" DESC
        LIMIT 5`
     );
+
+    console.log('[audit] KPIs calculated:', {
+      docsToday,
+      avgApprovalSeconds,
+      topTemplatesCount: topTemplates.length
+    });
 
     return res.status(200).json({
       success: true,
@@ -134,11 +147,16 @@ async function getDashboardKpis(req, res) {
       data: {
         docsGeneratedToday: docsToday,
         avgApprovalTimeMinutes: avgApprovalSeconds ? Math.round(avgApprovalSeconds / 60) : null,
-        topTemplates,
+        topTemplates: topTemplates.map(t => ({
+          id: t.id,
+          name: t.name,
+          usageCount: parseInt(t.usageCount) || 0
+        })),
       },
     });
   } catch (err) {
     console.error('[audit] kpis error:', err);
+    console.error('[audit] kpis error stack:', err.stack);
     return res.status(500).json({ success: false, message: 'Failed to fetch dashboard KPIs.' });
   }
 }
@@ -384,17 +402,20 @@ async function archiveOldDocuments() {
  */
 async function getDashboardTrends(req, res) {
   try {
+    // Last 14 days of document generation - PostgreSQL syntax
     const [dailyRows] = await pool.query(
       `SELECT DATE(generated_at) AS day, COUNT(*) AS count
        FROM generated_docs
-       WHERE generated_at >= (CURDATE() - INTERVAL 13 DAY) AND deleted_at IS NULL
+       WHERE generated_at >= (CURRENT_DATE - INTERVAL '13 days') 
+         AND deleted_at IS NULL
        GROUP BY DATE(generated_at)
        ORDER BY day ASC`
     );
 
     // Fill in any gaps so the chart always shows a full, continuous 14-day axis.
     const byDay = new Map(dailyRows.map((r) => [
-      (r.day instanceof Date ? r.day.toISOString().slice(0, 10) : String(r.day)), r.count,
+      (r.day instanceof Date ? r.day.toISOString().slice(0, 10) : String(r.day)), 
+      parseInt(r.count) || 0,
     ]));
     const daily = [];
     for (let i = 13; i >= 0; i -= 1) {
@@ -404,17 +425,35 @@ async function getDashboardTrends(req, res) {
       daily.push({ day: key, count: byDay.get(key) || 0 });
     }
 
+    // Status breakdown - count by current status
     const [statusRows] = await pool.query(
-      `SELECT status, COUNT(*) AS count FROM generated_docs WHERE deleted_at IS NULL GROUP BY status`
+      `SELECT status, COUNT(*) AS count 
+       FROM generated_docs 
+       WHERE deleted_at IS NULL 
+       GROUP BY status
+       ORDER BY count DESC`
     );
+
+    console.log('[audit] Trends calculated:', {
+      dailyDays: daily.length,
+      statusBreakdownCount: statusRows.length,
+      totalDocs: statusRows.reduce((sum, r) => sum + (parseInt(r.count) || 0), 0)
+    });
 
     return res.status(200).json({
       success: true,
       message: 'Dashboard trends fetched.',
-      data: { daily, statusBreakdown: statusRows },
+      data: { 
+        daily, 
+        statusBreakdown: statusRows.map(r => ({
+          status: r.status,
+          count: parseInt(r.count) || 0
+        }))
+      },
     });
   } catch (err) {
     console.error('[audit] trends error:', err);
+    console.error('[audit] trends error stack:', err.stack);
     return res.status(500).json({ success: false, message: 'Failed to fetch dashboard trends.' });
   }
 }

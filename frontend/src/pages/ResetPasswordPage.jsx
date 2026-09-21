@@ -604,7 +604,7 @@ export default function ResetPasswordPage() {
                       <button type="button" className="rp-eye"
                         onClick={() => setShowNew(v => !v)}
                         aria-label={showNew ? 'Hide password' : 'Show password'}>
-                        <EyeIcon off={showNew}/>
+                        <EyeIcon off={!showNew}/>
                       </button>
                     </div>
                     {/* strength indicator */}
@@ -647,7 +647,7 @@ export default function ResetPasswordPage() {
                       <button type="button" className="rp-eye"
                         onClick={() => setShowConf(v => !v)}
                         aria-label={showConf ? 'Hide password' : 'Show password'}>
-                        <EyeIcon off={showConf}/>
+                        <EyeIcon off={!showConf}/>
                       </button>
                     </div>
                     {/* match indicator */}

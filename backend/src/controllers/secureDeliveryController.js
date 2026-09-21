@@ -2102,6 +2102,12 @@ async function workflowRespond(req, res) {
   try {
     const responseText = String(response).trim();
     
+    console.log('[workflowRespond] Processing response:', {
+      deliveryId: delivery.id,
+      responseLength: responseText.length,
+      recipientEmail: delivery.recipient_email
+    });
+    
     // Store response in existing columns
     // Use notes column to store recipient response
     const responseData = JSON.stringify({
@@ -2110,16 +2116,14 @@ async function workflowRespond(req, res) {
       recipientEmail: delivery.recipient_email
     });
     
+    console.log('[workflowRespond] Saving to database...');
+    
     await pool.query(
       'UPDATE document_deliveries SET notes = $1, updated_at = NOW() WHERE id = $2',
       [responseData, delivery.id]
     );
     
-    console.log('[workflowRespond] Response saved:', {
-      deliveryId: delivery.id,
-      responseLength: responseText.length,
-      recipientEmail: delivery.recipient_email
-    });
+    console.log('[workflowRespond] Response saved successfully');
     
     await recordAudit({
       docId: doc.id,
@@ -2224,7 +2228,18 @@ async function workflowRespond(req, res) {
     });
   } catch (err) {
     console.error('[secureDelivery] workflowRespond error:', err);
-    return res.status(500).json({ success: false, message: 'Failed to save response.' });
+    console.error('[secureDelivery] Error stack:', err.stack);
+    console.error('[secureDelivery] Error details:', {
+      message: err.message,
+      code: err.code,
+      deliveryId: delivery?.id,
+      docId: doc?.id
+    });
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Failed to save response.',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 }
 

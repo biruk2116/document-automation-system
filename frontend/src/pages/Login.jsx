@@ -1005,7 +1005,7 @@ export default function Login() {
                     className="login-input"
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); setError(null); }}
-                    placeholder="john.doe@company.com"
+                    placeholder="Enter your email"
                     autoComplete="username"
                     autoCapitalize="none"
                     autoCorrect="off"
@@ -1042,7 +1042,7 @@ export default function Login() {
                     aria-label={showPw ? 'Hide password' : 'Show password'}
                     tabIndex={0}
                   >
-                    <EyeIcon off={showPw} />
+                    <EyeIcon off={!showPw} />
                   </button>
                 </div>
               </div>
