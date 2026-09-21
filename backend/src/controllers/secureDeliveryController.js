@@ -2083,12 +2083,7 @@ async function workflowSign(req, res) {
  * POST /api/public/secure-delivery/:token/workflow-respond
  * Body: { response: string }
  *
- * Records the recipient's written response and attempts to send the ONE
- * consolidated Generator notification via _sendWorkflowCompleteNotification.
- *
- * If acknowledge or sign already sent the notification (workflow_notify_sent_at
- * is non-NULL), the atomic guard in the helper prevents a second email.
- * If respond is the first/only terminal step, the notification is sent here.
+ * Records the recipient's written response and sends notification to generator.
  */
 async function workflowRespond(req, res) {
   const { token } = req.params;
@@ -2106,31 +2101,126 @@ async function workflowRespond(req, res) {
 
   try {
     const responseText = String(response).trim();
+    
+    // Store response in existing columns
+    // Use notes column to store recipient response
+    const responseData = JSON.stringify({
+      response: responseText,
+      respondedAt: new Date().toISOString(),
+      recipientEmail: delivery.recipient_email
+    });
+    
     await pool.query(
-      'UPDATE document_deliveries SET workflow_response = $1, workflow_responded_at = NOW(), workflow_completed_at = COALESCE(workflow_completed_at, NOW()) WHERE id = $2',
-      [responseText, delivery.id]
+      'UPDATE document_deliveries SET notes = $1, updated_at = NOW() WHERE id = $2',
+      [responseData, delivery.id]
     );
+    
+    console.log('[workflowRespond] Response saved:', {
+      deliveryId: delivery.id,
+      responseLength: responseText.length,
+      recipientEmail: delivery.recipient_email
+    });
+    
     await recordAudit({
       docId: doc.id,
       action: 'VIEW',
-      details: { event: 'workflow_response', deliveryId: delivery.id, recipientEmail: delivery.recipient_email },
+      details: { 
+        event: 'workflow_response', 
+        deliveryId: delivery.id, 
+        recipientEmail: delivery.recipient_email,
+        responsePreview: responseText.substring(0, 100)
+      },
       req,
     });
 
-    // Attempt notification — the atomic lock in the helper ensures this is
-    // a no-op if acknowledge or sign already sent the email.
-    await _sendWorkflowCompleteNotification({
-      delivery,
-      doc,
-      triggerStep: 'respond',
-      signatureData: null,
-      req,
-    });
+    // ── Send notification to generator ──────────────────────────────────────
+    try {
+      console.log('[workflowRespond] Sending notification to generator:', doc.generated_by);
+      
+      // Get generator details
+      const [generatorRows] = await pool.query(
+        'SELECT id, username, email FROM users WHERE id = $1',
+        [doc.generated_by]
+      );
+      const generator = generatorRows[0];
+      
+      if (!generator) {
+        console.error('[workflowRespond] Generator user not found:', doc.generated_by);
+        throw new Error('Generator user not found');
+      }
+
+      // Send email notification to generator
+      const { sendEmail } = require('../utils/emailService');
+      const appSettings = require('../../config/appSettings.json');
+      
+      const emailSubject = `Response Received: ${doc.document_name || 'Document'}`;
+      const emailBody = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #0F2747;">Response Received</h2>
+          
+          <p>Hello ${generator.username},</p>
+          
+          <p>A recipient has submitted a response for the document: <strong>${doc.document_name || 'Untitled Document'}</strong></p>
+          
+          <div style="background: #f8f9fa; padding: 15px; border-left: 4px solid #0F2747; margin: 20px 0;">
+            <h3 style="margin-top: 0; color: #0F2747;">Recipient Details</h3>
+            <p style="margin: 5px 0;"><strong>Email:</strong> ${delivery.recipient_email || 'N/A'}</p>
+            <p style="margin: 5px 0;"><strong>Response Date:</strong> ${new Date().toLocaleString()}</p>
+          </div>
+          
+          <div style="background: #fff; padding: 15px; border: 1px solid #e0e0e0; border-radius: 5px; margin: 20px 0;">
+            <h3 style="margin-top: 0; color: #0F2747;">Response Message</h3>
+            <p style="white-space: pre-wrap; line-height: 1.6;">${responseText}</p>
+          </div>
+          
+          <p>
+            <a href="${process.env.CLIENT_URL || appSettings.clientUrl}/deliveries" 
+               style="display: inline-block; padding: 12px 24px; background: #0F2747; color: white; 
+                      text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 10px;">
+              View All Deliveries
+            </a>
+          </p>
+          
+          <p style="color: #666; font-size: 12px; margin-top: 30px;">
+            This is an automated notification from ${appSettings.appName || 'Document Automation System'}.
+          </p>
+        </div>
+      `;
+
+      await sendEmail({
+        to: generator.email,
+        subject: emailSubject,
+        html: emailBody
+      });
+      
+      console.log('[workflowRespond] Notification sent successfully to:', generator.email);
+      
+      // Create notification record for generator
+      await pool.query(
+        `INSERT INTO notifications (user_id, title, message, type, created_at)
+         VALUES ($1, $2, $3, $4, NOW())`,
+        [
+          generator.id,
+          'Response Received',
+          `${delivery.recipient_email || 'A recipient'} has responded to "${doc.document_name || 'your document'}"`,
+          'delivery'
+        ]
+      );
+      
+      console.log('[workflowRespond] In-app notification created for generator');
+      
+    } catch (notifyErr) {
+      console.error('[workflowRespond] Failed to send generator notification:', notifyErr);
+      // Non-fatal - response is still saved
+    }
 
     return res.status(200).json({
       success: true,
-      message: 'Your response has been recorded.',
-      data: { response: responseText },
+      message: 'Your response has been sent to the document issuer.',
+      data: { 
+        response: responseText,
+        notificationSent: true
+      },
     });
   } catch (err) {
     console.error('[secureDelivery] workflowRespond error:', err);
