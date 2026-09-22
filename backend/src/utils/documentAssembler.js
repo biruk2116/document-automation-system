@@ -3,39 +3,41 @@
 // from the exact same JSON, so the printed PDF and the preview can never disagree on
 // how big the page is or how much margin surrounds it on any of its 4 sides again.
 const pageSpec = require('../../../frontend/src/shared/documentPageSpec.json');
+const path = require('path');
+const fs = require('fs');
+
+/**
+ * Inlines /uploads/logos/... and /uploads/avatars/... images as base64 data URLs
+ * so Puppeteer renders them reliably without requiring network or origin resolution.
+ */
+function inlineStorageImages(html) {
+  if (!html || typeof html !== 'string') return html || '';
+  return html.replace(/<img([^>]+)src=["'](\/uploads\/(logos|avatars)\/([^"']+))["']/gi, (match, pre, relPath, folder, filename) => {
+    const diskPath = path.join(__dirname, '..', '..', 'storage', folder, filename);
+    if (fs.existsSync(diskPath)) {
+      try {
+        const ext = path.extname(filename).toLowerCase().replace('.', '') || 'png';
+        const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+        const b64 = fs.readFileSync(diskPath).toString('base64');
+        return `<img${pre}src="data:${mime};base64,${b64}"`;
+      } catch (err) {
+        console.warn('[documentAssembler] Could not inline image:', diskPath, err.message);
+      }
+    }
+    return match;
+  });
+}
 
 /**
  * Wraps rendered header/body/footer into a complete, styled A4 HTML document
  * ready for either on-screen preview or Puppeteer PDF rendering.
  * FR-017: watermark (DRAFT/CONFIDENTIAL/FINAL) rendered as a diagonal overlay.
- *
- * Layout parity with the "View" preview (TemplateViewer.jsx) is deliberate and
- * load-bearing here — anything the preview doesn't do, this must not do either, or
- * "View" and the actual PDF silently diverge:
- *   - page padding: uniform on all 4 sides, taken from pageSpec (previously 20mm
- *     top/bottom vs 18mm left/right here — asymmetric AND a different size than the
- *     preview's own uniform 40px, so the PDF was never actually the same size as
- *     what the admin reviewed on the View page)
- *   - header/body/footer are concatenated exactly like the preview's combinedHtml
- *     (`${headerHtml}${bodyHtml}${automaticDateHtml}${footerHtml}`, see
- *     documentController.js) — no extra margin-bottom on the header, no artificial
- *     min-height forcing the body taller than its actual content, and no forced
- *     font-size/color on the author's own footer text. All three of those existed
- *     here before and pushed/shrunk/recolored content in ways the preview never
- *     showed, so a document that looked right on the View page could still come out
- *     of PDF generation with different spacing or a grayed-out footer.
- *   - the verification stamp (tamperProofFooterHtml/signatureHtml) is generation-only
- *     content the preview never renders at all (see previewDocument in
- *     documentController.js), so ITS small/gray styling now lives in its own
- *     `.doc-footer-meta` wrapper, separate from `.doc-footer` — so it can keep looking
- *     like a stamp without leaking that styling onto the template author's own footer
- *     content, which must render exactly as authored/previewed.
  */
 function assembleDocumentHtml({ headerHtml, bodyHtml, footerHtml, tamperProofFooterHtml, deliveryVerificationQrHtml, watermarkText, signatureHtml }) {
   // Strip editor-only elements (remove buttons, etc.) before assembling the final PDF
-  const cleanHeaderHtml = stripEditorOnlyElements(headerHtml || '');
-  const cleanBodyHtml = stripEditorOnlyElements(bodyHtml || '');
-  const cleanFooterHtml = stripEditorOnlyElements(footerHtml || '');
+  const cleanHeaderHtml = inlineStorageImages(stripEditorOnlyElements(headerHtml || ''));
+  const cleanBodyHtml = inlineStorageImages(stripEditorOnlyElements(bodyHtml || ''));
+  const cleanFooterHtml = inlineStorageImages(stripEditorOnlyElements(footerHtml || ''));
   
   // FR-017 color coding: DRAFT stays red (unapproved/in-progress), FINAL is green
   // (approved/complete) so the two are never visually confusable. Anything else
@@ -155,7 +157,11 @@ function assembleDocumentHtml({ headerHtml, bodyHtml, footerHtml, tamperProofFoo
   font[size="4"] { font-size: 18px; }
   font[size="5"] { font-size: 24px; }
   font[size="6"] { font-size: 32px; }
-  font[size="7"] { font-size: 48px; }
+  /* Prevent signature blocks, tables, and footer metadata from breaking across pages */
+  .signature-block, .signature-container, .visual-signature, [data-sig-field-id], .doc-footer-meta, .qr-footer-row, table.signature-table, table.signature-table tr, table.signature-table td {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
   /* Conditional/loop block markers are authoring-time visual aids only — never shown in the final PDF. */
   .rte-block-marker { display: none; }
 </style>
@@ -299,26 +305,27 @@ function injectSignatureIntoFooter(footerHtml, name, photoDataUrl, signedAt) {
             style="display:block;max-height:48px;max-width:180px;object-fit:contain;" />`
     : `<span style="font-size:0.72rem;color:#94A3B8;font-style:italic;">No image provided</span>`;
 
-  // Build the complete signed block HTML
+  // Build the complete signed block HTML — page-break-inside: avoid ensures it stays on one page
   const signedBlock = `<!-- SIGNATURE_EMBEDDED -->
-<table style="width:100%;border-collapse:collapse;font-family:inherit;font-size:12px;color:#1a1a2e;margin-top:12px;">
+<div class="signature-block" style="page-break-inside:avoid !important;break-inside:avoid !important;margin-top:12px;display:block;">
+<table class="signature-table" style="width:100%;border-collapse:collapse;font-family:inherit;font-size:12px;color:#1a1a2e;page-break-inside:avoid !important;break-inside:avoid !important;">
   <tbody>
-    <tr>
-      <td style="width:38%;padding:4px 8px 4px 0;vertical-align:bottom;">
+    <tr style="page-break-inside:avoid !important;break-inside:avoid !important;">
+      <td style="width:38%;padding:4px 8px 4px 0;vertical-align:bottom;page-break-inside:avoid !important;break-inside:avoid !important;">
         <div style="padding-bottom:3px;min-width:80px;font-family:Georgia,serif;font-size:14px;font-weight:600;color:#0F2747;border-bottom:2px solid #0F2747;">
           ${name ? escapeHtml(name) : '&nbsp;'}
         </div>
         <div style="margin-top:4px;font-size:9px;color:#64748B;letter-spacing:0.04em;text-transform:uppercase;font-weight:600;">Name</div>
       </td>
-      <td style="width:62%;padding:4px 0 4px 8px;vertical-align:bottom;">
+      <td style="width:62%;padding:4px 0 4px 8px;vertical-align:bottom;page-break-inside:avoid !important;break-inside:avoid !important;">
         <div style="border:2px solid #0F2747;border-radius:4px;min-height:52px;padding:6px 8px;background:#fff;display:flex;align-items:center;justify-content:center;">
           ${sigImgHtml}
         </div>
         <div style="margin-top:4px;font-size:9px;color:#64748B;letter-spacing:0.04em;text-transform:uppercase;font-weight:600;">Signature</div>
       </td>
     </tr>
-    <tr>
-      <td colspan="2" style="padding:8px 0 0;vertical-align:bottom;">
+    <tr style="page-break-inside:avoid !important;break-inside:avoid !important;">
+      <td colspan="2" style="padding:8px 0 0;vertical-align:bottom;page-break-inside:avoid !important;break-inside:avoid !important;">
         <div style="padding-bottom:3px;border-bottom:2px solid #64748B;font-size:13px;font-weight:600;color:#0F2747;">
           ${dateStr}
         </div>
@@ -327,6 +334,7 @@ function injectSignatureIntoFooter(footerHtml, name, photoDataUrl, signedAt) {
     </tr>
   </tbody>
 </table>
+</div>
 <!-- /SIGNATURE_EMBEDDED -->`;
 
   // Replace ALL signature field placeholders (handles multiple fields)

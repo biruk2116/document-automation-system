@@ -42,12 +42,19 @@ async function verifyDocument(req, res) {
     }
 
     let dbRow = null;
+    const selectQuery = `
+      SELECT gd.id, gd.doc_uuid, gd.file_hash, gd.status, gd.generated_at,
+             (SELECT COUNT(*) FROM signature_requests sr WHERE sr.doc_id = gd.id AND sr.status = 'approved') AS approved_sr_count,
+             (SELECT COUNT(*) FROM digital_signatures ds WHERE ds.doc_id = gd.id) AS digital_sig_count
+      FROM generated_docs gd
+      WHERE `;
+
     if (targetDocId) {
-      const [[row]] = await pool.query('SELECT id, doc_uuid, file_hash, status, generated_at FROM generated_docs WHERE doc_uuid = ?', [targetDocId]);
+      const [[row]] = await pool.query(selectQuery + 'gd.doc_uuid = ?', [targetDocId]);
       dbRow = row || null;
     } else if (uploadedHash) {
       // No doc ID found in the PDF text — fall back to a direct hash match across all docs.
-      const [[row]] = await pool.query('SELECT id, doc_uuid, file_hash, status, generated_at FROM generated_docs WHERE file_hash = ?', [uploadedHash]);
+      const [[row]] = await pool.query(selectQuery + 'gd.file_hash = ?', [uploadedHash]);
       dbRow = row || null;
     }
 
@@ -61,14 +68,43 @@ async function verifyDocument(req, res) {
 
     const hashToCompare = uploadedHash || dbRow.file_hash;
     const isAuthentic = hashToCompare === dbRow.file_hash;
+    const isApproved = Boolean(
+      (Number(dbRow.approved_sr_count) > 0 || Number(dbRow.digital_sig_count) > 0 || dbRow.status === 'signed' || dbRow.status === 'delivered') &&
+      dbRow.status !== 'draft' &&
+      dbRow.status !== 'pending' &&
+      dbRow.status !== 'rejected'
+    );
+    const isVerified = isAuthentic && isApproved;
 
-    await recordAudit({ docId: dbRow.id, action: 'VERIFY', details: { result: isAuthentic ? 'authentic' : 'corrupt' }, req });
+    let message = '';
+    if (!isAuthentic) {
+      message = 'Document is Corrupt/Forged — hash mismatch.';
+    } else if (!isApproved) {
+      if (dbRow.status === 'rejected') {
+        message = 'Document was rejected by the approver.';
+      } else if (dbRow.status === 'pending') {
+        message = 'Document is pending approver review.';
+      } else {
+        message = 'Document has not been approved by an authorized approver.';
+      }
+    } else {
+      message = 'Document is Authentic & Untampered.';
+    }
+
+    await recordAudit({
+      docId: dbRow.id,
+      action: 'VERIFY',
+      details: { result: isVerified ? 'authentic' : isAuthentic ? 'unapproved' : 'corrupt' },
+      req,
+    });
 
     return res.status(200).json({
       success: true,
-      message: isAuthentic ? 'Document is Authentic & Untampered.' : 'Document is Corrupt/Forged — hash mismatch.',
+      message,
       data: {
-        verified: isAuthentic,
+        verified: isVerified,
+        isAuthentic,
+        isApproved,
         docId: dbRow.doc_uuid,
         status: dbRow.status,
         originalSignedAt: dbRow.generated_at,

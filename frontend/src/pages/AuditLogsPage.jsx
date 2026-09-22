@@ -31,6 +31,7 @@ export default function AuditLogsPage() {
     setJumpDocId(docUuid);
     setJumpToken((n) => n + 1);
     setActiveTab('audit');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (

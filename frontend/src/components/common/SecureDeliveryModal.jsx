@@ -318,7 +318,7 @@ export default function SecureDeliveryModal({ doc, onClose, onSent }) {
                     disabled={sending || !trimmedEmail}
                     className="btn-primary"
                   >
-                    Send Document
+                    Send
                   </button>
                 )}
               </div>

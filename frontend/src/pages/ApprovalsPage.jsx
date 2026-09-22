@@ -416,7 +416,7 @@ export default function ApprovalsPage() {
                   disabled={deleting}
                   className="btn-danger"
                 >
-                  {deleting ? 'Deleting…' : 'Yes, Delete'}
+                  {deleting ? 'Deleting…' : 'Delete'}
                 </button>
                 <button
                   type="button"

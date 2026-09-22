@@ -577,8 +577,19 @@ async function downloadDocument(req, res) {
     }
 
     const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
+    let downloadFileName = meta.fileName;
+    if (!downloadFileName || downloadFileName === 'document.pdf') {
+      try {
+        const [tplRows] = await pool.query('SELECT name FROM templates WHERE id = ?', [doc.template_id]);
+        const tplName = tplRows?.[0]?.name || 'Document';
+        const dateObj = doc.generated_at ? new Date(doc.generated_at) : new Date();
+        downloadFileName = buildFileName(tplName, doc.record_identifier || doc.doc_uuid || String(doc.id), dateObj);
+      } catch {
+        downloadFileName = `document-${doc.doc_uuid || doc.id}.pdf`;
+      }
+    }
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${meta.fileName || 'document.pdf'}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${downloadFileName}"`);
 
     await recordAudit({ userId: req.user.id, docId: doc.id, action: 'DOWNLOAD', details: { via: 'direct' }, req });
 

@@ -174,8 +174,19 @@ async function resetPassword(req, res) {
   const { id } = req.params;
   const { new_password } = req.body;
 
-  if (!new_password || new_password.length < 8) {
-    return res.status(400).json({ success: false, message: 'new_password must be at least 8 characters.' });
+  const isStrong =
+    new_password &&
+    new_password.length >= 8 &&
+    /[A-Z]/.test(new_password) &&
+    /[a-z]/.test(new_password) &&
+    /[0-9]/.test(new_password) &&
+    /[^A-Za-z0-9]/.test(new_password);
+
+  if (!isStrong) {
+    return res.status(400).json({
+      success: false,
+      message: 'Password is not strong. It must contain at least 8 characters including uppercase, lowercase, a number, and a special character.',
+    });
   }
 
   try {
@@ -358,8 +369,19 @@ async function changeOwnPassword(req, res) {
   if (!current_password || !new_password) {
     return res.status(400).json({ success: false, message: 'current_password and new_password are required.' });
   }
-  if (new_password.length < 8) {
-    return res.status(400).json({ success: false, message: 'new_password must be at least 8 characters.' });
+  const isStrong =
+    new_password &&
+    new_password.length >= 8 &&
+    /[A-Z]/.test(new_password) &&
+    /[a-z]/.test(new_password) &&
+    /[0-9]/.test(new_password) &&
+    /[^A-Za-z0-9]/.test(new_password);
+
+  if (!isStrong) {
+    return res.status(400).json({
+      success: false,
+      message: 'Password is not strong. It must contain at least 8 characters including uppercase, lowercase, a number, and a special character.',
+    });
   }
 
   try {

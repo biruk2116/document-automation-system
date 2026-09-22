@@ -9,11 +9,24 @@ const { ROLES } = require('../utils/roles');
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
 const RESET_TOKEN_EXPIRY_MINUTES = 60;
 
+const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
+function isValidEmail(email) {
+  if (typeof email !== 'string') return false;
+  const trimmed = email.trim();
+  if (trimmed.length === 0 || trimmed.length > 254) return false;
+  return EMAIL_REGEX.test(trimmed);
+}
+
 async function login(req, res) {
   const { email, password } = req.body;
 
   if (!email || !password) {
     return res.status(400).json({ success: false, message: 'Email and password are required.' });
+  }
+
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ success: false, message: 'Invalid email format. Please provide a valid email address.' });
   }
 
   try {
@@ -116,6 +129,10 @@ async function requestPasswordReset(req, res) {
     return res.status(400).json({ success: false, message: 'Email is required.' });
   }
 
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ success: false, message: 'Invalid email format. Please provide a valid email address.' });
+  }
+
   try {
     const [rows] = await pool.query(
       'SELECT id, email, full_name, role, is_active FROM users WHERE email = ? LIMIT 1',
@@ -170,8 +187,18 @@ async function resetPasswordWithToken(req, res) {
   if (!token || !new_password) {
     return res.status(400).json({ success: false, message: 'Token and new_password are required.' });
   }
-  if (new_password.length < 8) {
-    return res.status(400).json({ success: false, message: 'new_password must be at least 8 characters.' });
+  const isStrong =
+    new_password.length >= 8 &&
+    /[A-Z]/.test(new_password) &&
+    /[a-z]/.test(new_password) &&
+    /[0-9]/.test(new_password) &&
+    /[^A-Za-z0-9]/.test(new_password);
+
+  if (!isStrong) {
+    return res.status(400).json({
+      success: false,
+      message: 'Password is not strong. It must contain at least 8 characters including uppercase, lowercase, a number, and a special character.',
+    });
   }
 
   try {

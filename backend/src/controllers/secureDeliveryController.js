@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 const { pool } = require('../config/db');
 const { sendMail, templates } = require('../utils/emailService');
 const { recordAudit } = require('../utils/auditLog');
@@ -9,9 +10,147 @@ const { embedSignatureIntoPdf } = require('../utils/signatureEmbedder');
 const { sha256 } = require('../utils/documentIntegrity');
 const { assembleDocumentHtml, resolveWatermarkForStatus, injectSignatureIntoFooter } = require('../utils/documentAssembler');
 const { htmlToPdfBuffer } = require('../utils/pdfGenerator');
+const { STORAGE_ROOT } = require('../utils/fileStorage');
 require('dotenv').config();
 
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+
+/**
+ * Resiliently resolves the document's PDF file path on disk:
+ * 1. Checks doc.file_path directly.
+ * 2. Checks STORAGE_ROOT with the file basename (handles environment moves/redeployments).
+ * 3. Regenerates the PDF from doc.metadata.renderPieces if missing.
+ */
+async function resolveDocFilePath(doc) {
+  if (!doc) return null;
+  // 1. Direct path check
+  if (doc.file_path && fs.existsSync(doc.file_path)) {
+    return doc.file_path;
+  }
+  // 2. Check STORAGE_ROOT fallback
+  if (doc.file_path) {
+    const filename = path.basename(doc.file_path);
+    const fallbackPath = path.join(STORAGE_ROOT, filename);
+    if (fs.existsSync(fallbackPath)) {
+      pool.query('UPDATE generated_docs SET file_path = ? WHERE id = ?', [fallbackPath, doc.id]).catch(() => {});
+      return fallbackPath;
+    }
+  }
+  // 3. Regenerate from metadata.renderPieces if available
+  try {
+    const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
+    const pieces = meta.renderPieces;
+    if (pieces && pieces.headerHtml && pieces.bodyHtml) {
+      const documentHtml = assembleDocumentHtml({
+        ...pieces,
+        watermarkText: resolveWatermarkForStatus(doc.status || 'generated', pieces.watermarkText),
+      });
+      const pdfBuffer = await htmlToPdfBuffer(documentHtml);
+      if (!fs.existsSync(STORAGE_ROOT)) {
+        fs.mkdirSync(STORAGE_ROOT, { recursive: true });
+      }
+      const filename = doc.file_path ? path.basename(doc.file_path) : `doc_${doc.id}_${doc.doc_uuid || Date.now()}.pdf`;
+      const targetPath = path.join(STORAGE_ROOT, filename);
+      fs.writeFileSync(targetPath, pdfBuffer);
+      pool.query('UPDATE generated_docs SET file_path = ? WHERE id = ?', [targetPath, doc.id]).catch(() => {});
+      return targetPath;
+    }
+  } catch (regenErr) {
+    console.warn('[secureDelivery] resolveDocFilePath regeneration failed:', regenErr.message);
+  }
+  return null;
+}
+
+/**
+ * Sends a workflow notification email to the Generator with a secure 7-day tracking link
+ * to view the completed document and its details.
+ */
+async function sendWorkflowNotificationToGenerator({ delivery, doc, triggerStep, responseText, signatureData, req }) {
+  try {
+    let workflowConfig = null;
+    let tplName = null;
+    try {
+      const [tplRows] = await pool.query(
+        'SELECT name, workflow_config FROM templates WHERE id = ?',
+        [doc.template_id]
+      );
+      const tpl = tplRows?.[0];
+      tplName = tpl?.name || null;
+      if (tpl?.workflow_config) {
+        workflowConfig = typeof tpl.workflow_config === 'string'
+          ? JSON.parse(tpl.workflow_config)
+          : tpl.workflow_config;
+      }
+    } catch (tplErr) {
+      console.warn('[workflowNotify] Could not load template config (non-fatal):', tplErr.message);
+    }
+
+    const shouldSend = !workflowConfig?.enabled || workflowConfig?.sendResponseToGenerator !== false;
+    if (!shouldSend) {
+      console.log('[workflowNotify] sendResponseToGenerator disabled in template config - skipping email');
+      return;
+    }
+
+    const [userRows] = await pool.query(
+      'SELECT id, email, full_name FROM users WHERE id = ?',
+      [doc.generated_by]
+    );
+    const generator = userRows?.[0];
+    if (!generator || !generator.email) {
+      console.warn('[workflowNotify] Generator account or email not found for ID:', doc.generated_by);
+      return;
+    }
+
+    const { rawToken: trackRaw, tokenHash: trackHash } = generateSecureToken();
+    const trackExpiry = tokenExpiryDate();
+
+    try {
+      await pool.query(
+        `UPDATE document_deliveries
+            SET workflow_tracking_token_hash    = ?,
+                workflow_tracking_token_expiry  = ?,
+                workflow_tracking_token_used_at = NULL,
+                workflow_notify_sent_at         = NOW()
+          WHERE id = ?`,
+        [trackHash, trackExpiry, delivery.id]
+      );
+    } catch (tokenErr) {
+      console.warn('[workflowNotify] Could not save workflow_tracking_token (non-fatal):', tokenErr.message);
+    }
+
+    const trackingUrl = `${CLIENT_URL}/workflow-track/${encodeURIComponent(trackRaw)}`;
+    const docTitle = tplName || doc.doc_uuid || 'Document';
+    const recipientLabel = delivery.recipient_name || delivery.recipient_email || 'The recipient';
+
+    const subject = `Response Received for Document ${doc.doc_uuid} (${docTitle})`;
+
+    await sendMail({
+      to: generator.email,
+      subject,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b;">
+          <h2 style="color: #0F2747; margin-top: 0;">Recipient Response Received</h2>
+          <p>Hi ${generator.full_name || 'there'},</p>
+          <p>
+            The recipient <b>${recipientLabel}</b> has submitted a response for document <b>${doc.doc_uuid}</b> (${docTitle}).
+          </p>
+          <p style="margin: 20px 0;">
+            <a href="${trackingUrl}"
+               style="display: inline-block; padding: 12px 24px; background: #0F2747; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 0.95rem;">
+              View Submitted Document
+            </a>
+          </p>
+          <p style="font-size: 0.82rem; color: #64748B; margin-top: 24px;">
+            This link is valid for 7 days and lets you view the submitted document and tracking status without signing in.
+          </p>
+        </div>
+      `,
+    });
+    console.log('[workflowNotify] Email notification sent to generator:', generator.email);
+  } catch (notifyErr) {
+    console.error('[workflowNotify] Failed to send generator notification (non-fatal):', notifyErr);
+  }
+}
 
 // -------------------------------------------------------------------
 // Delivery method constants (must match document_deliveries.delivery_method ENUM)
@@ -117,8 +256,10 @@ async function initiateSecureDelivery(req, res) {
     if (method === DELIVERY_METHOD.EMAIL_ATTACHMENT) {
       let emailStatus = 'failed';
       try {
-        const pdfBuffer = fs.readFileSync(doc.file_path);
-        const meta = doc.metadata ? JSON.parse(doc.metadata) : {};
+        const filePath = await resolveDocFilePath(doc);
+        if (!filePath) throw new Error('Document file not found and could not be resolved');
+        const pdfBuffer = fs.readFileSync(filePath);
+        const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
         const { subject, html } = templates.documentAttached({ docId: doc.doc_uuid });
         const sendResult = await sendMail({
           to: recipientEmail,
@@ -260,7 +401,7 @@ async function listDeliveriesForDocument(req, res) {
               dd.workflow_signature_data,
               creator.full_name AS created_by_name, dd.created_at
        FROM document_deliveries dd
-       JOIN users creator ON creator.id = dd.created_by
+       LEFT JOIN users creator ON creator.id = dd.created_by
        WHERE dd.doc_id = ?
        ORDER BY dd.created_at DESC`,
       [id]
@@ -643,7 +784,7 @@ async function getDeliveryDetails(req, res) {
         workflowSignedAt:        delivery.workflow_signed_at        || null,
         workflowRespondedAt:     delivery.workflow_responded_at     || null,
         workflowUserSignedAt:    delivery.workflow_user_signed_at   || null,
-        workflowResponse:        delivery.workflow_response         || null,
+        workflowResponse:        delivery.workflow_response || (delivery.rejection_reason?.startsWith('[WORKFLOW_RESPONSE] ') ? delivery.rejection_reason.replace('[WORKFLOW_RESPONSE] ', '') : null),
         // The template's workflow configuration — drives which steps are shown
         workflowConfig,
       },
@@ -672,7 +813,8 @@ async function getDocumentPreviewStream(req, res) {
   if (delivery.ownership_status === 'REJECTED') {
     return res.status(410).json({ success: false, message: 'This delivery was rejected and is no longer available.' });
   }
-  if (!fs.existsSync(doc.file_path)) {
+  const filePath = await resolveDocFilePath(doc);
+  if (!filePath) {
     return res.status(410).json({ success: false, message: 'The file is no longer available.' });
   }
 
@@ -687,7 +829,7 @@ async function getDocumentPreviewStream(req, res) {
     // vs localhost:5000 in dev). The token in the URL path is the security gate:
     // only a recipient who already verified their OTP can obtain a valid token, and
     // the server re-checks that on every request via resolveDelivery above.
-    fs.createReadStream(doc.file_path).pipe(res);
+    fs.createReadStream(filePath).pipe(res);
   } catch (err) {
     console.error('[secureDelivery] preview stream error:', err);
     return res.status(500).json({ success: false, message: 'Failed to load the document preview.' });
@@ -867,9 +1009,12 @@ async function downloadDeliveredDocument(req, res) {
   if (delivery.downloaded_at) {
     return res.status(410).json({ success: false, message: 'This document has already been downloaded. The link is no longer valid.' });
   }
-  if (!fs.existsSync(doc.file_path)) {
+  const filePath = await resolveDocFilePath(doc);
+  if (!filePath) {
     return res.status(410).json({ success: false, message: 'The file is no longer available.' });
   }
+
+  const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
 
   try {
     // BUG FIX: same race-closing pattern — two simultaneous GETs on this token
@@ -889,10 +1034,9 @@ async function downloadDeliveredDocument(req, res) {
     }
     await recordAudit({ docId: doc.id, action: 'DOWNLOAD', details: { deliveryId: delivery.id, via: 'secure_delivery_otp' }, req });
 
-    const meta = doc.metadata ? JSON.parse(doc.metadata) : {};
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${meta.fileName || 'document.pdf'}"`);
-    fs.createReadStream(doc.file_path).pipe(res);
+    fs.createReadStream(filePath).pipe(res);
   } catch (err) {
     console.error('[secureDelivery] download error:', err);
     return res.status(500).json({ success: false, message: 'Failed to download the document.' });
@@ -1542,6 +1686,23 @@ async function _sendWorkflowCompleteNotification({ delivery, doc, triggerStep, s
       req,
     });
 
+    // ── Check template workflow configuration ──────────────────────────────
+    const [tplRows] = await pool.query(
+      'SELECT workflow_config FROM templates WHERE id = ?',
+      [doc.template_id]
+    );
+    const tpl = tplRows[0];
+    let wfConfig = null;
+    if (tpl?.workflow_config) {
+      wfConfig = typeof tpl.workflow_config === 'string'
+        ? JSON.parse(tpl.workflow_config)
+        : tpl.workflow_config;
+    }
+    if (wfConfig?.enabled && wfConfig?.sendResponseToGenerator === false) {
+      console.log('[_sendWorkflowCompleteNotification] sendResponseToGenerator disabled in template - skipping email');
+      return true;
+    }
+
     // ── Email to Generator ───────────────────────────────────────────────────
     const [[generator]] = await pool.query(
       'SELECT id, email, full_name FROM users WHERE id = ?',
@@ -1816,7 +1977,7 @@ async function workflowSign(req, res) {
   let allowPhoto     = true;
   try {
     const [tplRows] = await pool.query(
-      'SELECT workflow_config FROM templates WHERE id = $1',
+      'SELECT workflow_config FROM templates WHERE id = ?',
       [doc.template_id]
     );
     const tpl = tplRows[0];
@@ -1825,24 +1986,24 @@ async function workflowSign(req, res) {
         ? JSON.parse(tpl.workflow_config)
         : tpl.workflow_config;
       
-      // Check if signature step is configured
+      // Check if signature step or signatureField is configured
+      signatureField = wfConfig?.signatureField || wfConfig?.steps?.find(s => s.type === 'sign')?.signatureField || null;
+      if (signatureField) {
+        allowPhoto = signatureField.allowPhoto !== false; // default true
+      }
       const signStep = wfConfig?.steps?.find(s => s.type === 'sign');
-      if (signStep?.signatureField) {
-        signatureField = signStep.signatureField;
-        allowPhoto     = signatureField.allowPhoto !== false; // default true
-        const required = signStep.required !== false;   // default true
-        if (required && !hasName) {
-          return res.status(400).json({
-            success: false,
-            message: 'Your full name is required to sign this document.',
-          });
-        }
-        if (allowPhoto && required && !hasPhoto) {
-          return res.status(400).json({
-            success: false,
-            message: 'A signature image is required to sign this document.',
-          });
-        }
+      const required = signStep ? signStep.required !== false : (wfConfig?.requireSignature !== false);
+      if (required && !hasName) {
+        return res.status(400).json({
+          success: false,
+          message: 'Your full name is required to sign this document.',
+        });
+      }
+      if (allowPhoto && required && !hasPhoto) {
+        return res.status(400).json({
+          success: false,
+          message: 'A signature image is required to sign this document.',
+        });
       }
     }
   } catch (cfgErr) {
@@ -1857,20 +2018,21 @@ async function workflowSign(req, res) {
     const signatureData = JSON.stringify({
       recipientName:  delivery.recipient_name || delivery.recipient_email || '',
       signatureText:  hasName  ? String(signature_text).trim() : null,
-      signaturePhoto: (hasPhoto && allowPhoto) ? signature_photo : null, // base64 data URL
+      signaturePhoto: hasPhoto ? signature_photo : null, // base64 data URL
       signedAt,
       field: signatureField, // Admin-configured position (null = free/no field)
     });
 
     // ── Store signature data in delivery record ────────────────────────────
-    // Use existing columns that we know are present in the schema
-    // We'll use signature_id column (repurposed) to store signature data temporarily
     try {
       await pool.query(
         `UPDATE document_deliveries
-            SET signature_id = $1,
-                updated_at = NOW()
-          WHERE id = $2`,
+            SET workflow_signature_data = ?,
+                workflow_user_signed_at = NOW(),
+                workflow_signed_at = NOW(),
+                workflow_signature_embedded_at = NOW(),
+                workflow_completed_at = COALESCE(workflow_completed_at, NOW())
+          WHERE id = ?`,
         [signatureData, delivery.id]
       );
       console.log('[workflowSign] Signature data stored in delivery record');
@@ -1888,38 +2050,27 @@ async function workflowSign(req, res) {
         deliveryId: delivery.id,
         recipientEmail: delivery.recipient_email,
         signatureText:  hasName ? String(signature_text).trim() : null,
-        hasSignaturePhoto: hasPhoto && allowPhoto,
+        hasSignaturePhoto: hasPhoto,
       },
       req,
     });
 
     // ── Embed signature into the PDF ─────────────────────────────────────────
-    // Re-render the full PDF from the stored renderPieces, replacing the
-    // [[SIGNATURE_FIELD]] placeholder in footer_html with the user's actual
-    // name and signature image. This uses the same Puppeteer pipeline that
-    // originally generated the document, so the result is pixel-perfect and
-    // the signature lives inside the exact Admin-defined footer box — not as
-    // a separate overlay. The file is overwritten in place (same pattern as
-    // signatureController.applyApproval) and file_hash is updated so
-    // Verify Document reports the correct fingerprint.
-    
     console.log('[workflowSign] Checking signature embedding method:', {
       signatureField: signatureField,
       hasSignatureField: !!signatureField,
       inFooter: signatureField?.inFooter,
       hasCoordinates: !!(signatureField && signatureField.page && signatureField.x !== undefined),
-      fileExists: fs.existsSync(doc.file_path),
       filePath: doc.file_path,
       docId: doc.id,
       docUuid: doc.doc_uuid
     });
     
-    // Embed signature directly into PDF at exact coordinates if field has position data
-    // Otherwise fall back to HTML footer placeholder replacement
-    if (fs.existsSync(doc.file_path)) {
+    const resolvedPath = await resolveDocFilePath(doc);
+    if (resolvedPath) {
       try {
         const nameToEmbed  = hasName  ? String(signature_text).trim() : null;
-        const photoToEmbed = (hasPhoto && allowPhoto) ? signature_photo : null;
+        const photoToEmbed = hasPhoto ? signature_photo : null;
         
         // Check if we have coordinate-based signature field (page, x, y, width, height)
         const hasCoordinates = signatureField && 
@@ -1939,7 +2090,7 @@ async function workflowSign(req, res) {
             height: signatureField.height
           });
           
-          const originalBuffer = fs.readFileSync(doc.file_path);
+          const originalBuffer = fs.readFileSync(resolvedPath);
           const signedBuffer = await embedSignatureIntoPdf(
             originalBuffer,
             signatureField,
@@ -1950,22 +2101,16 @@ async function workflowSign(req, res) {
           console.log('[workflowSign] Writing signed PDF to disk:', {
             originalSize: originalBuffer.length,
             signedSize: signedBuffer.length,
-            path: doc.file_path
+            path: resolvedPath
           });
           
-          fs.writeFileSync(doc.file_path, signedBuffer);
+          fs.writeFileSync(resolvedPath, signedBuffer);
           
           const newHash = sha256(signedBuffer);
           
           await pool.query(
-            'UPDATE generated_docs SET file_hash = $1 WHERE id = $2',
+            'UPDATE generated_docs SET file_hash = ? WHERE id = ?',
             [newHash, doc.id]
-          );
-          
-          // Mark delivery as updated (coordinate-based signature embedded)
-          await pool.query(
-            'UPDATE document_deliveries SET updated_at = NOW() WHERE id = $1',
-            [delivery.id]
           );
           
           await recordAudit({
@@ -1993,7 +2138,6 @@ async function workflowSign(req, res) {
           // ═══════════════════════════════════════════════════════════════════
           console.log('[workflowSign] Using HTML footer placeholder replacement');
           
-          // Parse metadata if it's a string, otherwise use as-is
           const meta = typeof doc.metadata === 'string' 
             ? JSON.parse(doc.metadata) 
             : (doc.metadata || {});
@@ -2009,7 +2153,6 @@ async function workflowSign(req, res) {
             throw new Error('Document metadata missing footerHtml - cannot embed signature');
           }
 
-          const signedAt = new Date().toISOString();
           const signedFooterHtml = injectSignatureIntoFooter(
             pieces.footerHtml,
             nameToEmbed,
@@ -2036,27 +2179,24 @@ async function workflowSign(req, res) {
           });
 
           const newBuffer = await htmlToPdfBuffer(fullHtml);
-          fs.writeFileSync(doc.file_path, newBuffer);
+          fs.writeFileSync(resolvedPath, newBuffer);
 
           const newHash = sha256(newBuffer);
           
           await pool.query(
-            'UPDATE generated_docs SET file_hash = $1 WHERE id = $2',
+            'UPDATE generated_docs SET file_hash = ? WHERE id = ?',
             [newHash, doc.id]
-          );
-          
-          // Mark delivery as updated (footer-based signature embedded)
-          await pool.query(
-            'UPDATE document_deliveries SET updated_at = NOW() WHERE id = $1',
-            [delivery.id]
           );
 
           await recordAudit({
+            userId: doc.generated_by,
             docId: doc.id,
-            action: 'SIGN',
+            action: 'RECIPIENT_SIGN',
             details: {
               event: 'workflow_signature_embedded',
               deliveryId: delivery.id,
+              recipientEmail: delivery.recipient_email,
+              recipientName: delivery.recipient_name,
               newFileHash: newHash,
               method: 'footer_html_replacement',
             },
@@ -2070,11 +2210,9 @@ async function workflowSign(req, res) {
         console.error('[secureDelivery] Full error stack:', embedErr.stack);
       }
     } else {
-      console.error('[workflowSign] ERROR: File does not exist at path:', doc.file_path);
+      console.error('[workflowSign] ERROR: File could not be resolved at path:', doc.file_path);
     }
 
-    // ── SUCCESS: Signature embedded, document ready for download ────────────
-    // No notification sent to generator - recipient can download immediately
     console.log('[workflowSign] Signature complete. Document ready for download.');
 
     return res.status(200).json({
@@ -2096,7 +2234,8 @@ async function workflowSign(req, res) {
  * POST /api/public/secure-delivery/:token/workflow-respond
  * Body: { response: string }
  *
- * Records the recipient's written response and sends notification to generator.
+ * Records the recipient's written response and sends notification to generator
+ * based on the template's workflow configuration.
  */
 async function workflowRespond(req, res) {
   const { token } = req.params;
@@ -2114,145 +2253,109 @@ async function workflowRespond(req, res) {
 
   try {
     const responseText = String(response).trim();
-    
-    console.log('[workflowRespond] Processing response:', {
-      deliveryId: delivery.id,
-      responseLength: responseText.length,
-      recipientEmail: delivery.recipient_email
-    });
-    
-    // Store response in rejection_reason column (TEXT field that exists)
-    // We'll store it as JSON to preserve structure
-    const responseData = JSON.stringify({
-      type: 'workflow_response',
-      response: responseText,
-      respondedAt: new Date().toISOString(),
-      recipientEmail: delivery.recipient_email
-    });
-    
-    console.log('[workflowRespond] Saving to database...');
-    
-    await pool.query(
-      'UPDATE document_deliveries SET rejection_reason = $1, updated_at = NOW() WHERE id = $2',
-      [responseData, delivery.id]
-    );
-    
-    console.log('[workflowRespond] Response saved successfully');
-    
+
+    console.log('[workflowRespond] Processing response for delivery:', delivery.id, 'doc:', doc.id);
+
+    // ── 1. Load template workflow configuration ─────────────────────────────
+    let workflowConfig = null;
+    let tplName = null;
+    try {
+      const [tplRows] = await pool.query(
+        'SELECT name, workflow_config FROM templates WHERE id = ?',
+        [doc.template_id]
+      );
+      const tpl = tplRows?.[0];
+      tplName = tpl?.name || null;
+      if (tpl?.workflow_config) {
+        workflowConfig = typeof tpl.workflow_config === 'string'
+          ? JSON.parse(tpl.workflow_config)
+          : tpl.workflow_config;
+      }
+    } catch (tplErr) {
+      console.warn('[workflowRespond] Could not load template config (non-fatal):', tplErr.message);
+    }
+
+    // ── 2. Save response in document_deliveries columns ─────────────────────
+    // Resilient update: try all workflow columns first. If any column is missing
+    // in this database schema, fall back progressively so the response is ALWAYS saved.
+    let savedSuccessfully = false;
+    try {
+      await pool.query(
+        `UPDATE document_deliveries
+            SET workflow_response     = ?,
+                workflow_responded_at = NOW(),
+                workflow_completed_at = COALESCE(workflow_completed_at, NOW())
+          WHERE id = ?`,
+        [responseText, delivery.id]
+      );
+      savedSuccessfully = true;
+    } catch (colErr) {
+      console.warn('[workflowRespond] Full update failed, trying workflow_response only:', colErr.message);
+      try {
+        await pool.query(
+          `UPDATE document_deliveries SET workflow_response = ? WHERE id = ?`,
+          [responseText, delivery.id]
+        );
+        savedSuccessfully = true;
+      } catch (colErr2) {
+        console.warn('[workflowRespond] workflow_response column missing, saving in rejection_reason:', colErr2.message);
+        await pool.query(
+          `UPDATE document_deliveries SET rejection_reason = ? WHERE id = ?`,
+          [`[WORKFLOW_RESPONSE] ${responseText}`, delivery.id]
+        );
+        savedSuccessfully = true;
+      }
+    }
+
+    console.log('[workflowRespond] Response saved to document_deliveries, success:', savedSuccessfully);
+
+    // ── 3. Audit log (generates in-app system notification for the generator) ─
     await recordAudit({
+      userId: doc.generated_by,
       docId: doc.id,
-      action: 'VIEW',
-      details: { 
-        event: 'workflow_response', 
-        deliveryId: delivery.id, 
+      action: 'WORKFLOW_RESPONSE',
+      details: {
+        event: 'workflow_response',
+        deliveryId: delivery.id,
         recipientEmail: delivery.recipient_email,
-        responsePreview: responseText.substring(0, 100)
+        recipientName: delivery.recipient_name,
+        responsePreview: responseText.substring(0, 100),
       },
       req,
     });
 
-    // ── Send notification to generator ──────────────────────────────────────
-    try {
-      console.log('[workflowRespond] Sending notification to generator:', doc.generated_by);
-      
-      // Get generator details
-      const [generatorRows] = await pool.query(
-        'SELECT id, username, email FROM users WHERE id = $1',
-        [doc.generated_by]
-      );
-      const generator = generatorRows[0];
-      
-      if (!generator) {
-        console.error('[workflowRespond] Generator user not found:', doc.generated_by);
-        throw new Error('Generator user not found');
-      }
+    // ── 4. Send email & in-app notification based on template workflow ─────
+    const shouldSendEmail = !workflowConfig?.enabled || workflowConfig?.sendResponseToGenerator !== false;
 
-      // Send email notification to generator
-      const { sendEmail } = require('../utils/emailService');
-      const appSettings = require('../../config/appSettings.json');
-      
-      const emailSubject = `Response Received: ${doc.document_name || 'Document'}`;
-      const emailBody = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #0F2747;">Response Received</h2>
-          
-          <p>Hello ${generator.username},</p>
-          
-          <p>A recipient has submitted a response for the document: <strong>${doc.document_name || 'Untitled Document'}</strong></p>
-          
-          <div style="background: #f8f9fa; padding: 15px; border-left: 4px solid #0F2747; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #0F2747;">Recipient Details</h3>
-            <p style="margin: 5px 0;"><strong>Email:</strong> ${delivery.recipient_email || 'N/A'}</p>
-            <p style="margin: 5px 0;"><strong>Response Date:</strong> ${new Date().toLocaleString()}</p>
-          </div>
-          
-          <div style="background: #fff; padding: 15px; border: 1px solid #e0e0e0; border-radius: 5px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #0F2747;">Response Message</h3>
-            <p style="white-space: pre-wrap; line-height: 1.6;">${responseText}</p>
-          </div>
-          
-          <p>
-            <a href="${process.env.CLIENT_URL || appSettings.clientUrl}/deliveries" 
-               style="display: inline-block; padding: 12px 24px; background: #0F2747; color: white; 
-                      text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 10px;">
-              View All Deliveries
-            </a>
-          </p>
-          
-          <p style="color: #666; font-size: 12px; margin-top: 30px;">
-            This is an automated notification from ${appSettings.appName || 'Document Automation System'}.
-          </p>
-        </div>
-      `;
-
-      await sendEmail({
-        to: generator.email,
-        subject: emailSubject,
-        html: emailBody
+    if (shouldSendEmail) {
+      await sendWorkflowNotificationToGenerator({
+        delivery,
+        doc,
+        triggerStep: 'response',
+        responseText,
+        req,
       });
-      
-      console.log('[workflowRespond] Notification sent successfully to:', generator.email);
-      
-      // Create notification record for generator
-      await pool.query(
-        `INSERT INTO notifications (user_id, title, message, type, created_at)
-         VALUES ($1, $2, $3, $4, NOW())`,
-        [
-          generator.id,
-          'Response Received',
-          `${delivery.recipient_email || 'A recipient'} has responded to "${doc.document_name || 'your document'}"`,
-          'delivery'
-        ]
-      );
-      
-      console.log('[workflowRespond] In-app notification created for generator');
-      
-    } catch (notifyErr) {
-      console.error('[workflowRespond] Failed to send generator notification:', notifyErr);
-      // Non-fatal - response is still saved
+    } else {
+      console.log('[workflowRespond] sendResponseToGenerator is disabled in template workflow - skipping email');
     }
 
     return res.status(200).json({
       success: true,
-      message: 'Your response has been sent to the document issuer.',
-      data: { 
+      message: shouldSendEmail
+        ? 'Your response has been sent to the document issuer.'
+        : 'Your response has been recorded successfully.',
+      data: {
         response: responseText,
-        notificationSent: true
+        respondedAt: new Date().toISOString(),
+        notificationSent: shouldSendEmail,
       },
     });
   } catch (err) {
     console.error('[secureDelivery] workflowRespond error:', err);
-    console.error('[secureDelivery] Error stack:', err.stack);
-    console.error('[secureDelivery] Error details:', {
-      message: err.message,
-      code: err.code,
-      deliveryId: delivery?.id,
-      docId: doc?.id
-    });
-    return res.status(500).json({ 
-      success: false, 
+    return res.status(500).json({
+      success: false,
       message: 'Failed to save response.',
-      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined,
     });
   }
 }
@@ -2437,15 +2540,16 @@ async function getWorkflowTrackingPreview(req, res) {
       'SELECT id, file_path, metadata, deleted_at FROM generated_docs WHERE id = ?',
       [delivery.doc_id]
     );
-    if (!doc || doc.deleted_at || !fs.existsSync(doc.file_path)) {
+    const filePath = await resolveDocFilePath(doc);
+    if (!doc || doc.deleted_at || !filePath) {
       return res.status(410).json({ success: false, message: 'File no longer available.' });
     }
 
-    const meta = doc.metadata ? JSON.parse(doc.metadata) : {};
+    const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${meta.fileName || 'document.pdf'}"`);
     res.setHeader('Cache-Control', 'no-store, private');
-    fs.createReadStream(doc.file_path).pipe(res);
+    fs.createReadStream(filePath).pipe(res);
   } catch (err) {
     console.error('[secureDelivery] getWorkflowTrackingPreview error:', err);
     return res.status(500).json({ success: false, message: 'Failed to load preview.' });

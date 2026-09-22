@@ -11,6 +11,12 @@ const LABELS = {
   your_document_rejected: 'Your document was rejected',
   ownership_rejected_notify: 'Recipient rejected your document',
   delivery_confirmed_notify: 'Recipient confirmed ownership',
+  recipient_response_notify: 'Recipient submitted a response',
+  recipient_signed_notify: 'Recipient signed your document',
+  document_delivered_notify: 'New document delivered for review',
+  delivery_initiated_notify: 'Document delivered to recipient',
+  password_reset_requested_notify: 'Password reset link sent to your email',
+  password_reset_completed_notify: 'Your password was successfully updated',
 };
 
 /** Notification bell rendered as a crisp inline SVG (was previously the 🔔 emoji,
@@ -136,7 +142,9 @@ export default function NotificationsBell() {
       setOpen(false);
 
       // Validate navigation data before proceeding
-      if (n.notification_type === 'awaiting_your_signature') {
+      if (n.notification_type === 'password_reset_requested_notify' || n.notification_type === 'password_reset_completed_notify') {
+        // System notifications — no document navigation needed
+      } else if (n.notification_type === 'awaiting_your_signature') {
         if (!n.signature_request_id && !n.id) {
           showToast('Unable to navigate: Missing approval request ID', 'error');
           return;
@@ -226,8 +234,28 @@ export default function NotificationsBell() {
                   } catch { return null; }
                 })()}
                 {n.notification_type === 'ownership_rejected_notify' && (
-                  <div style={{ color: '#6366F1', fontSize: '0.78rem', marginTop: 2, fontWeight: 500 }}>
+                  <div style={{ color: '#2563EB', fontSize: '0.78rem', marginTop: 2, fontWeight: 500 }}>
                     → Edit &amp; Resubmit
+                  </div>
+                )}
+                {n.notification_type === 'recipient_response_notify' && n.action_details && (() => {
+                  try {
+                    const details = typeof n.action_details === 'string' ? JSON.parse(n.action_details) : n.action_details;
+                    return details?.responsePreview ? (
+                      <div style={{ color: 'var(--text-primary)', fontSize: '0.78rem', marginTop: 2, fontStyle: 'italic' }}>
+                        "{details.responsePreview.length > 60 ? `${details.responsePreview.slice(0, 60)}\u2026` : details.responsePreview}"
+                      </div>
+                    ) : null;
+                  } catch { return null; }
+                })()}
+                {n.notification_type === 'recipient_signed_notify' && (
+                  <div style={{ color: '#16A34A', fontSize: '0.78rem', marginTop: 2, fontWeight: 500 }}>
+                    ✓ Digitally signed by recipient
+                  </div>
+                )}
+                {n.notification_type === 'document_delivered_notify' && (
+                  <div style={{ color: '#2563EB', fontSize: '0.78rem', marginTop: 2, fontWeight: 500 }}>
+                    → Document ready for your review
                   </div>
                 )}
                 <div style={{ color: '#94A3B8', fontSize: '0.78rem', marginTop: 2 }}>

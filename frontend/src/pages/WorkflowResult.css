@@ -64,9 +64,9 @@
 }
 .wfr-page-title {
   margin: 0;
-  font-size: 1.45rem;
-  font-weight: 800;
-  color: var(--text-primary);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #2563EB;
   letter-spacing: -0.02em;
 }
 
@@ -82,8 +82,7 @@
 .wfr-card {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 .wfr-card--accent {
@@ -422,13 +421,13 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 22px;
+  padding: 6px 14px;
   background: var(--brand);
   color: var(--text-inverse);
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   font-weight: 600;
-  font-size: 0.88rem;
+  font-size: 0.8125rem;
   font-family: inherit;
   cursor: pointer;
   text-decoration: none;

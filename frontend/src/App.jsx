@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
@@ -40,8 +41,9 @@ import './App.css';
 export default function App() {
   return (
     <BrowserRouter>
-      <ToastProvider>
-      <AuthProvider>
+      <ThemeProvider>
+        <ToastProvider>
+          <AuthProvider>
         <Routes>
           {/* Public routes — no login required */}
           <Route path="/login" element={<Login />} />
@@ -186,8 +188,9 @@ export default function App() {
 
           <Route path="*" element={<Navigate to="/templates" replace />} />
         </Routes>
-      </AuthProvider>
-      </ToastProvider>
+          </AuthProvider>
+        </ToastProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

@@ -210,7 +210,7 @@ function DeliverySendForm({ notifyToken, recordIdentifier }) {
             />
             {!confirming && (
               <button type="button" onClick={handleSendClick} disabled={sending || !trimmedEmail} className="btn-primary">
-                Send Document
+                Send
               </button>
             )}
           </div>

@@ -10,7 +10,6 @@ import {
   IconApprovals,
   IconUsers,
   IconSettings,
-  IconDatabase,
   IconExternalData,
   IconAudit,
 } from './SidebarIcons';
@@ -88,9 +87,6 @@ export default function Sidebar({ open, onClose }) {
             </NavLink>
             <NavLink to="/settings" end className="sidebar-link">
               <IconSettings /> <span>System Settings</span>
-            </NavLink>
-            <NavLink to="/settings/database" className="sidebar-link">
-              <IconDatabase /> <span>Database Connections</span>
             </NavLink>
             <NavLink to="/settings/external-databases" className="sidebar-link">
               <IconExternalData /> <span>External Data Sources</span>

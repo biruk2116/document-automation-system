@@ -68,14 +68,12 @@ const IconCamera = () => (
     <circle cx="12" cy="12.5" r="3.4" stroke="currentColor" strokeWidth="1.7"/>
   </svg>
 );
-const IconEye    = () => <Ic d="M2.5 12C4.5 7.5 8 5 12 5s7.5 2.5 9.5 7-5.5 7-9.5 7-7.5-2.5-9.5-7z" circle cx="12" cy="12" r="3"/>;
-const IconEyeOff = () => <Ic d="M3 3l18 18M9.9 5.3C10.6 5.1 11.3 5 12 5c4 0 7.5 2.5 9.5 7a16 16 0 0 1-2.3 3.6M6.5 6.7C4.7 7.9 3.3 9.7 2.5 12c2 4.5 5.5 7 9.5 7 1.2 0 2.4-.2 3.4-.7"/>;
 
 const emptyPw = { current: '', next: '', confirm: '' };
 
 // ── Shared input style ────────────────────────────────────────────────────────
 const inputStyle = {
-  width: '100%', padding: '8px 38px 8px 11px',
+  width: '100%', padding: '8px 11px',
   border: '1.5px solid var(--border-strong)', borderRadius: 8,
   fontSize: '0.86rem', fontFamily: 'inherit',
   background: 'var(--bg-subtle)', color: 'var(--text-primary)',
@@ -108,9 +106,6 @@ export default function SidebarUserMenu() {
   const [pw,      setPw]      = useState(emptyPw);
   const [pwBusy,  setPwBusy]  = useState(false);
   const [pwErr,   setPwErr]   = useState(null);
-  const [showCur, setShowCur] = useState(false);
-  const [showNew, setShowNew] = useState(false);
-  const [showCon, setShowCon] = useState(false);
 
   const wrapRef = useRef(null);
   const fileRef = useRef(null);
@@ -136,7 +131,6 @@ export default function SidebarUserMenu() {
   };
   const resetPw = () => {
     setPw(emptyPw); setPwErr(null);
-    setShowCur(false); setShowNew(false); setShowCon(false);
   };
   const openProfile = () => { setView('profile'); resetPhoto(); resetPw(); };
   const closeAll    = () => { setView('closed'); resetPhoto(); resetPw(); };
@@ -183,7 +177,15 @@ export default function SidebarUserMenu() {
 
   const submitPw = async (e) => {
     e.preventDefault(); setPwErr(null);
-    if (pw.next.length < 8)     return setPwErr('New password must be at least 8 characters.');
+    const hasLen = pw.next.length >= 8;
+    const hasUpper = /[A-Z]/.test(pw.next);
+    const hasLower = /[a-z]/.test(pw.next);
+    const hasNumber = /[0-9]/.test(pw.next);
+    const hasSpecial = /[^A-Za-z0-9]/.test(pw.next);
+
+    if (!hasLen || !hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+      return setPwErr('Password is not strong. It must contain at least 8 characters including uppercase, lowercase, a number, and a special character.');
+    }
     if (pw.next !== pw.confirm) return setPwErr('Passwords do not match.');
     setPwBusy(true);
     try {
@@ -197,7 +199,7 @@ export default function SidebarUserMenu() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="sidebar-user-menu" ref={wrapRef} style={{ position: 'relative' }}>
+    <div className="sidebar-user-menu" ref={wrapRef} style={{ position: 'relative', zIndex: 100 }}>
 
       {/* ── Trigger ─────────────────────────────────────────────────────── */}
       <button
@@ -207,10 +209,10 @@ export default function SidebarUserMenu() {
         aria-expanded={view !== 'closed'}
         title="Account"
       >
-        <Avatar user={user} size={34} />
+        <Avatar user={user} size={28} />
         <span className="sidebar-user-trigger-text">
-          <span className="sidebar-user-trigger-name">{user.full_name}</span>
-          <span className="sidebar-user-trigger-role">{user.role.replace(/_/g, ' ')}</span>
+          <span className="sidebar-user-trigger-name" style={{ fontSize: '0.8rem' }}>{user.full_name}</span>
+          <span className="sidebar-user-trigger-role" style={{ fontSize: '0.68rem' }}>{user.role.replace(/_/g, ' ')}</span>
         </span>
         <svg
           className={`sidebar-user-chevron${view !== 'closed' ? ' sidebar-user-chevron-open' : ''}`}
@@ -221,26 +223,26 @@ export default function SidebarUserMenu() {
         </svg>
       </button>
 
-      {/* ── Compact dropdown — slides up above the trigger inside the sidebar ── */}
+      {/* ── Compact dropdown — sits securely above the trigger inside the sidebar ── */}
       {view === 'menu' && (
         <div style={{
-          position: 'absolute', bottom: '100%', left: 0, right: 0,
+          position: 'absolute', bottom: 'calc(100% + 4px)', left: 0, right: 0,
           background: 'var(--bg-surface)', border: '1px solid var(--border)',
-          borderRadius: '10px 10px 0 0', boxShadow: 'var(--shadow-lg)',
-          overflow: 'hidden', zIndex: 10,
+          borderRadius: '8px',
+          overflow: 'hidden', zIndex: 1000,
         }} role="menu">
 
           {/* Header */}
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            padding: '12px 14px', borderBottom: '1px solid var(--border)',
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 10px', borderBottom: '1px solid var(--border)',
           }}>
-            <Avatar user={user} size={38} />
+            <Avatar user={user} size={30} />
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {user.full_name}
               </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'capitalize', marginTop: 1 }}>
+              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'capitalize', marginTop: 1 }}>
                 {user.role.replace(/_/g, ' ')}
               </div>
             </div>
@@ -249,20 +251,20 @@ export default function SidebarUserMenu() {
           {/* My Profile */}
           <button type="button" role="menuitem"
             className="sidebar-user-dropdown-item"
-            style={{ width: '100%', padding: '10px 14px', fontSize: '0.85rem' }}
+            style={{ width: '100%', padding: '7px 10px', fontSize: '0.78rem' }}
             onClick={openProfile}
           >
-            <span className="sidebar-user-dropdown-item-icon"><IconPerson /></span>
+            <span className="sidebar-user-dropdown-item-icon"><IconPerson size={14} /></span>
             My Profile
           </button>
 
           {/* Logout */}
           <button type="button" role="menuitem"
             className="sidebar-user-dropdown-item sidebar-user-dropdown-item-danger"
-            style={{ width: '100%', padding: '10px 14px', fontSize: '0.85rem' }}
+            style={{ width: '100%', padding: '7px 10px', fontSize: '0.78rem' }}
             onClick={handleLogout}
           >
-            <span className="sidebar-user-dropdown-item-icon"><IconPower /></span>
+            <span className="sidebar-user-dropdown-item-icon"><IconPower size={14} /></span>
             Logout
           </button>
         </div>
@@ -288,128 +290,118 @@ export default function SidebarUserMenu() {
           {/* Panel header */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '20px 16px 16px',
+            padding: '16px 16px 12px',
             borderBottom: '1px solid var(--border)',
             flexShrink: 0,
           }}>
-            <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>My Profile</span>
+            <span style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-primary)' }}>My Profile</span>
             <button type="button" onClick={closeAll} aria-label="Close profile"
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4, borderRadius: 6, display: 'flex' }}
               onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-subtle)'}
               onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
             >
-              <IconX size={16} />
+              <IconX size={15} />
             </button>
           </div>
 
-          {/* ── Avatar section ── */}
+          {/* ── Avatar section — compact & professional (Requirement 7) ── */}
           <div style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center',
-            gap: 10, padding: '20px 16px 16px',
+            gap: 10, padding: '16px',
             borderBottom: '1px solid var(--border)',
           }}>
             <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp"
               onChange={onFileChange} style={{ display: 'none' }} />
 
-            {/* Full image preview — shows the complete photo without cropping */}
-            <div
-              onClick={pickFile}
-              title="Click to change photo"
-              style={{
-                width: '100%',
-                minHeight: 140,
-                maxHeight: 220,
-                borderRadius: 10,
-                overflow: 'hidden',
-                cursor: 'pointer',
-                background: 'var(--bg-subtle)',
-                border: '2px dashed var(--border-strong)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                position: 'relative',
-                transition: 'border-color 0.15s',
-              }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
-              onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-strong)'}
-            >
-              {(preview || user?.avatar_url) ? (
-                <>
+            {/* Compact circular avatar with camera upload button overlay */}
+            <div style={{ position: 'relative', width: 68, height: 68 }}>
+              <div
+                onClick={pickFile}
+                title="Click to change profile photo"
+                style={{
+                  width: 68, height: 68, borderRadius: '50%', overflow: 'hidden',
+                  cursor: 'pointer', background: 'var(--bg-subtle)',
+                  border: '1.5px solid var(--border-strong)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                {(preview || user?.avatar_url) ? (
                   <img
                     src={preview || resolveAvatarUrl(user.avatar_url)}
                     alt="Profile"
                     style={{
-                      width: '100%',
-                      height: '100%',
-                      minHeight: 140,
-                      maxHeight: 220,
-                      objectFit: 'contain',   // show entire image, no crop
-                      display: 'block',
-                      background: 'var(--bg-subtle)',
+                      width: '100%', height: '100%',
+                      objectFit: 'cover', display: 'block',
                     }}
                   />
-                  {/* Hover overlay */}
+                ) : (
                   <div style={{
-                    position: 'absolute', inset: 0,
-                    background: 'rgba(0,0,0,0.35)',
-                    display: 'flex', flexDirection: 'column',
-                    alignItems: 'center', justifyContent: 'center', gap: 6,
-                    opacity: 0, transition: 'opacity 0.15s',
-                    color: '#fff', fontSize: '0.78rem', fontWeight: 600,
-                  }}
-                    onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                    onMouseLeave={e => e.currentTarget.style.opacity = 0}
-                  >
-                    {savingPh
-                      ? <span className="user-avatar-spinner" />
-                      : <>
-                          <IconCamera />
-                          <span>Change photo</span>
-                        </>
-                    }
+                    fontSize: '1.2rem', fontWeight: 600,
+                    color: 'var(--brand)',
+                  }}>
+                    {initialsFor(user.full_name)}
                   </div>
-                </>
-              ) : (
-                /* No photo — show a placeholder prompt */
-                <div style={{
-                  display: 'flex', flexDirection: 'column',
-                  alignItems: 'center', gap: 8,
-                  color: 'var(--text-muted)', padding: '24px 0',
-                }}>
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"
-                    strokeLinejoin="round" aria-hidden="true">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                    <circle cx="12" cy="7" r="4"/>
-                  </svg>
-                  <span style={{ fontSize: '0.78rem', fontWeight: 600 }}>No photo — click to upload</span>
-                </div>
-              )}
+                )}
+              </div>
+
+              {/* Small camera icon button over profile image */}
+              <button
+                type="button"
+                onClick={pickFile}
+                title="Upload or change profile photo"
+                aria-label="Upload or change profile photo"
+                style={{
+                  position: 'absolute', bottom: -2, right: -2,
+                  width: 24, height: 24, borderRadius: '50%',
+                  background: '#2563EB', color: '#FFFFFF',
+                  border: '2px solid var(--bg-surface)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', padding: 0,
+                  transition: 'background 0.15s',
+                }}
+              >
+                {savingPh ? (
+                  <span className="user-avatar-spinner" style={{ width: 10, height: 10 }} />
+                ) : (
+                  <IconCamera />
+                )}
+              </button>
             </div>
 
-            {/* Name / role / email */}
+            {/* Profile information: compact, small labels, readable values */}
             <div style={{ textAlign: 'center', width: '100%' }}>
-              <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{user.full_name}</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'capitalize', marginTop: 2 }}>
-                {user.role.replace(/_/g, ' ')}
+              <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                {user.full_name}
               </div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>{user.email}</div>
+              <div style={{ marginTop: 3 }}>
+                <span style={{
+                  fontSize: '0.68rem', fontWeight: 600, textTransform: 'capitalize',
+                  padding: '2px 8px', borderRadius: 4,
+                  background: 'var(--brand-light)', color: 'var(--brand-text)',
+                  display: 'inline-block',
+                }}>
+                  {user.role.replace(/_/g, ' ')}
+                </span>
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                {user.email}
+              </div>
             </div>
 
             {/* Save / Discard buttons when a new file is staged */}
             {file && (
-              <div style={{ display: 'flex', gap: 6, width: '100%' }}>
+              <div style={{ display: 'flex', gap: 6, width: '100%', marginTop: 2 }}>
                 <button type="button"
                   onClick={resetPhoto}
                   disabled={savingPh}
-                  style={{ ...btnBase, flex: 1, background: 'var(--bg-subtle)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+                  style={{ ...btnBase, flex: 1, padding: '5px 0', fontSize: '0.75rem', background: 'var(--bg-subtle)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
                   Discard
                 </button>
                 <button type="button"
                   onClick={savePhoto}
                   disabled={savingPh}
-                  style={{ ...btnBase, flex: 1, background: 'var(--accent)', color: '#fff', opacity: savingPh ? 0.6 : 1 }}>
-                  {savingPh ? 'Saving…' : 'Save Photo'}
+                  style={{ ...btnBase, flex: 1, padding: '5px 0', fontSize: '0.75rem', background: '#2563EB', color: '#fff', opacity: savingPh ? 0.6 : 1 }}>
+                  {savingPh ? 'Saving…' : 'Save'}
                 </button>
               </div>
             )}
@@ -417,71 +409,110 @@ export default function SidebarUserMenu() {
             {/* Remove existing photo */}
             {user.avatar_url && !file && (
               <button type="button" onClick={removePhoto} disabled={removePh}
-                style={{ background: 'none', border: 'none', fontSize: '0.72rem', color: 'var(--error-text)', cursor: 'pointer', padding: 0, fontWeight: 600 }}>
-                {removePh ? 'Removing…' : 'Remove current photo'}
+                style={{ background: 'none', border: 'none', fontSize: '0.7rem', color: 'var(--error-text)', cursor: 'pointer', padding: 0, fontWeight: 500 }}>
+                {removePh ? 'Removing…' : 'Remove photo'}
               </button>
             )}
           </div>
 
-          {/* ── Change Password section ── */}
-          <form onSubmit={submitPw} style={{ padding: '16px', flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: '0.76rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-              Change Password
+          {/* ── Update Password section — compact modern UI (Requirement 8) ── */}
+          <form onSubmit={submitPw} style={{ padding: '14px 16px', flex: 1 }}>
+            <div style={{ fontWeight: 600, fontSize: '0.76rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
+              Update Password
             </div>
 
             {pwErr && (
               <div style={{
                 background: 'var(--error-bg)', border: '1px solid var(--error-border)',
-                color: 'var(--error-text)', borderRadius: 7,
-                padding: '7px 10px', fontSize: '0.8rem', marginBottom: 10,
+                color: 'var(--error-text)', borderRadius: 6,
+                padding: '6px 8px', fontSize: '0.75rem', marginBottom: 8,
               }}>
                 {pwErr}
               </div>
             )}
 
             {[
-              { id: 'cur',  label: 'Current Password', val: pw.current, show: showCur, toggle: setShowCur, field: 'current', ac: 'current-password' },
-              { id: 'new',  label: 'New Password',     val: pw.next,    show: showNew, toggle: setShowNew, field: 'next',    ac: 'new-password' },
-              { id: 'con',  label: 'Confirm New',      val: pw.confirm, show: showCon, toggle: setShowCon, field: 'confirm', ac: 'new-password' },
-            ].map(({ id, label, val, show, toggle, field, ac }) => (
-              <div key={id} style={{ marginBottom: 10 }}>
-                <label htmlFor={`spw-${id}`} style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>
+              { id: 'cur',  label: 'Current Password', val: pw.current, field: 'current', ac: 'current-password' },
+              { id: 'new',  label: 'New Password',     val: pw.next,    field: 'next',    ac: 'new-password' },
+              { id: 'con',  label: 'Confirm Password', val: pw.confirm, field: 'confirm', ac: 'new-password' },
+            ].map(({ id, label, val, field, ac }) => (
+              <div key={id} style={{ marginBottom: 8 }}>
+                <label htmlFor={`spw-${id}`} style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 3 }}>
                   {label}
                 </label>
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <input
-                    id={`spw-${id}`}
-                    type={show ? 'text' : 'password'}
-                    required
-                    autoComplete={ac}
-                    value={val}
-                    onChange={(e) => setPw((p) => ({ ...p, [field]: e.target.value }))}
-                    disabled={pwBusy}
-                    style={inputStyle}
-                    onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-                    onBlur={(e)  => (e.target.style.borderColor = 'var(--border-strong)')}
-                  />
-                  <button type="button" onClick={() => toggle((s) => !s)}
-                    aria-label={show ? 'Hide' : 'Show'}
-                    style={{ position: 'absolute', right: 9, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', padding: 2 }}>
-                    {show ? <IconEyeOff /> : <IconEye />}
-                  </button>
-                </div>
+                <input
+                  id={`spw-${id}`}
+                  type="password"
+                  required
+                  autoComplete={ac}
+                  value={val}
+                  onChange={(e) => setPw((p) => ({ ...p, [field]: e.target.value }))}
+                  disabled={pwBusy}
+                  style={{
+                    ...inputStyle,
+                    padding: '6px 9px',
+                    fontSize: '0.8rem',
+                    borderRadius: 6,
+                  }}
+                  onFocus={(e) => (e.target.style.borderColor = '#2563EB')}
+                  onBlur={(e)  => (e.target.style.borderColor = 'var(--border-strong)')}
+                />
+                {/* Dynamic 3-state password strength indicator (Weak, Medium, Strong) */}
+                {field === 'next' && pw.next.length > 0 && (() => {
+                  let score = 0;
+                  if (pw.next.length >= 8) score++;
+                  if (/[A-Z]/.test(pw.next)) score++;
+                  if (/[a-z]/.test(pw.next)) score++;
+                  if (/[0-9]/.test(pw.next)) score++;
+                  if (/[^A-Za-z0-9]/.test(pw.next)) score++;
+
+                  const isStrong = score === 5;
+                  const isMedium = score >= 3 && !isStrong;
+                  const strengthText = isStrong ? 'Strong' : isMedium ? 'Medium' : 'Weak';
+                  const activeBars = isStrong ? 3 : isMedium ? 2 : 1;
+                  const barColor = isStrong ? '#10B981' : isMedium ? '#F59E0B' : '#EF4444';
+
+                  return (
+                    <div style={{ marginTop: 4 }}>
+                      <div style={{ display: 'flex', gap: 3, height: 3 }}>
+                        {[1, 2, 3].map(i => (
+                          <div
+                            key={i}
+                            style={{
+                              flex: 1,
+                              height: '100%',
+                              borderRadius: 2,
+                              background: i <= activeBars ? barColor : 'var(--border)',
+                              transition: 'background 0.2s',
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 3 }}>
+                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                          Strength:
+                        </span>
+                        <span style={{ fontSize: '0.68rem', fontWeight: 600, color: barColor }}>
+                          {strengthText}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             ))}
 
-            {/* Cancel + Update row */}
-            <div style={{ display: 'flex', gap: 6, marginTop: 14 }}>
-              {/* Cancel closes the entire profile panel */}
+            {/* Cancel + Update buttons */}
+            <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
               <button type="button"
                 onClick={closeAll}
                 disabled={pwBusy}
-                style={{ ...btnBase, flex: 1, background: 'var(--bg-subtle)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+                style={{ ...btnBase, flex: 1, padding: '6px 0', fontSize: '0.78rem', background: 'var(--bg-subtle)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
                 Cancel
               </button>
               <button type="submit" disabled={pwBusy}
-                style={{ ...btnBase, flex: 1, background: 'var(--accent)', color: '#fff', opacity: pwBusy ? 0.6 : 1 }}>
-                {pwBusy ? 'Saving…' : 'Update Password'}
+                style={{ ...btnBase, flex: 1, padding: '6px 0', fontSize: '0.78rem', background: '#2563EB', color: '#fff', opacity: pwBusy ? 0.6 : 1 }}>
+                {pwBusy ? 'Saving…' : 'Update'}
               </button>
             </div>
           </form>

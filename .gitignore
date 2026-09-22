@@ -98,6 +98,14 @@ coverage/
 
 *.tmp
 *.temp
+
+# ============================================
+# Puppeteer / Chrome browser cache
+# ============================================
+
+backend/.cache/
+.cache/
+
 # ============================================
 # Application storage / user-generated data
 # ============================================

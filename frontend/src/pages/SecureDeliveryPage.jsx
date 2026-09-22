@@ -67,7 +67,7 @@ function CheckCircleIcon({ size = 20, color = '#16A34A' }) {
 }
 
 function StepBadge({ n, active, done }) {
-  const bg  = done ? '#16A34A' : active ? '#159A9C' : '#E2E8F0';
+  const bg  = done ? '#16A34A' : active ? '#2563EB' : '#E2E8F0';
   const clr = done || active ? '#fff' : '#94A3B8';
   return (
     <div style={{
@@ -96,11 +96,11 @@ function Card({ children, style = {} }) {
 
 function ActionBtn({ onClick, disabled, loading, children, variant = 'primary', style = {} }) {
   const variants = {
-    primary:   { background: 'var(--accent)',        color: 'var(--text-inverse)' },
+    primary:   { background: '#2563EB',               color: '#fff' },
     green:     { background: '#16A34A',               color: '#fff' },
-    navy:      { background: 'var(--brand)',          color: 'var(--text-inverse)' },
+    navy:      { background: '#2563EB',               color: '#fff' },
     secondary: { background: 'var(--bg-surface)',     color: 'var(--text-primary)', border: '1px solid var(--border-strong)' },
-    indigo:    { background: '#6366F1',               color: '#fff' },
+    indigo:    { background: '#2563EB',               color: '#fff' },
   };
   return (
     <button type="button" onClick={onClick} disabled={disabled || loading}
@@ -190,6 +190,7 @@ export default function SecureDeliveryPage() {
   const isDrawing      = useRef(false);
   const lastPos        = useRef({ x: 0, y: 0 });
   const [canvasEmpty,  setCanvasEmpty]    = useState(true);  // true = blank canvas
+  const [drawnSigData, setDrawnSigData]   = useState(null);  // base64 data URL saved from canvas before unmount
 
   /* ── PDF blob ── */
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
@@ -206,6 +207,7 @@ export default function SecureDeliveryPage() {
   const [responseText,    setResponseText]    = useState('');
   const [responding,      setResponding]      = useState(false);
   const [respondError,    setRespondError]    = useState(null);
+  const [responseSkipped, setResponseSkipped] = useState(false);
   const [downloading,     setDownloading]     = useState(false);
   const [downloadDone,    setDownloadDone]    = useState(false);
   const [downloadError,   setDownloadError]   = useState(null);
@@ -369,6 +371,10 @@ export default function SecureDeliveryPage() {
         return;
       }
     }
+    // Save drawn signature data URL BEFORE canvas is unmounted by signPreview
+    if (signTab === 'draw' && canvasRef.current && !canvasEmpty) {
+      setDrawnSigData(canvasRef.current.toDataURL('image/png'));
+    }
     setSignError(null);
     setSignPreview(true);
   };
@@ -386,7 +392,7 @@ export default function SecureDeliveryPage() {
       let photoBase64 = null;
 
       if (signTab === 'draw') {
-        photoBase64 = getCanvasDataUrl(); // PNG data URL from canvas, or null
+        photoBase64 = drawnSigData || getCanvasDataUrl(); // PNG data URL from canvas, or null
       } else if (signPhotoFile) {
         // Upload tab — encode the File as a base64 data URL
         photoBase64 = await new Promise((resolve, reject) => {
@@ -400,6 +406,7 @@ export default function SecureDeliveryPage() {
       const r = await callWorkflowSign(token, signText.trim(), photoBase64);
       setWfSignedAt(r.data?.signedAt || new Date().toISOString());
       setSignPreview(false);
+      setDrawnSigData(null);
       if (signPhotoUrl) { URL.revokeObjectURL(signPhotoUrl); setSignPhotoUrl(null); }
     }
     catch (err) { setSignError(err.message || 'Failed to submit signature.'); }
@@ -437,7 +444,7 @@ export default function SecureDeliveryPage() {
       case 'ownership':  return ownershipStatus === 'CONFIRMED';
       case 'acknowledge':return Boolean(wfAcknowledgedAt);
       case 'sign':       return Boolean(wfSignedAt);
-      case 'respond':    return Boolean(wfResponse);
+      case 'respond':    return Boolean(wfResponse) || (!wf?.requireResponse && responseSkipped);
       case 'download':   return downloadDone || alreadyDownloaded;
       default:           return false;
     }
@@ -582,24 +589,40 @@ export default function SecureDeliveryPage() {
           {!loadingLanding && !landingError && otpVerified && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-              {/* Progress stepper */}
+              {/* Progress stepper — compact, professional enterprise layout */}
               {wfEnabled && steps.length > 0 && (
-                <Card style={{ padding: '14px 20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', rowGap: 8 }}>
-                    {steps.map((s, i) => (
-                      <div key={s.id} style={{ display: 'flex', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <StepBadge n={i + 1} active={activeStep === s.id} done={isStepDone(s.id)}/>
+                <Card style={{ padding: '12px 18px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px 12px' }}>
+                    {steps.map((s, i) => {
+                      const done = isStepDone(s.id);
+                      const active = activeStep === s.id;
+                      return (
+                        <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span style={{
-                            fontSize: '0.78rem', fontWeight: 600, whiteSpace: 'nowrap',
-                            color: isStepDone(s.id) ? 'var(--success-text)' : activeStep === s.id ? 'var(--accent)' : 'var(--text-muted)',
-                          }}>{s.label}</span>
+                            width: 20, height: 20, borderRadius: '50%',
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '0.68rem', fontWeight: 700,
+                            background: done ? 'var(--success-bg)' : active ? '#2563EB' : 'var(--bg-subtle)',
+                            color: done ? 'var(--success-text)' : active ? '#fff' : 'var(--text-muted)',
+                            border: done ? '1px solid var(--success-border)' : '1px solid transparent',
+                            flexShrink: 0,
+                          }}>
+                            {done ? '✓' : i + 1}
+                          </span>
+                          <span style={{
+                            fontSize: '0.78rem',
+                            fontWeight: active ? 600 : 500,
+                            color: done ? 'var(--text-secondary)' : active ? 'var(--text-primary)' : 'var(--text-muted)',
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {s.label}
+                          </span>
+                          {i < steps.length - 1 && (
+                            <span style={{ color: 'var(--border-strong)', margin: '0 2px', fontSize: '0.7rem' }}>›</span>
+                          )}
                         </div>
-                        {i < steps.length - 1 && (
-                          <div style={{ width: 20, height: 1, background: 'var(--border)', margin: '0 6px', flexShrink: 0 }}/>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </Card>
               )}
@@ -812,9 +835,9 @@ export default function SecureDeliveryPage() {
                           {signText}
                         </p>
                         {/* Show drawn or uploaded signature preview */}
-                        {signTab === 'draw' && !canvasEmpty && canvasRef.current && (
+                        {signTab === 'draw' && (drawnSigData || (!canvasEmpty && canvasRef.current)) && (
                           <img
-                            src={canvasRef.current.toDataURL('image/png')}
+                            src={drawnSigData || canvasRef.current?.toDataURL('image/png')}
                             alt="Drawn signature"
                             style={{
                               display: 'block', marginTop: 10,
@@ -868,7 +891,7 @@ export default function SecureDeliveryPage() {
                           <p style={{ margin: '0 0 8px', fontSize: '0.72rem', fontWeight: 700,
                             color: 'var(--brand-text)', textTransform: 'uppercase', letterSpacing: '0.06em',
                             display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#0F2747"
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2563EB"
                               strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                               <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                             </svg>
@@ -884,7 +907,7 @@ export default function SecureDeliveryPage() {
                                     <div style={{ marginTop: 4, fontSize: '0.7rem', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>Name</div>
                                   </td>
                                   <td style={{ width: '62%', paddingLeft: 8, verticalAlign: 'bottom' }}>
-                                    <div style={{ border: '1.5px solid #0F2747', borderRadius: 4, minHeight: 36,
+                                    <div style={{ border: '1.5px solid #2563EB', borderRadius: 4, minHeight: 36,
                                       padding: '4px 8px', background: 'var(--bg-subtle)',
                                       display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                       <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
@@ -1009,7 +1032,7 @@ export default function SecureDeliveryPage() {
                                     ctx.beginPath();
                                     ctx.moveTo(lastPos.current.x, lastPos.current.y);
                                     ctx.lineTo(x, y);
-                                    ctx.strokeStyle = '#0F2747';
+                                    ctx.strokeStyle = '#0F172A';
                                     ctx.lineWidth = 2.2;
                                     ctx.lineCap = 'round';
                                     ctx.lineJoin = 'round';
@@ -1042,6 +1065,7 @@ export default function SecureDeliveryPage() {
                                       ctx.clearRect(0, 0, canvas.width, canvas.height);
                                     }
                                     setCanvasEmpty(true);
+                                    setDrawnSigData(null);
                                     setSignError(null);
                                   }}
                                   style={{
@@ -1087,8 +1111,8 @@ export default function SecureDeliveryPage() {
                                 <label style={{
                                   display: 'inline-flex', alignItems: 'center', gap: 7,
                                   padding: '10px 16px',
-                                  background: ownershipStatus !== 'CONFIRMED' ? '#F8FAFC' : '#F0FDFA',
-                                  border: '1.5px dashed #159A9C', borderRadius: 8,
+                                  background: ownershipStatus !== 'CONFIRMED' ? '#F8FAFC' : 'rgba(37, 99, 235, 0.05)',
+                                  border: '1.5px dashed #2563EB', borderRadius: 8,
                                   cursor: ownershipStatus !== 'CONFIRMED' ? 'not-allowed' : 'pointer',
                                   fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent-text)',
                                 }}>
@@ -1125,7 +1149,7 @@ export default function SecureDeliveryPage() {
                           disabled={!signText.trim() || ownershipStatus !== 'CONFIRMED'}
                           variant="primary"
                         >
-                          Apply Signature
+                          Apply
                         </ActionBtn>
                       </div>
                       {signError && <FeedbackMsg msg={signError} type="error"/>}
@@ -1140,44 +1164,74 @@ export default function SecureDeliveryPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
                     <StepBadge n={steps.findIndex(s => s.id === 'respond') + 1} active={activeStep === 'respond'} done={isStepDone('respond')}/>
                     <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {wf?.requireResponse ? 'Your Response' : 'Send Response to Issuer'}
+                      {wf?.requireResponse ? 'Your Response (Required)' : 'Send Response to Issuer'}
                     </h3>
                   </div>
                   {wfResponse ? (
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#16A34A', fontWeight: 600, fontSize: '0.88rem', marginBottom: 8 }}>
-                        <CheckCircleIcon size={18} color="#16A34A"/> Response recorded
+                        <CheckCircleIcon size={18} color="#16A34A"/>
+                        {wf?.sendResponseToGenerator !== false
+                          ? 'Response recorded and emailed to the document issuer'
+                          : 'Response recorded'}
                       </div>
                       <blockquote style={{
                         margin: 0, padding: '10px 14px',
-                        borderLeft: '3px solid #159A9C', background: '#F0FDFA',
+                        borderLeft: '3px solid #2563EB', background: 'var(--bg-subtle, #F8FAFC)',
                         borderRadius: '0 8px 8px 0', fontSize: '0.87rem', color: 'var(--text-primary)', fontStyle: 'italic',
                       }}>
                         "{wfResponse}"
                       </blockquote>
                     </div>
+                  ) : responseSkipped ? (
+                    <div>
+                      <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        You chose to skip providing a response.{' '}
+                        <button
+                          type="button"
+                          onClick={() => setResponseSkipped(false)}
+                          style={{ background: 'none', border: 'none', color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer', padding: 0, font: 'inherit' }}
+                        >
+                          Write a response instead
+                        </button>
+                      </p>
+                    </div>
                   ) : (
                     <>
                       <p style={{ margin: '0 0 10px', fontSize: '0.87rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
                         {wf?.requireResponse
-                          ? 'A response is required before you can proceed.'
-                          : 'Optionally send a comment or message back to the document issuer.'}
+                          ? 'A response is required before you can proceed to download.'
+                          : 'You can write a comment or message back to the document issuer.'}
                       </p>
                       <textarea
                         value={responseText}
                         onChange={e => { setResponseText(e.target.value); setRespondError(null); }}
-                        placeholder="Write your response or comment here…"
+                        placeholder="Write your response or comment here for the document issuer…"
                         rows={4}
                         disabled={responding || ownershipStatus !== 'CONFIRMED'}
                         style={{
-                          width: '100%', padding: '10px 13px', fontSize: '0.88rem',
+                          width: '100%', padding: '10px 14px', fontSize: '0.88rem',
+                          border: '1.5px solid var(--border-strong)', borderRadius: 8,
+                          outline: 'none', resize: 'vertical', fontFamily: 'inherit',
+                          lineHeight: 1.5, marginBottom: 14, boxSizing: 'border-box',
+                          background: ownershipStatus !== 'CONFIRMED' ? 'var(--bg-subtle)' : 'var(--bg-surface)',
+                          color: 'var(--text-primary)',
                         }}
                       />
-                      <ActionBtn onClick={handleRespond} loading={responding}
-                        disabled={responding || !responseText.trim() || ownershipStatus !== 'CONFIRMED'}
-                        variant="primary">
-                        Send Response
-                      </ActionBtn>
+                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                        <ActionBtn onClick={handleRespond} loading={responding}
+                          disabled={responding || !responseText.trim() || ownershipStatus !== 'CONFIRMED'}
+                          variant="primary">
+                          Send
+                        </ActionBtn>
+                        {!wf?.requireResponse && (
+                          <ActionBtn onClick={() => setResponseSkipped(true)}
+                            disabled={responding || ownershipStatus !== 'CONFIRMED'}
+                            variant="secondary">
+                            Skip
+                          </ActionBtn>
+                        )}
+                      </div>
                       {respondError && <FeedbackMsg msg={respondError} type="error"/>}
                     </>
                   )}

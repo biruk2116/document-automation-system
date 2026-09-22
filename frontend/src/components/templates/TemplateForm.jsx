@@ -12,6 +12,13 @@ const USER_TYPES = ['Employee', 'Student', 'Supplier', 'Customer', 'Other'];
 /** Default workflow config — dynamic steps */
 const DEFAULT_WORKFLOW = {
   enabled: false,
+  userType: '',
+  viewDocument: true,
+  acknowledge: true,
+  userSignature: false,
+  signatureField: null,
+  requireResponse: false,
+  sendResponseToGenerator: true,
   steps: [],
 };
 
@@ -158,10 +165,10 @@ export default function TemplateForm({
     // The × button is ONLY shown during template creation/editing (contenteditable=false wrapper)
     // and will be removed before final PDF generation.
     const sigBlockHtml = `
-<div contenteditable="false" style="margin-top:16px;padding:12px 16px;border:1.5px dashed #0F2747;border-radius:6px;background:rgba(15,39,71,0.03);user-select:none;position:relative;" data-sig-field-id="${fieldId}" data-editor-only="true">
+<div contenteditable="false" style="margin-top:16px;padding:12px 16px;border:1.5px dashed #2563EB;border-radius:6px;background:rgba(37,99,235,0.03);user-select:none;position:relative;page-break-inside:avoid !important;break-inside:avoid !important;" data-sig-field-id="${fieldId}" data-editor-only="true">
   <!-- [[SIGNATURE_FIELD:${fieldId}]] -->
   <button type="button" class="sig-field-remove-btn" onclick="this.closest('[data-sig-field-id]').remove()" style="position:absolute;top:8px;right:8px;width:24px;height:24px;border-radius:4px;border:1px solid #DC2626;background:#fff;color:#DC2626;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;transition:all 0.15s;" onmouseover="this.style.background='#DC2626';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#DC2626'" title="Remove this signature field">×</button>
-  <table style="width:100%;border-collapse:collapse;font-family:inherit;">
+  <table style="width:100%;border-collapse:collapse;font-family:inherit;page-break-inside:avoid !important;break-inside:avoid !important;">
     <tbody>
       <tr>
         <td style="padding:4px 8px 4px 0;width:38%;vertical-align:bottom;font-size:0.82rem;color:#475569;">
@@ -169,7 +176,7 @@ export default function TemplateForm({
           <div style="margin-top:4px;font-size:0.72rem;color:#94A3B8;letter-spacing:0.04em;">Name</div>
         </td>
         <td style="padding:4px 0 4px 8px;width:62%;vertical-align:bottom;font-size:0.82rem;color:#475569;">
-          <div style="border:1.5px solid #0F2747;border-radius:4px;min-height:36px;padding:4px 8px;background:#fff;display:flex;align-items:center;justify-content:center;">
+          <div style="border:1.5px solid #2563EB;border-radius:4px;min-height:36px;padding:4px 8px;background:#fff;display:flex;align-items:center;justify-content:center;">
             <span style="font-size:0.75rem;color:#94A3B8;letter-spacing:0.04em;">[ SIGNATURE FIELD ]</span>
           </div>
           <div style="margin-top:4px;font-size:0.72rem;color:#94A3B8;letter-spacing:0.04em;">Signature</div>
@@ -311,14 +318,28 @@ export default function TemplateForm({
     if (!file) return;
     setUploadingLogo(true);
     try {
-      const res = await templateService.uploadLogo(file);
-      // Same resizable/alignable wrapper markup the editor's own Image button uses (see
-      // RichTextEditor.jsx) — so a logo/signature uploaded here can immediately be
-      // dragged from its bottom-right corner to resize, or aligned with the header
-      // editor's align buttons, exactly like any other inserted image.
-      const html = `<span class="rte-image-wrap" contenteditable="false" style="display:inline-block;width:180px;resize:both;overflow:hidden;max-width:100%;border:1px dashed transparent;"><img src="${res.data.url}" style="width:100%;height:100%;display:block;" alt="Logo" /></span>&nbsp;`;
-      setHeaderHtml((prev) => `${html}${prev || ''}`); // FR-008: statically embedded in header
-      showToast('Logo uploaded — drag its corner to resize, or use the align buttons above.', 'success');
+      // Read file as base64 data URL so it displays immediately and visibly
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      // Also persist to backend in parallel
+      let serverUrl = null;
+      try {
+        const res = await templateService.uploadLogo(file);
+        serverUrl = res?.data?.url;
+      } catch (uploadErr) {
+        console.warn('[TemplateForm] Server logo upload non-fatal:', uploadErr.message);
+      }
+
+      // Use dataUrl for immediate visibility in editor, preview, and PDF
+      const imgSrc = dataUrl || serverUrl;
+      const html = `<span class="rte-image-wrap" contenteditable="false" style="display:inline-block;width:180px;resize:both;overflow:hidden;max-width:100%;border:1px dashed transparent;"><img src="${imgSrc}" style="width:100%;height:100%;display:block;" alt="Logo / Signature" /></span>&nbsp;`;
+      setHeaderHtml((prev) => `${html}${prev || ''}`);
+      showToast('Logo / Signature added and visible — drag its corner to resize, or use the align buttons above.', 'success');
     } catch (err) {
       showToast(err.message || 'Logo upload failed.', 'error');
     } finally {
@@ -477,9 +498,9 @@ export default function TemplateForm({
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,
                 padding: '5px 12px', fontSize: '0.78rem', fontWeight: 600,
-                background: signatureFieldCount > 0 ? 'rgba(15,39,71,0.08)' : '#0F2747',
-                color: signatureFieldCount > 0 ? '#0F2747' : '#fff',
-                border: signatureFieldCount > 0 ? '1.5px solid #0F2747' : 'none',
+                background: signatureFieldCount > 0 ? 'rgba(37,99,235,0.08)' : '#2563EB',
+                color: signatureFieldCount > 0 ? '#2563EB' : '#fff',
+                border: signatureFieldCount > 0 ? '1.5px solid #2563EB' : 'none',
                 borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit',
                 transition: 'background .15s',
               }}
@@ -504,12 +525,12 @@ export default function TemplateForm({
         {signatureFieldCount > 0 && (
           <div style={{
             marginTop: 8, padding: '10px 12px',
-            background: 'rgba(15,39,71,0.04)', border: '1px solid rgba(15,39,71,0.15)',
-            borderRadius: 6, fontSize: '0.77rem', color: '#0F2747',
+            background: 'rgba(37,99,235,0.04)', border: '1px solid rgba(37,99,235,0.15)',
+            borderRadius: 6, fontSize: '0.77rem', color: '#2563EB',
             display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
           }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flex: 1 }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0F2747"
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563EB"
                 strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
                 style={{ marginTop: 2, flexShrink: 0 }}>
                 <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
@@ -789,7 +810,7 @@ export default function TemplateForm({
                             style={{
                               display: 'inline-flex', alignItems: 'center', gap: 6,
                               padding: '7px 14px', fontSize: '0.82rem', fontWeight: 600,
-                              background: '#0F2747', color: '#fff',
+                              background: '#2563EB', color: '#fff',
                               border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit',
                             }}
                           >
@@ -838,8 +859,8 @@ export default function TemplateForm({
                     'Confirm Ownership',
                     workflow.acknowledge       && 'Acknowledge',
                     workflow.userSignature     && 'User Signs → Submitted to Generator',
-                    workflow.requireResponse   && 'Recipient Response',
-                    workflow.sendResponseToGenerator && '→ Response sent to generator',
+                    workflow.requireResponse   ? 'Recipient Response (Required)' : (workflow.sendResponseToGenerator ? 'Recipient Response (Optional)' : null),
+                    workflow.sendResponseToGenerator && '→ Email sent to generator',
                     'Download',
                   ].filter(Boolean).join('  →  ')}
                 </div>
@@ -850,8 +871,8 @@ export default function TemplateForm({
       </div>
 
       <div className="template-form-actions">
-        <button type="submit" disabled={submitting} className="btn-primary">
-          {submitting ? 'Saving…' : mode === 'edit' ? 'Update Template' : 'Create Template'}
+        <button type="submit" disabled={submitting} className="btn-primary template-create-submit-btn">
+          {submitting ? 'Saving…' : mode === 'edit' ? 'Update' : 'Create'}
         </button>
         {mode === 'edit' && (
           <button type="button" onClick={handleCancel} className="btn-secondary" disabled={submitting}>

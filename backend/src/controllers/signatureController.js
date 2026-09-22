@@ -183,14 +183,15 @@ async function viewPendingDocument(req, res) {
       return res.status(404).json({ success: false, message: 'Signature request not found.' });
     }
     const sigReq = sigReqRows[0];
+    const activeSigReq = await resolveActiveSignatureRequest(sigReq);
 
-    const isAssignedApprover = sigReq.approver_id === req.user.id;
+    const isAssignedApprover = activeSigReq.approver_id === req.user.id;
     const isAdmin = ['super_admin', 'system_admin'].includes(req.user.role);
     if (!isAssignedApprover && !isAdmin) {
       return res.status(403).json({ success: false, message: 'This request is not assigned to you.' });
     }
 
-    const [docRows] = await pool.query('SELECT * FROM generated_docs WHERE id = $1', [sigReq.doc_id]);
+    const [docRows] = await pool.query('SELECT * FROM generated_docs WHERE id = $1', [activeSigReq.doc_id]);
     if (docRows.length === 0) {
       return res.status(404).json({ success: false, message: 'Document not found.' });
     }
@@ -270,6 +271,61 @@ async function viewPendingDocument(req, res) {
  * or rejecting still requires the authenticated /api/signatures/:id/approve|reject
  * routes, so this endpoint only ever grants read-only viewing.
  */
+/**
+ * Resolves the active pending signature request if a document was rejected and
+ * subsequently resubmitted by the generator.
+ */
+async function resolveActiveSignatureRequest(sigReq) {
+  if (!sigReq || sigReq.status === 'pending') {
+    return sigReq;
+  }
+
+  if (sigReq.status === 'rejected') {
+    // 1. Check if the same doc has a newer pending signature request
+    const [sameDocRows] = await pool.query(
+      'SELECT * FROM signature_requests WHERE doc_id = ? AND approver_id = ? AND status = ? ORDER BY id DESC LIMIT 1',
+      [sigReq.doc_id, sigReq.approver_id, 'pending']
+    );
+    if (sameDocRows.length > 0) {
+      console.log('[signatures] Resolved newer pending signature request for same doc:', sameDocRows[0].id);
+      return sameDocRows[0];
+    }
+
+    // 2. Check if a new document was generated from this doc during Edit & Resubmit
+    const [origDocRows] = await pool.query('SELECT doc_uuid FROM generated_docs WHERE id = ?', [sigReq.doc_id]);
+    if (origDocRows.length > 0) {
+      const origUuid = origDocRows[0].doc_uuid;
+      const [resubDocRows] = await pool.query(
+        `SELECT sr.* FROM signature_requests sr
+         JOIN generated_docs gd ON gd.id = sr.doc_id
+         WHERE (gd.metadata LIKE ? OR gd.metadata LIKE ?)
+           AND sr.approver_id = ?
+           AND sr.status = 'pending'
+           AND gd.deleted_at IS NULL
+         ORDER BY sr.id DESC LIMIT 1`,
+        [`%"resubmittedFromDocUuid":"${origUuid}"%`, `%"resubmittedFromDocUuid": "${origUuid}"%`, sigReq.approver_id]
+      );
+      if (resubDocRows.length > 0) {
+        console.log('[signatures] Resolved resubmitted pending signature request:', resubDocRows[0].id);
+        return resubDocRows[0];
+      }
+    }
+  }
+
+  return sigReq;
+}
+
+/**
+ * GET /api/signatures/review/:token   PUBLIC — no login required.
+ * FR-022: the "secure, one-time link" from the notification email/in-app alert.
+ * Opening it streams the PDF inline (review-in-browser, same as viewPendingDocument)
+ * without requiring the Approver to sign in first. Single-use: the first successful
+ * open marks the request's view_token_used_at, and every later hit on the same token
+ * — even though the JWT itself is still cryptographically valid until it expires —
+ * is rejected with a clear "already used, sign in to review again" message. Approving
+ * or rejecting still requires the authenticated /api/signatures/:id/approve|reject
+ * routes, so this endpoint only ever grants read-only viewing.
+ */
 async function viewDocumentByToken(req, res) {
   const { token } = req.params;
 
@@ -289,11 +345,12 @@ async function viewDocumentByToken(req, res) {
       return res.status(404).json({ success: false, message: 'Signature request not found.' });
     }
     const sigReq = sigReqRows[0];
+    const activeSigReq = await resolveActiveSignatureRequest(sigReq);
     
-    if (sigReq.status !== 'pending') {
-      return res.status(410).json({ success: false, message: `This document is no longer pending review (status: ${sigReq.status}).` });
+    if (activeSigReq.status !== 'pending') {
+      return res.status(410).json({ success: false, message: `This document is no longer pending review (status: ${activeSigReq.status}).` });
     }
-    if (sigReq.view_token_used_at) {
+    if (activeSigReq.view_token_used_at) {
       return res.status(410).json({
         success: false,
         message: 'This secure link has expired or has already been used.',
@@ -303,7 +360,7 @@ async function viewDocumentByToken(req, res) {
     // is ever served — verified via POST /signatures/review/:token/verify-otp, which
     // sets otp_verified_at. Without that, this endpoint refuses to stream the file
     // (and does NOT consume the one-time link — only actually viewing the PDF does).
-    if (!sigReq.otp_verified_at) {
+    if (!activeSigReq.otp_verified_at && !sigReq.otp_verified_at) {
       return res.status(403).json({
         success: false,
         message: 'Enter the OTP sent to your email to unlock this document.',
@@ -311,7 +368,7 @@ async function viewDocumentByToken(req, res) {
       });
     }
 
-    const [docRows] = await pool.query('SELECT * FROM generated_docs WHERE id = $1', [sigReq.doc_id]);
+    const [docRows] = await pool.query('SELECT * FROM generated_docs WHERE id = $1', [activeSigReq.doc_id]);
     if (docRows.length === 0) {
       return res.status(404).json({ success: false, message: 'Document not found.' });
     }
@@ -320,13 +377,16 @@ async function viewDocumentByToken(req, res) {
       return res.status(410).json({ success: false, message: 'File no longer exists on disk.' });
     }
 
-    await pool.query('UPDATE signature_requests SET view_token_used_at = NOW() WHERE id = $1', [sigReq.id]);
+    await pool.query('UPDATE signature_requests SET view_token_used_at = NOW() WHERE id = $1', [activeSigReq.id]);
+    if (activeSigReq.id !== sigReq.id) {
+      await pool.query('UPDATE signature_requests SET view_token_used_at = NOW() WHERE id = $1', [sigReq.id]);
+    }
 
     const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${meta.fileName || 'document.pdf'}"`);
 
-    await recordAudit({ docId: doc.id, action: 'VIEW', details: { via: 'signature_review_link', signatureRequestId: sigReq.id }, req });
+    await recordAudit({ docId: doc.id, action: 'VIEW', details: { via: 'signature_review_link', signatureRequestId: activeSigReq.id }, req });
 
     fs.createReadStream(doc.file_path).pipe(res);
   } catch (err) {
@@ -368,25 +428,30 @@ async function verifyOtpForReviewToken(req, res) {
       return res.status(404).json({ success: false, message: 'Signature request not found.' });
     }
     const sigReq = sigReqRows[0];
+    const activeSigReq = await resolveActiveSignatureRequest(sigReq);
     
-    if (sigReq.status !== 'pending') {
-      return res.status(409).json({ success: false, message: `Request already ${sigReq.status}.` });
+    if (activeSigReq.status !== 'pending') {
+      return res.status(409).json({ success: false, message: `Request already ${activeSigReq.status}.` });
     }
-    if (sigReq.view_token_used_at) {
+    if (activeSigReq.view_token_used_at) {
       return res.status(410).json({ success: false, message: 'This secure link has expired or has already been used.' });
     }
-    if (sigReq.locked_until && new Date(sigReq.locked_until) > new Date()) {
-      return res.status(423).json({ success: false, message: `Too many failed attempts. Try again after ${sigReq.locked_until}.` });
+    if (activeSigReq.locked_until && new Date(activeSigReq.locked_until) > new Date()) {
+      return res.status(423).json({ success: false, message: `Too many failed attempts. Try again after ${activeSigReq.locked_until}.` });
     }
-    if (new Date(sigReq.otp_expiry) < new Date()) {
+    if (new Date(activeSigReq.otp_expiry) < new Date()) {
       return res.status(410).json({ success: false, message: 'OTP has expired. Use "Resend OTP" to get a new code.' });
     }
 
-    const isValid = await verifyOtp(otp_code, sigReq.otp_code);
+    let isValid = await verifyOtp(otp_code, activeSigReq.otp_code);
+    if (!isValid && activeSigReq.id !== sigReq.id && sigReq.otp_code) {
+      isValid = await verifyOtp(otp_code, sigReq.otp_code);
+    }
+
     if (!isValid) {
-      const attempts = sigReq.otp_attempts + 1;
+      const attempts = activeSigReq.otp_attempts + 1;
       const lockedUntil = attempts >= MAX_OTP_ATTEMPTS ? lockoutExpiryDate() : null;
-      await pool.query('UPDATE signature_requests SET otp_attempts = $1, locked_until = $2 WHERE id = $3', [attempts, lockedUntil, sigReq.id]);
+      await pool.query('UPDATE signature_requests SET otp_attempts = $1, locked_until = $2 WHERE id = $3', [attempts, lockedUntil, activeSigReq.id]);
 
       if (lockedUntil) {
         return res.status(423).json({ success: false, message: 'Incorrect OTP. Maximum attempts reached — locked for 15 minutes.' });
@@ -394,13 +459,16 @@ async function verifyOtpForReviewToken(req, res) {
       return res.status(401).json({ success: false, message: `Incorrect OTP. ${MAX_OTP_ATTEMPTS - attempts} attempt(s) remaining.` });
     }
 
-    await pool.query('UPDATE signature_requests SET otp_verified_at = NOW() WHERE id = $1', [sigReq.id]);
+    await pool.query('UPDATE signature_requests SET otp_verified_at = NOW() WHERE id = $1', [activeSigReq.id]);
+    if (activeSigReq.id !== sigReq.id) {
+      await pool.query('UPDATE signature_requests SET otp_verified_at = NOW() WHERE id = $1', [sigReq.id]);
+    }
 
     await recordAudit({
-      userId: sigReq.approver_id,
-      docId: sigReq.doc_id,
+      userId: activeSigReq.approver_id,
+      docId: activeSigReq.doc_id,
       action: 'SIGN',
-      details: { event: 'otp_verified', signatureRequestId: sigReq.id, via: 'public_review_link' },
+      details: { event: 'otp_verified', signatureRequestId: activeSigReq.id, via: 'public_review_link' },
       req,
     });
 
@@ -675,10 +743,11 @@ async function approveSignatureByToken(req, res) {
       return res.status(404).json({ success: false, message: 'Signature request not found.' });
     }
     const sigReq = sigReqRows[0];
+    const activeSigReq = await resolveActiveSignatureRequest(sigReq);
 
     // Identity already confirmed by OTP before the document was revealed (see
     // verifyOtpForReviewToken) — no second OTP prompt at the approve step.
-    const result = await runApprovalPreVerified(sigReq);
+    const result = await runApprovalPreVerified(activeSigReq);
     if (!result.ok) {
       return res.status(result.status).json({ success: false, message: result.message });
     }
@@ -1006,16 +1075,17 @@ async function resendOtpByToken(req, res) {
       return res.status(404).json({ success: false, message: 'Signature request not found.' });
     }
     const sigReq = sigReqRows[0];
+    const activeSigReq = await resolveActiveSignatureRequest(sigReq);
     
-    if (sigReq.status !== 'pending') {
-      return res.status(409).json({ success: false, message: `Request already ${sigReq.status}.` });
+    if (activeSigReq.status !== 'pending') {
+      return res.status(409).json({ success: false, message: `Request already ${activeSigReq.status}.` });
     }
-    if (sigReq.locked_until && new Date(sigReq.locked_until) > new Date()) {
-      return res.status(423).json({ success: false, message: `Too many failed attempts. Try again after ${sigReq.locked_until}.` });
+    if (activeSigReq.locked_until && new Date(activeSigReq.locked_until) > new Date()) {
+      return res.status(423).json({ success: false, message: `Too many failed attempts. Try again after ${activeSigReq.locked_until}.` });
     }
 
-    const [docRows] = await pool.query('SELECT doc_uuid FROM generated_docs WHERE id = $1', [sigReq.doc_id]);
-    const [approverRows] = await pool.query('SELECT email, phone, full_name FROM users WHERE id = $1', [sigReq.approver_id]);
+    const [docRows] = await pool.query('SELECT doc_uuid FROM generated_docs WHERE id = $1', [activeSigReq.doc_id]);
+    const [approverRows] = await pool.query('SELECT email, phone, full_name FROM users WHERE id = $1', [activeSigReq.approver_id]);
 
     if (docRows.length === 0 || approverRows.length === 0) {
       return res.status(404).json({ success: false, message: 'Document or approver not found.' });
@@ -1029,7 +1099,7 @@ async function resendOtpByToken(req, res) {
 
     await pool.query(
       'UPDATE signature_requests SET otp_code = $1, otp_expiry = $2, otp_attempts = 0, view_token_used_at = NULL, otp_verified_at = NULL WHERE id = $3',
-      [otpHash, otpExpiryDate(), id]
+      [otpHash, otpExpiryDate(), activeSigReq.id]
     );
 
     const { subject, html } = templates.docReadyForSigning({

@@ -99,7 +99,6 @@ export default function DocumentTrackingPage() {
   const [templateFilter, setTemplateFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
-  const [collapsedTemplates, setCollapsedTemplates] = useState(() => new Set());
 
   // Approver-assignment modal is keyed to whichever document currently needs it —
   // a freshly generated one, or a rejected one being resubmitted.
@@ -309,47 +308,8 @@ export default function DocumentTrackingPage() {
     });
   }, [activeDocs, search, templateFilter, statusFilter, dateFilter]);
 
-  // Groups documents by template name, and within each template by status — the API
-  // already returns docs ordered newest-first, and that relative order is preserved
-  // inside each group. Template groups are sorted alphabetically for a stable layout
-  // across reloads instead of jumping around with generation order.
-  const templateGroups = useMemo(() => {
-    const byTemplate = new Map();
-    for (const doc of filteredDocs) {
-      const key = doc.template_name || 'Untitled Template';
-      if (!byTemplate.has(key)) byTemplate.set(key, []);
-      byTemplate.get(key).push(doc);
-    }
-    return Array.from(byTemplate.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([templateName, docs]) => {
-        const byStatus = new Map();
-        for (const doc of docs) {
-          const key = effectiveStatus(doc);
-          if (!byStatus.has(key)) byStatus.set(key, []);
-          byStatus.get(key).push(doc);
-        }
-        const statusGroups = STATUS_GROUP_ORDER
-          .filter((status) => byStatus.has(status))
-          .map((status) => ({ status, docs: byStatus.get(status) }));
-        // Defensive: any status outside the known set still shows up, just last.
-        for (const [status, docs] of byStatus) {
-          if (!STATUS_GROUP_ORDER.includes(status)) statusGroups.push({ status, docs });
-        }
-        return { templateName, count: docs.length, statusGroups };
-      });
-  }, [filteredDocs]);
-
   const visibleDocCount = filteredDocs.length;
   const hasActiveFilters = Boolean(search.trim() || templateFilter || statusFilter || dateFilter);
-
-  const toggleTemplateCollapsed = (templateName) => {
-    setCollapsedTemplates((prev) => {
-      const next = new Set(prev);
-      if (next.has(templateName)) next.delete(templateName); else next.add(templateName);
-      return next;
-    });
-  };
 
   const clearFilters = () => {
     setSearch('');
@@ -415,56 +375,25 @@ export default function DocumentTrackingPage() {
       ) : visibleDocCount === 0 ? (
         <div className="doc-track-empty">No documents match your search/filters. <button type="button" className="doc-track-link-btn" onClick={clearFilters}>Clear filters</button></div>
       ) : (
-        <div className="doc-track-groups">
-          {templateGroups.map((group) => {
-            const collapsed = collapsedTemplates.has(group.templateName);
-            return (
-              <section className="doc-track-template-group" key={group.templateName}>
-                <button
-                  type="button"
-                  className="doc-track-template-header"
-                  onClick={() => toggleTemplateCollapsed(group.templateName)}
-                  aria-expanded={!collapsed}
-                >
-                  <span className={`doc-track-caret${collapsed ? ' doc-track-caret-collapsed' : ''}`}>▼</span>
-                  <h2>{group.templateName}</h2>
-                  <span className="doc-track-count">{group.count} document{group.count === 1 ? '' : 's'}</span>
-                </button>
-                {!collapsed && group.statusGroups.map(({ status, docs }) => {
-                  const entry = STATUS_BADGE[status] || { tone: 'slate', label: status };
-                  return (
-                    <div className="doc-track-status-group" key={status}>
-                      <div className={`doc-track-status-header doc-track-status-header-${entry.tone}`}>
-                        <span className="doc-badge-dot" />
-                        {entry.label}
-                        <span className="doc-track-status-count">{docs.length}</span>
-                      </div>
-                      <div className="doc-track-grid">
-                        {docs.map((doc) => (
-                          <DocumentCard
-                            key={doc.id}
-                            doc={doc}
-                            highlighted={String(doc.id) === String(highlightDocId)}
-                            isAdmin={isAdminUser}
-                            user={user}
-                            onNeedsApprover={() => setApproverModalDoc({ id: doc.id, doc_uuid: doc.doc_uuid })}
-                            onSecureDeliver={() => setSecureDeliveryModalDoc(doc)}
-                            onChanged={loadMyDocs}
-                            onEditResubmit={(banner) => handleEditResubmit(doc, banner || null)}
-                            ownershipRejectionBanner={
-                              ownershipRejectionBanner && ownershipRejectionBanner.docId === String(doc.id)
-                                ? ownershipRejectionBanner
-                                : null
-                            }
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </section>
-            );
-          })}
+        <div className="doc-track-grid">
+          {filteredDocs.map((doc) => (
+            <DocumentCard
+              key={doc.id}
+              doc={doc}
+              highlighted={String(doc.id) === String(highlightDocId)}
+              isAdmin={isAdminUser}
+              user={user}
+              onNeedsApprover={() => setApproverModalDoc({ id: doc.id, doc_uuid: doc.doc_uuid })}
+              onSecureDeliver={() => setSecureDeliveryModalDoc(doc)}
+              onChanged={loadMyDocs}
+              onEditResubmit={(banner) => handleEditResubmit(doc, banner || null)}
+              ownershipRejectionBanner={
+                ownershipRejectionBanner && ownershipRejectionBanner.docId === String(doc.id)
+                  ? ownershipRejectionBanner
+                  : null
+              }
+            />
+          ))}
         </div>
       )}
       {approverModalDoc && (
@@ -512,28 +441,18 @@ function DocBadge({ status }) {
 function DocumentCard({ doc, highlighted, isAdmin, user, onNeedsApprover, onSecureDeliver, onChanged, onEditResubmit, ownershipRejectionBanner }) {
   const { showToast } = useToast();
   const cardRef = useRef(null);
-  const menuRef = useRef(null);
   const [viewingDoc, setViewingDoc] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [markingDelivered, setMarkingDelivered] = useState(false);
   const [sendingDocument, setSendingDocument] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     if (highlighted && cardRef.current) {
       cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [highlighted]);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const isDeleted = Boolean(doc.deleted_at);
   const wasRejected = doc.status === 'draft' && doc.signature_status === 'rejected';
@@ -586,7 +505,6 @@ function DocumentCard({ doc, highlighted, isAdmin, user, onNeedsApprover, onSecu
     try {
       const res = await deliveryService.markHandDelivered(doc.id);
       showToast(res.message || 'Marked as hand-delivered.', 'success');
-      setMenuOpen(false);
       onChanged();
     } catch (err) {
       showToast(err.message || 'Failed to update status.', 'error');
@@ -712,16 +630,6 @@ function DocumentCard({ doc, highlighted, isAdmin, user, onNeedsApprover, onSecu
                 {markingDelivered ? 'Updating…' : 'Hand Delivered'}
               </button>
             )}
-            {/* Delete — visible directly for pending (admin) and draft docs */}
-            {canDelete && (doc.status === 'pending' || doc.status === 'draft') && (
-              <button
-                type="button"
-                onClick={() => setConfirmingDelete(true)}
-                className="doc-btn doc-btn-danger"
-              >
-                Delete
-              </button>
-            )}
             {/* When arriving from an ownership-rejection bell notification, surface
                 Edit & Resubmit prominently even for a delivered doc — the rejection
                 means the recipient never owned it, so it needs to be resent. */}
@@ -731,47 +639,61 @@ function DocumentCard({ doc, highlighted, isAdmin, user, onNeedsApprover, onSecu
                 Edit &amp; Resubmit
               </button>
             )}
-            {/* ⋮ menu — Delete for signed/delivered/rejected (not shown inline) */}
-            {hasSecondaryActions && doc.status !== 'pending' && doc.status !== 'draft' && (
-              <div className="doc-card-menu" ref={menuRef}>
-                <button
-                  type="button"
-                  className="doc-btn doc-btn-secondary doc-card-menu-trigger"
-                  onClick={() => setMenuOpen((o) => !o)}
-                  title="More actions"
-                  aria-haspopup="true"
-                  aria-expanded={menuOpen}
-                >
-                  ⋮
-                </button>
-                {menuOpen && (
-                  <div className="doc-card-menu-dropdown">
-                    <button
-                      type="button"
-                      className="doc-card-menu-item doc-card-menu-item-danger"
-                      onClick={() => { setMenuOpen(false); setConfirmingDelete(true); }}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
-              </div>
+            {/* Direct compact Delete button — replaces the three-dot menu */}
+            {canDelete && (
+              <button
+                type="button"
+                className="doc-btn doc-btn-danger"
+                onClick={() => setConfirmingDelete(true)}
+                title="Delete document"
+              >
+                Delete
+              </button>
             )}
           </div>
+          {/* Compact delete confirmation dialog — preserves the document view context */}
           {confirmingDelete && (
-            <div className="doc-confirm-banner doc-confirm-banner-danger" style={{ marginTop: 10 }}>
-              <p>
-                {doc.status === 'pending'
-                  ? 'Delete this document? The pending approval request will be cancelled immediately and the approver\'s review link will stop working. This cannot be undone.'
-                  : 'Delete this document? Its file will be removed and it can no longer be viewed, downloaded, or delivered — but it will still be verifiable by Doc ID on the Verify Document page. This can\'t be undone.'}
-              </p>
-              <div className="doc-confirm-banner-actions">
-                <button type="button" onClick={handleDelete} disabled={deleting} className="doc-btn doc-btn-danger doc-btn-sm">
-                  {deleting ? 'Deleting…' : 'Yes, Delete'}
-                </button>
-                <button type="button" onClick={() => setConfirmingDelete(false)} disabled={deleting} className="doc-btn doc-btn-secondary doc-btn-sm">
-                  Cancel
-                </button>
+            <div className="modal-overlay" onClick={() => !deleting && setConfirmingDelete(false)} style={{ zIndex: 1200 }}>
+              <div
+                className="modal-panel"
+                style={{ maxWidth: 420, padding: '20px 24px', background: 'var(--bg-surface)', borderRadius: 10, border: '1px solid var(--border)' }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <span style={{ color: '#DC2626', display: 'flex' }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                  </span>
+                  <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                    Delete Document?
+                  </h3>
+                </div>
+                <p style={{ margin: '0 0 16px', fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  {doc.status === 'pending'
+                    ? `Delete ${doc.doc_uuid}? The pending approval request will be cancelled immediately and the approver's review link will stop working. This cannot be undone.`
+                    : `Delete ${doc.doc_uuid}? Its file will be removed and it can no longer be viewed, downloaded, or delivered. This cannot be undone.`}
+                </p>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingDelete(false)}
+                    disabled={deleting}
+                    className="doc-btn doc-btn-secondary doc-btn-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="doc-btn doc-btn-danger doc-btn-sm"
+                  >
+                    {deleting ? 'Deleting…' : 'Delete'}
+                  </button>
+                </div>
               </div>
             </div>
           )}

@@ -5,9 +5,9 @@ import { useToast } from '../../hooks/useToast';
 const STATUS_COLORS = {
   draft:     '#94A3B8', // slate   — neutral, not yet submitted
   pending:   '#F59E0B', // amber   — awaiting action
-  signed:    '#159A9C', // teal    — approved/complete
+  signed:    '#16A34A', // green   — approved/complete
   rejected:  '#EF4444', // red     — needs attention
-  delivered: '#6366F1', // indigo  — sent to recipient
+  delivered: '#2563EB', // blue    — sent to recipient
 };
 
 const STATUS_LABELS = {
@@ -39,7 +39,7 @@ function BarChart({ daily }) {
           <g key={d.day}>
             <rect
               x={x} y={y} width={Math.max(barW, 2)} height={Math.max(barH, d.count > 0 ? 2 : 0)}
-              rx="3" fill="#159A9C"
+              rx="3" fill="#2563EB"
             >
               <title>{`${label}: ${d.count} document(s)`}</title>
             </rect>

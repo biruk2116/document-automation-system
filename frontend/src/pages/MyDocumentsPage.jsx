@@ -81,26 +81,14 @@ function ResubmitPanel({ resubmitDoc, onDone, onCancel }) {
     }
     setSubmitting(true);
     try {
-      // Step 1: regenerate PDF (marks it signed directly — no approver step).
+      // Step 1: regenerate PDF and send directly to the approver.
       const res = await documentService.resubmit(resubmitDoc.id, {
         record_identifier: recordId.trim(),
         note: note.trim(),
       });
-      showToast(res.message || 'Corrected document generated.', 'success');
+      showToast(res.message || 'Corrected document generated and sent for the approver.', 'success');
 
-      // Step 2: send new secure-link+OTP delivery to the original recipient.
-      setPhase('redelivering');
-      let delivery = null;
-      try {
-        const newDocId = res.data?.id || res.data?.docId || resubmitDoc.id;
-        const delivRes = await deliveryService.resubmitDelivery(newDocId);
-        delivery = delivRes.data;
-      } catch (delivErr) {
-        // Non-fatal: document was regenerated; Generator can use Send from Document
-        // Tracking if the automatic delivery fails (e.g. no prior rejected delivery).
-        console.warn('[ResubmitPanel] resubmit-delivery failed (non-fatal):', delivErr.message);
-      }
-      setDeliveryResult(delivery);
+      setDeliveryResult(res.data || null);
       setPhase('done');
     } catch (err) {
       showToast(err.message || 'Failed to resubmit document.', 'error');
@@ -118,25 +106,15 @@ function ResubmitPanel({ resubmitDoc, onDone, onCancel }) {
         <div className="send-doc-verify send-doc-verify-ok" style={{ flexDirection: 'column', gap: 10, maxWidth: 560, marginTop: 16 }}>
           <div>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-            Corrected document regenerated
+            Corrected document regenerated {deliveryResult?.docUuid ? <b>({deliveryResult.docUuid})</b> : ''}
           </div>
-          {deliveryResult ? (
-            <>
-              <div>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-                Sent directly to <b>{deliveryResult.recipientEmail}</b>
-              </div>
-              <div style={{ fontSize: '0.82rem', color: '#475569', marginTop: 4 }}>
-                The recipient will receive a new secure link and must complete OTP
-                verification again before downloading. No approver step was needed.
-              </div>
-            </>
-          ) : (
-            <div style={{ fontSize: '0.82rem', color: '#64748B', marginTop: 4 }}>
-              Delivery could not be sent automatically — use the <b>Send</b> button in
-              Document Tracking to send it to the recipient.
-            </div>
-          )}
+          <div>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+            Sent for the approver <b>{deliveryResult?.approverName ? `(${deliveryResult.approverName})` : ''}</b>
+          </div>
+          <div style={{ fontSize: '0.82rem', color: '#475569', marginTop: 4 }}>
+            The approver has been sent a new secure review link and OTP to review and approve the fixed document.
+          </div>
         </div>
         <div className="template-form-actions" style={{ marginTop: 20 }}>
           <button type="button" onClick={onDone} className="btn-primary">Go to Document Tracking</button>
@@ -150,7 +128,7 @@ function ResubmitPanel({ resubmitDoc, onDone, onCancel }) {
       <h1>Edit &amp; Resubmit</h1>
       <p style={{ color: '#64748B', marginTop: -8 }}>
         Fixing <b>{resubmitDoc.doc_uuid}</b> ({resubmitDoc.template_name}) — the corrected document
-        will be sent <b>directly to the recipient</b> once you submit. No approver step required.
+        will be sent <b>for the approver</b> to review once you submit.
       </p>
 
       {resubmitDoc.rejection_reason && (
@@ -197,8 +175,8 @@ function ResubmitPanel({ resubmitDoc, onDone, onCancel }) {
         </div>
 
         <p style={{ fontSize: '0.82rem', color: '#475569', margin: '0 0 12px' }}>
-          Submitting regenerates the document and sends a new secure link + OTP
-          directly to the recipient — they must verify their identity again before downloading.
+          Submitting regenerates the document and sends a new secure review link + OTP
+          for the approver to review and approve.
         </p>
 
         <div className="template-form-actions">
@@ -206,7 +184,7 @@ function ResubmitPanel({ resubmitDoc, onDone, onCancel }) {
             {loadingPreview ? 'Loading…' : 'Preview'}
           </button>
           <button type="button" onClick={handleSubmit} disabled={submitting || !recordId.trim()} className="btn-primary">
-            {phase === 'redelivering' ? 'Sending to recipient…' : submitting ? 'Regenerating…' : 'Regenerate & Send to Recipient'}
+            {submitting ? 'Regenerating & Sending for the Approver…' : 'Regenerate & Send for the Approver'}
           </button>
           <button type="button" onClick={onCancel} disabled={submitting} className="btn-secondary">
             Cancel

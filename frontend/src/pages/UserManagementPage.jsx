@@ -60,7 +60,8 @@ export default function UserManagementPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
-  const [busyId, setBusyId] = useState(null);
+  const [statusBusyId, setStatusBusyId] = useState(null);
+  const [deleteBusyId, setDeleteBusyId] = useState(null);
   const [pendingDelete, setPendingDelete] = useState(null); // user awaiting delete confirmation
   const [search, setSearch] = useState('');
 
@@ -97,7 +98,7 @@ export default function UserManagementPage() {
   };
 
   const handleToggleStatus = async (user) => {
-    setBusyId(user.id);
+    setStatusBusyId(user.id);
     try {
       const res = await userService.updateStatus(user.id, !user.is_active);
       showToast(res.message || 'Updated.', 'success');
@@ -105,7 +106,7 @@ export default function UserManagementPage() {
     } catch (err) {
       showToast(err.message || 'Failed to update status.', 'error');
     } finally {
-      setBusyId(null);
+      setStatusBusyId(null);
     }
   };
 
@@ -114,7 +115,7 @@ export default function UserManagementPage() {
   const confirmDelete = async () => {
     if (!pendingDelete) return;
     const user = pendingDelete;
-    setBusyId(user.id);
+    setDeleteBusyId(user.id);
     try {
       const res = await userService.remove(user.id);
       showToast(res.message || 'User deleted.', 'success');
@@ -122,7 +123,7 @@ export default function UserManagementPage() {
     } catch (err) {
       showToast(err.message || 'Failed to delete user.', 'error');
     } finally {
-      setBusyId(null);
+      setDeleteBusyId(null);
       setPendingDelete(null);
     }
   };
@@ -241,20 +242,20 @@ export default function UserManagementPage() {
                         <button
                           type="button"
                           onClick={() => handleToggleStatus(u)}
-                          disabled={busyId === u.id}
+                          disabled={statusBusyId === u.id || deleteBusyId === u.id}
                           style={{ whiteSpace: 'nowrap' }}
                         >
-                          {u.is_active ? 'Deactivate' : 'Activate'}
+                          {statusBusyId === u.id ? 'Working…' : (u.is_active ? 'Deactivate' : 'Activate')}
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDelete(u)}
-                          disabled={busyId === u.id}
+                          disabled={deleteBusyId === u.id || statusBusyId === u.id}
                           className="btn-danger"
                           title="Permanently delete this user"
                           style={{ whiteSpace: 'nowrap' }}
                         >
-                          {busyId === u.id ? 'Working…' : 'Delete'}
+                          {deleteBusyId === u.id ? 'Working…' : 'Delete'}
                         </button>
                       </div>
                     )}
@@ -271,7 +272,7 @@ export default function UserManagementPage() {
           title="Delete user?"
           message={<>Delete <strong>{pendingDelete.full_name}</strong> ({pendingDelete.email})?</>}
           confirmLabel="Delete"
-          busy={busyId === pendingDelete.id}
+          busy={deleteBusyId === pendingDelete.id}
           onConfirm={confirmDelete}
           onCancel={() => setPendingDelete(null)}
         />
