@@ -19,7 +19,7 @@ const loginStyles = `
   :root { color-scheme: light dark; }
   .login-page {
     width: 100vw; height: 100vh; display: flex; overflow: hidden;
-    background: #F3F6FA; color: #0f172a; user-select: none;
+    background: #ffffff; color: #0f172a; user-select: none;
   }
   .login-left {
     width: 50%; height: 100%; display: flex; flex-direction: column;
@@ -36,11 +36,11 @@ const loginStyles = `
   .login-right {
     width: 50%; height: 100%; display: flex; flex-direction: column;
     justify-content: center; align-items: center; padding: 40px 56px;
-    background: #F4F6FA; overflow: hidden; flex-shrink: 0;
+    background: #ffffff; overflow: hidden; flex-shrink: 0;
   }
   .login-card {
     width: 100%; max-width: 410px; background: #ffffff; border-radius: 24px;
-    border: 1px solid #e8edf5; padding: 36px; box-shadow: 0 20px 60px rgba(0,0,0,0.08);
+    border: 1px solid #e8edf5; padding: 36px; box-shadow: 0 20px 60px rgba(0,0,0,0.06);
   }
   .login-avatar {
     width: 80px; height: 80px; border-radius: 50%; background: #eff6ff;
@@ -110,19 +110,19 @@ const loginStyles = `
   }
   .login-error svg { flex-shrink: 0; margin-top: 1px; }
 
-  /* DARK MODE — black panels, blue button */
+  /* DARK MODE — pure black panels, clean black right side, blue button */
   @media (prefers-color-scheme: dark) {
     .login-page   { background: #000000; color: #ffffff; }
     .login-left   { background: #000000; border-right: 1px solid #1a1a1a; }
     .login-left-title { color: #ffffff; }
-    .login-right  { background: #0d0d0d; }
-    .login-card   { background: #161616; border-color: #2a2a2a; box-shadow: 0 20px 60px rgba(0,0,0,0.7); }
+    .login-right  { background: #000000; }
+    .login-card   { background: #000000; border-color: #222222; box-shadow: 0 20px 60px rgba(0,0,0,0.8); }
     .login-avatar { background: rgba(37,99,235,0.15); border-color: rgba(37,99,235,0.3); }
     .login-avatar svg { color: #60a5fa; }
     .login-heading { color: #ffffff; }
-    .login-input  { background: #1e1e1e; border-color: #2e2e2e; color: #ffffff; }
-    .login-input::placeholder { color: #555555; }
-    .login-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.2); }
+    .login-input  { background: #111111; border-color: #262626; color: #ffffff; }
+    .login-input::placeholder { color: #666666; }
+    .login-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.25); }
     .login-input-icon { color: #60a5fa; }
     .login-eye    { color: #666666; }
     .login-eye:hover { color: #ffffff; }
@@ -141,14 +141,14 @@ const loginStyles = `
   .dark .login-page   { background: #000000; color: #ffffff; }
   .dark .login-left   { background: #000000; border-right: 1px solid #1a1a1a; }
   .dark .login-left-title { color: #ffffff; }
-  .dark .login-right  { background: #0d0d0d; }
-  .dark .login-card   { background: #161616; border-color: #2a2a2a; box-shadow: 0 20px 60px rgba(0,0,0,0.7); }
+  .dark .login-right  { background: #000000; }
+  .dark .login-card   { background: #000000; border-color: #222222; box-shadow: 0 20px 60px rgba(0,0,0,0.8); }
   .dark .login-avatar { background: rgba(37,99,235,0.15); border-color: rgba(37,99,235,0.3); }
   .dark .login-avatar svg { color: #60a5fa; }
   .dark .login-heading { color: #ffffff; }
-  .dark .login-input  { background: #1e1e1e; border-color: #2e2e2e; color: #ffffff; }
-  .dark .login-input::placeholder { color: #555555; }
-  .dark .login-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.2); }
+  .dark .login-input  { background: #111111; border-color: #262626; color: #ffffff; }
+  .dark .login-input::placeholder { color: #666666; }
+  .dark .login-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.25); }
   .dark .login-input-icon { color: #60a5fa; }
   .dark .login-eye    { color: #666666; }
   .dark .login-eye:hover { color: #ffffff; }
