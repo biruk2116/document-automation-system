@@ -253,8 +253,18 @@ async function ensureSchema() {
       $$ LANGUAGE plpgsql IMMUTABLE;
     `);
     
-    // 1. Create action_type enum
-    console.log('[db] Creating action_type enum...');
+    // 1. Create action_type and audit_action enums
+    console.log('[db] Creating action_type and audit_action enums...');
+    const allActions = [
+      'PREVIEW', 'GENERATE', 'SIGN', 'REJECT', 'DELIVER', 'VERIFY', 'DOWNLOAD', 'VIEW',
+      'LOGIN', 'LOGOUT', 'CREATE_TEMPLATE', 'UPDATE_TEMPLATE', 'DELETE_TEMPLATE', 'ARCHIVE_TEMPLATE',
+      'CREATE_USER', 'UPDATE_USER', 'DELETE_USER', 'PASSWORD_RESET_REQUEST', 'PASSWORD_RESET_COMPLETE',
+      'DELETE_DOCUMENT', 'SECURE_DELIVER', 'OTP_VERIFY', 'OWNERSHIP_CONFIRM', 'OWNERSHIP_REJECT',
+      'OWNERSHIP_REJECTED_NOTIFY', 'DELIVERY_OWNED_NOTIFY', 'REVOKE_DOCUMENT',
+      'WORKFLOW_COMPLETE_NOTIFY', 'ACKNOWLEDGE_NOTIFY', 'WORKFLOW_RESPONSE', 'RECIPIENT_SIGN', 'RESUBMIT'
+    ];
+
+    // Ensure action_type enum exists
     await pool.query(`
       DO $$ BEGIN
         CREATE TYPE action_type AS ENUM (
@@ -263,54 +273,47 @@ async function ensureSchema() {
           'CREATE_USER', 'UPDATE_USER', 'DELETE_USER', 'PASSWORD_RESET_REQUEST', 'PASSWORD_RESET_COMPLETE',
           'DELETE_DOCUMENT', 'SECURE_DELIVER', 'OTP_VERIFY', 'OWNERSHIP_CONFIRM', 'OWNERSHIP_REJECT',
           'OWNERSHIP_REJECTED_NOTIFY', 'DELIVERY_OWNED_NOTIFY', 'REVOKE_DOCUMENT',
-          'WORKFLOW_COMPLETE_NOTIFY', 'ACKNOWLEDGE_NOTIFY'
+          'WORKFLOW_COMPLETE_NOTIFY', 'ACKNOWLEDGE_NOTIFY', 'WORKFLOW_RESPONSE', 'RECIPIENT_SIGN', 'RESUBMIT'
         );
       EXCEPTION
         WHEN duplicate_object THEN null;
       END $$;
+    `);
 
-      -- Add new enum values if they don't exist (for existing enums)
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'OWNERSHIP_REJECTED_NOTIFY' AND enumtypid = 'action_type'::regtype) THEN
-          ALTER TYPE action_type ADD VALUE 'OWNERSHIP_REJECTED_NOTIFY';
-        END IF;
-      EXCEPTION WHEN OTHERS THEN NULL;
-      END $$;
-      
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'DELIVERY_OWNED_NOTIFY' AND enumtypid = 'action_type'::regtype) THEN
-          ALTER TYPE action_type ADD VALUE 'DELIVERY_OWNED_NOTIFY';
-        END IF;
-      EXCEPTION WHEN OTHERS THEN NULL;
-      END $$;
-      
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'REVOKE_DOCUMENT' AND enumtypid = 'action_type'::regtype) THEN
-          ALTER TYPE action_type ADD VALUE 'REVOKE_DOCUMENT';
-        END IF;
-      EXCEPTION WHEN OTHERS THEN NULL;
-      END $$;
-      
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'WORKFLOW_COMPLETE_NOTIFY' AND enumtypid = 'action_type'::regtype) THEN
-          ALTER TYPE action_type ADD VALUE 'WORKFLOW_COMPLETE_NOTIFY';
-        END IF;
-      EXCEPTION WHEN OTHERS THEN NULL;
-      END $$;
-      
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'ACKNOWLEDGE_NOTIFY' AND enumtypid = 'action_type'::regtype) THEN
-          ALTER TYPE action_type ADD VALUE 'ACKNOWLEDGE_NOTIFY';
-        END IF;
-      EXCEPTION WHEN OTHERS THEN NULL;
+    // Ensure audit_action enum exists
+    await pool.query(`
+      DO $$ BEGIN
+        CREATE TYPE audit_action AS ENUM (
+          'PREVIEW', 'GENERATE', 'SIGN', 'REJECT', 'DELIVER', 'VERIFY', 'DOWNLOAD', 'VIEW',
+          'LOGIN', 'LOGOUT', 'CREATE_TEMPLATE', 'UPDATE_TEMPLATE', 'DELETE_TEMPLATE', 'ARCHIVE_TEMPLATE',
+          'CREATE_USER', 'UPDATE_USER', 'DELETE_USER', 'PASSWORD_RESET_REQUEST', 'PASSWORD_RESET_COMPLETE',
+          'DELETE_DOCUMENT', 'SECURE_DELIVER', 'OTP_VERIFY', 'OWNERSHIP_CONFIRM', 'OWNERSHIP_REJECT',
+          'OWNERSHIP_REJECTED_NOTIFY', 'DELIVERY_OWNED_NOTIFY', 'REVOKE_DOCUMENT',
+          'WORKFLOW_COMPLETE_NOTIFY', 'ACKNOWLEDGE_NOTIFY', 'WORKFLOW_RESPONSE', 'RECIPIENT_SIGN', 'RESUBMIT'
+        );
+      EXCEPTION
+        WHEN duplicate_object THEN null;
       END $$;
     `);
-    console.log('[db] ✓ action_type enum ready');
+
+    // Ensure all enum values exist on both types in existing databases
+    for (const typeName of ['action_type', 'audit_action']) {
+      for (const val of allActions) {
+        try {
+          await pool.query(`
+            DO $$ BEGIN
+              IF EXISTS (SELECT 1 FROM pg_type WHERE typname = '${typeName}') THEN
+                IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = '${val}' AND enumtypid = '${typeName}'::regtype) THEN
+                  ALTER TYPE ${typeName} ADD VALUE '${val}';
+                END IF;
+              END IF;
+            EXCEPTION WHEN OTHERS THEN NULL;
+            END $$;
+          `);
+        } catch { /* ignore individual enum value errors */ }
+      }
+    }
+    console.log('[db] ✓ action_type and audit_action enums ready');
 
     // 2. Create users table
     console.log('[db] Creating users table...');
