@@ -11,7 +11,7 @@ async function recordAudit({ userId = null, docId = null, action, details = null
 
     await pool.query(
       `INSERT INTO audit_logs (user_id, doc_id, action, action_details, ip_address, user_agent)
-       VALUES (?, ?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5, $6)`,
       [userId, docId, action, details ? JSON.stringify(details) : null, ip, userAgent]
     );
   } catch (err) {
