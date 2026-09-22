@@ -1256,51 +1256,67 @@ a { font-family: inherit; }
 .notif-bell-btn {
   background: none; border: none; cursor: pointer; position: relative;
   color: var(--text-secondary); width: 38px; height: 38px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center; transition: background 0.15s;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s, color 0.15s;
 }
-.notif-bell-btn:hover { background: var(--bg-subtle); color: var(--text-primary); }
+.notif-bell-btn:hover { background: var(--bg-subtle); color: var(--brand); }
 .notif-badge {
   position: absolute; top: 2px; right: 2px; background: #E11D2E; color: #fff;
   border-radius: 999px; font-size: 0.63rem; font-weight: 700;
   min-width: 16px; height: 16px; padding: 0 4px;
   display: flex; align-items: center; justify-content: center; line-height: 1;
-  border: 2px solid var(--bg-surface); box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  border: 2px solid var(--bg-surface); box-shadow: 0 1px 4px rgba(225,29,46,0.5);
   animation: notif-badge-pop 0.25s ease-out;
 }
 @keyframes notif-badge-pop { 0% { transform: scale(0.4); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+/* Critical fix: --shadow-lg is 'none' in the design tokens, so we override with an explicit shadow */
 .notif-dropdown {
-  position: absolute; right: 0; top: 44px; width: 320px; max-height: 400px; overflow-y: auto;
+  position: absolute; right: 0; top: 46px; width: 320px; max-height: 420px; overflow-y: auto;
   background: var(--bg-surface); border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg); z-index: 1500; border: 1px solid var(--border);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10);
+  z-index: 1500; border: 1px solid var(--border);
+  animation: notif-dropdown-in 0.15s ease-out;
 }
-.notif-item { padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 0.85rem; color: var(--text-primary); }
+@keyframes notif-dropdown-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.notif-item {
+  padding: 12px 14px; border-bottom: 1px solid var(--border);
+  font-size: 0.85rem; color: var(--text-primary);
+  cursor: pointer; transition: background 0.12s;
+  background: none; border-left: none; border-right: none; border-top: none;
+  width: 100%; text-align: left;
+}
+.notif-item:hover { background: var(--bg-subtle); }
 .notif-item:last-child { border-bottom: none; }
 .notif-item-read { opacity: 0.6; }
-.notif-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-right: 6px; }
-.notif-empty { padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+.notif-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-right: 6px; flex-shrink: 0; }
+.notif-empty { padding: 24px 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
 
-/* Dark mode notification dropdown — sharp, high-contrast, no blur */
+/* Dark mode notification dropdown — sharp, high-contrast */
 .dark .notif-dropdown {
-  background: #0F172A;                       /* solid Slate 900 */
-  border: 1px solid #1E293B;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04);
+  background: #111111;
+  border: 1px solid #2a2a2a;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.04);
 }
 .dark .notif-item {
-  color: #F8FAFC;                            /* Slate 50 */
-  border-bottom-color: #1E293B;
+  color: #f1f5f9;
+  border-bottom-color: #1e1e1e;
   background: transparent;
 }
-.dark .notif-item:hover { background: #1E293B; }
+.dark .notif-item:hover { background: #1e1e1e; }
 .dark .notif-item-read {
-  opacity: 0.6;
-  color: #8BA4C4;                            /* --text-secondary */
+  opacity: 0.55;
+  color: #94a3b8;
 }
-.dark .notif-item-read:hover { background: #1E293B; opacity: 0.8; }
-.dark .notif-empty { color: #94A3B8; }
-.dark .notif-dot { background: #2563EB; }    /* Blue 600 in dark */
+.dark .notif-item-read:hover { background: #1a1a1a; opacity: 0.75; }
+.dark .notif-empty { color: #6b7280; }
+.dark .notif-dot { background: #2563eb; }
+.dark .notif-badge { border-color: #111111; }
 /* Notification header row if present */
 .dark .notif-dropdown h4, .dark .notif-dropdown h3 {
-  color: #E8F0FD;
+  color: #f1f5f9;
   font-weight: 700;
 }
 .notif-doc-frame { width: 100%; height: 78vh; border: none; display: block; }

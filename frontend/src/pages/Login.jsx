@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { ROLES } from '../utils/roles';
@@ -24,12 +24,12 @@ const loginStyles = `
   .login-left {
     width: 50%; height: 100%; display: flex; flex-direction: column;
     justify-content: center; align-items: center;
-    background: linear-gradient(145deg, #EEF3FB 0%, #E2ECF8 50%, #D8E5F5 100%);
-    border-right: 1px solid #D1DCF0; flex-shrink: 0; overflow: hidden;
+    background: #ffffff;
+    border-right: 1px solid #e8edf5; flex-shrink: 0; overflow: hidden;
   }
   .login-left-inner { display: flex; flex-direction: column; align-items: center; gap: 28px; padding: 40px; }
   .login-left-title {
-    font-size: 2rem; font-weight: 800; color: #132f5e; line-height: 1.25;
+    font-size: 2rem; font-weight: 800; color: #0f2856; line-height: 1.25;
     letter-spacing: -0.01em; text-align: center;
     font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; margin: 0;
   }
@@ -110,56 +110,56 @@ const loginStyles = `
   }
   .login-error svg { flex-shrink: 0; margin-top: 1px; }
 
-  /* DARK MODE — fully black, pure white */
+  /* DARK MODE — black panels, blue button */
   @media (prefers-color-scheme: dark) {
     .login-page   { background: #000000; color: #ffffff; }
-    .login-left   { background: #0A0A0A; border-right: 1px solid #1a1a1a; }
+    .login-left   { background: #000000; border-right: 1px solid #1a1a1a; }
     .login-left-title { color: #ffffff; }
-    .login-right  { background: #111111; }
-    .login-card   { background: #1a1a1a; border-color: #2a2a2a; box-shadow: 0 20px 60px rgba(0,0,0,0.7); }
-    .login-avatar { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.12); }
-    .login-avatar svg { color: #ffffff; }
+    .login-right  { background: #0d0d0d; }
+    .login-card   { background: #161616; border-color: #2a2a2a; box-shadow: 0 20px 60px rgba(0,0,0,0.7); }
+    .login-avatar { background: rgba(37,99,235,0.15); border-color: rgba(37,99,235,0.3); }
+    .login-avatar svg { color: #60a5fa; }
     .login-heading { color: #ffffff; }
-    .login-input  { background: #222222; border-color: #333333; color: #ffffff; }
+    .login-input  { background: #1e1e1e; border-color: #2e2e2e; color: #ffffff; }
     .login-input::placeholder { color: #555555; }
-    .login-input:focus { border-color: #ffffff; box-shadow: 0 0 0 3px rgba(255,255,255,0.12); }
-    .login-input-icon { color: #ffffff; }
+    .login-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.2); }
+    .login-input-icon { color: #60a5fa; }
     .login-eye    { color: #666666; }
     .login-eye:hover { color: #ffffff; }
-    .login-forgot a { color: #ffffff; }
-    .login-forgot a:hover { color: #cccccc; }
-    .login-btn { background: #ffffff; color: #000000; box-shadow: 0 4px 14px rgba(255,255,255,0.12); }
-    .login-btn:hover:not(:disabled) { background: #f0f0f0; box-shadow: 0 6px 20px rgba(255,255,255,0.18); }
-    .login-btn:active:not(:disabled) { background: #e0e0e0; }
-    .login-spinner { border-color: rgba(0,0,0,0.2); border-top-color: #000000; }
-    .login-verify a { color: #ffffff; }
-    .login-verify a:hover { color: #aaaaaa; }
+    .login-forgot a { color: #60a5fa; }
+    .login-forgot a:hover { color: #93c5fd; }
+    .login-btn { background: #2563eb; color: #ffffff; box-shadow: 0 4px 14px rgba(37,99,235,0.4); }
+    .login-btn:hover:not(:disabled) { background: #1d4ed8; box-shadow: 0 6px 20px rgba(37,99,235,0.5); }
+    .login-btn:active:not(:disabled) { background: #1e40af; }
+    .login-spinner { border-color: rgba(255,255,255,0.3); border-top-color: #ffffff; }
+    .login-verify a { color: #60a5fa; }
+    .login-verify a:hover { color: #93c5fd; }
     .login-error { background: #200000; border-color: #500000; color: #ff7777; }
   }
 
   /* Class-based dark mode */
   .dark .login-page   { background: #000000; color: #ffffff; }
-  .dark .login-left   { background: #0A0A0A; border-right: 1px solid #1a1a1a; }
+  .dark .login-left   { background: #000000; border-right: 1px solid #1a1a1a; }
   .dark .login-left-title { color: #ffffff; }
-  .dark .login-right  { background: #111111; }
-  .dark .login-card   { background: #1a1a1a; border-color: #2a2a2a; box-shadow: 0 20px 60px rgba(0,0,0,0.7); }
-  .dark .login-avatar { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.12); }
-  .dark .login-avatar svg { color: #ffffff; }
+  .dark .login-right  { background: #0d0d0d; }
+  .dark .login-card   { background: #161616; border-color: #2a2a2a; box-shadow: 0 20px 60px rgba(0,0,0,0.7); }
+  .dark .login-avatar { background: rgba(37,99,235,0.15); border-color: rgba(37,99,235,0.3); }
+  .dark .login-avatar svg { color: #60a5fa; }
   .dark .login-heading { color: #ffffff; }
-  .dark .login-input  { background: #222222; border-color: #333333; color: #ffffff; }
+  .dark .login-input  { background: #1e1e1e; border-color: #2e2e2e; color: #ffffff; }
   .dark .login-input::placeholder { color: #555555; }
-  .dark .login-input:focus { border-color: #ffffff; box-shadow: 0 0 0 3px rgba(255,255,255,0.12); }
-  .dark .login-input-icon { color: #ffffff; }
+  .dark .login-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.2); }
+  .dark .login-input-icon { color: #60a5fa; }
   .dark .login-eye    { color: #666666; }
   .dark .login-eye:hover { color: #ffffff; }
-  .dark .login-forgot a { color: #ffffff; }
-  .dark .login-forgot a:hover { color: #cccccc; }
-  .dark .login-btn { background: #ffffff; color: #000000; box-shadow: 0 4px 14px rgba(255,255,255,0.12); }
-  .dark .login-btn:hover:not(:disabled) { background: #f0f0f0; }
-  .dark .login-btn:active:not(:disabled) { background: #e0e0e0; }
-  .dark .login-spinner { border-color: rgba(0,0,0,0.2); border-top-color: #000000; }
-  .dark .login-verify a { color: #ffffff; }
-  .dark .login-verify a:hover { color: #aaaaaa; }
+  .dark .login-forgot a { color: #60a5fa; }
+  .dark .login-forgot a:hover { color: #93c5fd; }
+  .dark .login-btn { background: #2563eb; color: #ffffff; box-shadow: 0 4px 14px rgba(37,99,235,0.4); }
+  .dark .login-btn:hover:not(:disabled) { background: #1d4ed8; box-shadow: 0 6px 20px rgba(37,99,235,0.5); }
+  .dark .login-btn:active:not(:disabled) { background: #1e40af; }
+  .dark .login-spinner { border-color: rgba(255,255,255,0.3); border-top-color: #ffffff; }
+  .dark .login-verify a { color: #60a5fa; }
+  .dark .login-verify a:hover { color: #93c5fd; }
   .dark .login-error { background: #200000; border-color: #500000; color: #ff7777; }
 
   @media (max-width: 1023px) {
