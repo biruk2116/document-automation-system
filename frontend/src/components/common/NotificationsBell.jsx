@@ -87,16 +87,16 @@ export default function NotificationsBell() {
 
   useEffect(() => {
     load();
-    // Poll every 15s (was 60s) so a rejection/approval shows up in the ring close to
-    // the moment the email goes out, rather than up to a minute later — and refresh
-    // immediately whenever the tab regains focus, so switching back to an already-open
-    // tab doesn't have to wait out the rest of the interval either.
-    const interval = setInterval(load, 15000);
+    // Poll every 8s so notifications appear promptly, and refresh on focus / custom event
+    const interval = setInterval(load, 8000);
     const onFocus = () => load();
+    const onRefresh = () => load();
     window.addEventListener('focus', onFocus);
+    window.addEventListener('notification:refresh', onRefresh);
     return () => {
       clearInterval(interval);
       window.removeEventListener('focus', onFocus);
+      window.removeEventListener('notification:refresh', onRefresh);
     };
   }, []);
 
@@ -169,8 +169,14 @@ export default function NotificationsBell() {
       // Mark as read AFTER successful navigation setup
       const wasUnread = !n.is_read;
       if (wasUnread) {
-        // Optimistically remove from UI
-        setNotifications((prev) => prev.filter((item) => item !== n));
+        // Optimistically mark as read in local state
+        setNotifications((prev) =>
+          prev.map((item) =>
+            item.id === n.id && item.notification_type === n.notification_type
+              ? { ...item, is_read: true }
+              : item
+          )
+        );
         
         // Mark as read in backend
         notificationService.markRead(n.notification_type, n.id).catch((err) => {
