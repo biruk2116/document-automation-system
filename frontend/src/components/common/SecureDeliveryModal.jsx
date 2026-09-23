@@ -154,16 +154,10 @@ export default function SecureDeliveryModal({ doc, onClose, onSent }) {
                   Email verified against record <b>{recordId}</b>
                 </div>
                 {sentResult.method === 'secure_link_otp' ? (
-                  <>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <CheckIcon size={16} color="#16A34A" />
-                      Secure link + OTP emailed (recipient must click OWN before downloading)
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <CheckIcon size={16} color="#16A34A" />
-                      Plain PDF copy attached separately
-                    </div>
-                  </>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <CheckIcon size={16} color="#16A34A" />
+                    Secure link + OTP emailed (recipient must click OWN before downloading)
+                  </div>
                 ) : (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <CheckIcon size={16} color="#16A34A" />
@@ -263,14 +257,9 @@ export default function SecureDeliveryModal({ doc, onClose, onSent }) {
                     <MailIcon size={14} /> To: <b>{trimmedEmail}</b>
                   </div>
                   {method === 'secure_link_otp' ? (
-                    <>
-                      <div className="send-doc-radio-desc" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <LockIcon size={14} color="#6366F1" /> Secure link + OTP → OWN → Download
-                      </div>
-                      <div className="send-doc-radio-desc" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <PaperclipIcon size={14} /> Plain PDF copy: {fileName}
-                      </div>
-                    </>
+                    <div className="send-doc-radio-desc" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <LockIcon size={14} color="#6366F1" /> Secure link + OTP → OWN → Download
+                    </div>
                   ) : (
                     <div className="send-doc-radio-desc" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <PaperclipIcon size={14} /> PDF attached directly: {fileName}
