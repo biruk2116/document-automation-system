@@ -65,7 +65,7 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="h-screen max-h-screen w-screen overflow-hidden flex flex-col justify-center items-center p-4 bg-white dark:bg-[#0A0F1D] text-slate-900 dark:text-white transition-colors duration-200 select-none">
+    <div className="h-screen max-h-screen w-screen overflow-hidden flex flex-col justify-center items-center p-4 bg-white dark:bg-[#0b1121] text-slate-900 dark:text-white transition-colors duration-200 select-none">
       <div className="w-full max-w-[420px] flex flex-col items-center text-center">
         {/* Brand Logo */}
         <img
@@ -81,7 +81,7 @@ export default function ResetPasswordPage() {
 
         {done ? (
           /* ── Success State ── */
-          <div className="w-full bg-slate-50 dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-2xl p-7 shadow-sm">
+          <div className="w-full bg-slate-50 dark:bg-[#141b2d] border border-slate-200 dark:border-transparent rounded-2xl p-7 shadow-sm">
             <div className="w-12 h-12 rounded-full bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800/50 flex items-center justify-center mx-auto mb-3 text-green-600 dark:text-green-400">
               <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
@@ -145,7 +145,7 @@ export default function ResetPasswordPage() {
                     autoFocus
                     required
                     disabled={!token || submitting}
-                    className="w-full px-3.5 pr-10 py-2.5 bg-white dark:bg-[#0B1320] border border-slate-300 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-all"
+                    className="w-full px-3.5 pr-10 py-2.5 bg-white dark:bg-[#0b1121] border border-slate-300 dark:border-[#1e293b] rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-all"
                   />
                   <button
                     type="button"
@@ -234,7 +234,7 @@ export default function ResetPasswordPage() {
                     autoComplete="new-password"
                     required
                     disabled={!token || submitting}
-                    className="w-full px-3.5 pr-10 py-2.5 bg-white dark:bg-[#0B1320] border border-slate-300 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-all"
+                    className="w-full px-3.5 pr-10 py-2.5 bg-white dark:bg-[#0b1121] border border-slate-300 dark:border-[#1e293b] rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-all"
                   />
                   <button
                     type="button"
