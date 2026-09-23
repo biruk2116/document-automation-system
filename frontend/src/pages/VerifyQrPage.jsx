@@ -27,7 +27,7 @@ export default function VerifyQrPage() {
   const copy = result ? (STATUS_COPY[result.status] || STATUS_COPY.INVALID) : null;
 
   return (
-    <div className="min-h-screen flex flex-col justify-between bg-white dark:bg-[#0A0F1D] text-slate-900 dark:text-slate-100 transition-colors duration-200">
+    <div className="min-h-screen flex flex-col justify-between bg-white dark:bg-[#0b1121] text-slate-900 dark:text-slate-100 transition-colors duration-200">
       {/* Top bar with brand */}
       <header className="w-full max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -48,7 +48,7 @@ export default function VerifyQrPage() {
 
       {/* Centered Card */}
       <main className="flex-1 flex items-center justify-center px-4 py-8">
-        <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 transition-all">
+        <div className="w-full max-w-md bg-white dark:bg-[#141b2d] rounded-2xl border border-slate-200 dark:border-transparent p-8 transition-all">
           <div className="text-center mb-6">
             <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-500 tracking-tight mb-2">
               QR Verification
@@ -104,7 +104,7 @@ export default function VerifyQrPage() {
                 </div>
               </div>
 
-              <div className="mt-3 pt-3 border-t border-slate-200/60 dark:border-slate-800/60 text-xs space-y-1.5 font-mono">
+              <div className="mt-3 pt-3 border-t border-slate-200/60 dark:border-transparent text-xs space-y-1.5 font-mono">
                 {result.docId && (
                   <div className="flex justify-between">
                     <span className="text-slate-500 font-sans">Doc ID:</span>
