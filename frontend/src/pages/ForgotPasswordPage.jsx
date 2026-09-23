@@ -36,7 +36,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen w-screen flex flex-col justify-center items-center p-4 sm:p-6 bg-white dark:bg-[#070D18] text-slate-900 dark:text-white transition-colors duration-200">
+    <div className="min-h-screen w-screen flex flex-col justify-center items-center p-4 sm:p-6 bg-white dark:bg-[#0b1121] text-slate-900 dark:text-white transition-colors duration-200">
       <div className="w-full max-w-[440px] flex flex-col items-center text-center">
         {/* Brand Logo */}
         <img
@@ -52,7 +52,7 @@ export default function ForgotPasswordPage() {
 
         {sent ? (
           /* ── Success State ── */
-          <div className="w-full bg-slate-50 dark:bg-[#0F172A] border border-slate-200 dark:border-slate-800 rounded-2xl p-7 sm:p-8 shadow-sm">
+          <div className="w-full bg-slate-50 dark:bg-[#141b2d] border border-slate-200 dark:border-transparent rounded-2xl p-7 sm:p-8 shadow-sm">
             <div className="w-12 h-12 rounded-full bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800/50 flex items-center justify-center mx-auto mb-4 text-green-600 dark:text-green-400">
               <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
@@ -103,7 +103,7 @@ export default function ForgotPasswordPage() {
                   autoFocus
                   required
                   disabled={submitting}
-                  className="w-full px-4 py-3 bg-white dark:bg-[#0B1320] border border-slate-300 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-all text-left"
+                  className="w-full px-4 py-3 bg-white dark:bg-[#0b1121] border border-slate-300 dark:border-[#1e293b] rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-all text-left"
                 />
               </div>
 
