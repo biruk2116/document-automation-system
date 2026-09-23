@@ -34,7 +34,7 @@ export default function VerifyDocumentPage() {
   const tampered = result?.verified === false && result?.reason !== 'not_found' && !unapproved;
 
   return (
-    <div className="h-screen max-h-screen w-screen overflow-hidden flex flex-col justify-center items-center p-4 bg-white dark:bg-[#0A0F1D] text-slate-900 dark:text-white transition-colors duration-200 select-none">
+    <div className="h-screen max-h-screen w-screen overflow-hidden flex flex-col justify-center items-center p-4 bg-white dark:bg-[#0b1121] text-slate-900 dark:text-white transition-colors duration-200 select-none">
       <div className="w-full max-w-[440px] flex flex-col items-center text-center">
         {/* Brand Logo */}
         <img
@@ -48,8 +48,8 @@ export default function VerifyDocumentPage() {
           Document Automation System
         </h1>
 
-        {/* Divider line matching reference mockup */}
-        <div className="w-full border-t border-slate-200 dark:border-slate-800/80 mb-5" />
+        {/* Divider line matching reference mockup — hidden in dark mode for seamless aesthetic */}
+        <div className="w-full border-t border-slate-200 dark:border-transparent dark:hidden mb-5" />
 
         {!result ? (
           /* ── Verification Form ── */
@@ -83,7 +83,7 @@ export default function VerifyDocumentPage() {
                 autoFocus
                 required
                 disabled={loading}
-                className="w-full px-4 py-3 bg-white dark:bg-[#0B1320] border border-slate-300 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-all uppercase tracking-wider placeholder:normal-case"
+                className="w-full px-4 py-3 bg-white dark:bg-[#0b1121] border border-slate-300 dark:border-[#1e293b] rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 transition-all uppercase tracking-wider placeholder:normal-case"
               />
 
               <button
@@ -157,7 +157,7 @@ export default function VerifyDocumentPage() {
               </button>
               <Link
                 to="/login"
-                className="py-2.5 px-4 rounded-lg border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-center"
+                className="py-2.5 px-4 rounded-lg border border-slate-300 dark:border-[#1e293b] text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#141b2d] transition-colors text-center"
               >
                 Sign In
               </Link>
