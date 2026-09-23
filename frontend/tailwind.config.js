@@ -13,6 +13,12 @@ export default {
           dark: '#1D4ED8',    // Blue 700
           light: '#EFF6FF',   // Blue 50
         },
+        navy: {
+          base: '#0b1121',
+          surface: '#141b2d',
+          raised: '#182238',
+          border: '#1e293b',
+        },
       },
     },
   },
