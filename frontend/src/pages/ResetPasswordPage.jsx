@@ -75,7 +75,7 @@ export default function ResetPasswordPage() {
         />
 
         {/* Brand Title: Full Horizontal */}
-        <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 dark:text-white whitespace-nowrap mb-6 select-none">
+        <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-[#0F2856] dark:text-white whitespace-nowrap mb-6 select-none">
           Document Automation System
         </h1>
 
@@ -106,7 +106,7 @@ export default function ResetPasswordPage() {
           /* ── Reset Form (Bold "Reset Password" heading removed as requested) ── */
           <div className="w-full text-left">
             <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mb-5 text-center">
-              Please choose a new password for your account
+              Please reset your password for your account
             </p>
 
             {/* Missing token banner */}
@@ -196,27 +196,27 @@ export default function ResetPasswordPage() {
                         {strengthLevel}
                       </span>
                     </div>
-
-                    {/* Criteria checklist */}
-                    <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] pt-1">
-                      <span className={hasUpper ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}>
-                        {hasUpper ? '✓' : '○'} Uppercase letter
-                      </span>
-                      <span className={hasLower ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}>
-                        {hasLower ? '✓' : '○'} Lowercase letter
-                      </span>
-                      <span className={hasNumber ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}>
-                        {hasNumber ? '✓' : '○'} Number
-                      </span>
-                      <span className={hasSpecial ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}>
-                        {hasSpecial ? '✓' : '○'} Special character
-                      </span>
-                      <span className={`col-span-2 ${hasLen ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}>
-                        {hasLen ? '✓' : '○'} At least 8 characters
-                      </span>
-                    </div>
                   </div>
                 )}
+
+                {/* Criteria checklist — horizontal layout */}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] pt-1.5">
+                  <span className={`inline-flex items-center gap-1 transition-colors ${hasUpper ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-slate-400 dark:text-slate-500'}`}>
+                    {hasUpper ? '✓' : '○'} Uppercase
+                  </span>
+                  <span className={`inline-flex items-center gap-1 transition-colors ${hasLower ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-slate-400 dark:text-slate-500'}`}>
+                    {hasLower ? '✓' : '○'} Lowercase
+                  </span>
+                  <span className={`inline-flex items-center gap-1 transition-colors ${hasNumber ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-slate-400 dark:text-slate-500'}`}>
+                    {hasNumber ? '✓' : '○'} Number
+                  </span>
+                  <span className={`inline-flex items-center gap-1 transition-colors ${hasSpecial ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-slate-400 dark:text-slate-500'}`}>
+                    {hasSpecial ? '✓' : '○'} Special chars
+                  </span>
+                  <span className={`inline-flex items-center gap-1 transition-colors ${hasLen ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-slate-400 dark:text-slate-500'}`}>
+                    {hasLen ? '✓' : '○'} 8+ chars
+                  </span>
+                </div>
               </div>
 
               {/* Confirm New Password */}
