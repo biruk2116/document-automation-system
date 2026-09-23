@@ -72,56 +72,56 @@
    Tailwind Slate-950 base, Slate-900 surfaces, Blue-600 accents.
    ============================================================ */
 .dark {
-  /* Surfaces — Clean Pure Black & Subtle Dark Neutrals */
-  --bg-base:          #000000;
-  --bg-surface:       #0A0A0A;
-  --bg-raised:        #121212;
-  --bg-subtle:        #121212;
-  --bg-muted:         #181818;
+  /* Surfaces — Midnight Navy Palette (Adminator Theme) */
+  --bg-base:          #0b1121;
+  --bg-surface:       #141b2d;
+  --bg-raised:        #182238;
+  --bg-subtle:        #101728;
+  --bg-muted:         #1a233a;
 
-  /* Text — Clean Neutral */
+  /* Text — Clean Neutral & High Contrast */
   --text-primary:     #FFFFFF;
-  --text-secondary:   #A1A1AA;
-  --text-muted:       #71717A;
-  --text-inverse:     #000000;
+  --text-secondary:   #94A3B8;
+  --text-muted:       #64748B;
+  --text-inverse:     #0b1121;
 
-  /* Borders — clean, subtle dark neutral without visible color lines */
-  --border:           #141414;
-  --border-strong:    #1F1F1F;
+  /* Borders — Midnight Navy Borders */
+  --border:           #1e293b;
+  --border-strong:    #2a3754;
 
   /* Brand — Tailwind Blue 600 / Blue 400 */
   --brand:            #2563EB;
   --brand-dark:       #1D4ED8;
-  --brand-light:      #121212;
+  --brand-light:      #141b2d;
   --brand-text:       #60A5FA;
   --accent:           #2563EB;
   --accent-dark:      #1D4ED8;
-  --accent-light:     rgba(37, 99, 235, 0.15);
+  --accent-light:     rgba(37, 99, 235, 0.18);
   --accent-text:      #60A5FA;
 
-  /* Sidebar dark mode — Pure black, borderless */
-  --sidebar-bg:       #000000;
-  --sidebar-text:     #A1A1AA;
-  --sidebar-hover:    #121212;
+  /* Sidebar dark mode — Unified seamless color with page canvas (#0b1121) */
+  --sidebar-bg:       #0b1121;
+  --sidebar-text:     #94A3B8;
+  --sidebar-hover:    #141b2d;
   --sidebar-active:   #2563EB;
   --sidebar-active-text: #FFFFFF;
 
   /* Feedback */
-  --success-bg:       #052E16;
-  --success-border:   #166534;
+  --success-bg:       #06281e;
+  --success-border:   #0d5c3f;
   --success-text:     #4ADE80;
-  --error-bg:         #2D0A0A;
-  --error-border:     #7F1D1D;
+  --error-bg:         #2d1115;
+  --error-border:     #7f1d2b;
   --error-text:       #F87171;
-  --warn-bg:          #1C1200;
-  --warn-border:      #78350F;
+  --warn-bg:          #2c1e08;
+  --warn-border:      #78450f;
   --warn-text:        #FBBF24;
 
   /* Shadows */
   --shadow-sm:        none;
-  --shadow-md:        none;
-  --shadow-lg:        none;
-  --shadow-overlay:   0 10px 25px rgba(0,0,0,0.7);
+  --shadow-md:        0 4px 12px rgba(0, 0, 0, 0.35);
+  --shadow-lg:        0 10px 25px rgba(0, 0, 0, 0.45);
+  --shadow-overlay:   0 12px 32px rgba(0, 0, 0, 0.6);
 }
 
 /* ============================================================
@@ -1313,26 +1313,26 @@ input::-ms-clear {
 .notif-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-right: 6px; flex-shrink: 0; }
 .notif-empty { padding: 24px 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
 
-/* Dark mode notification dropdown — sharp, high-contrast */
+/* Dark mode notification dropdown — sharp, high-contrast midnight navy */
 .dark .notif-dropdown {
-  background: #111111;
-  border: 1px solid #2a2a2a;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,255,255,0.04);
+  background: #141b2d;
+  border: 1px solid #1e293b;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
 }
 .dark .notif-item {
   color: #f1f5f9;
-  border-bottom-color: #1e1e1e;
+  border-bottom-color: #1e293b;
   background: transparent;
 }
-.dark .notif-item:hover { background: #1e1e1e; }
+.dark .notif-item:hover { background: #1a233a; }
 .dark .notif-item-read {
-  opacity: 0.55;
+  opacity: 0.65;
   color: #94a3b8;
 }
-.dark .notif-item-read:hover { background: #1a1a1a; opacity: 0.75; }
-.dark .notif-empty { color: #6b7280; }
+.dark .notif-item-read:hover { background: #141b2d; opacity: 0.85; }
+.dark .notif-empty { color: #64748b; }
 .dark .notif-dot { background: #2563eb; }
-.dark .notif-badge { border-color: #111111; }
+.dark .notif-badge { border-color: #0b1121; }
 /* Notification header row if present */
 .dark .notif-dropdown h4, .dark .notif-dropdown h3 {
   color: #f1f5f9;
@@ -1486,19 +1486,19 @@ input::-ms-clear {
   border-color: var(--border) !important;
 }
 
-/* Dark sidebar & navbar: pure black, borderless, no visible separator lines */
+/* Dark sidebar & navbar: unified seamless color with the page (#0b1121), borderless */
 .dark .sidebar {
-  background: #000000;
-  border-right: none;
+  background: #0b1121;
+  border-right: none !important;
 }
 .dark .sidebar-user-menu {
-  border-top: none;
+  border-top: none !important;
 }
 .dark .navbar {
-  background: #000000;
-  border-bottom: none;
+  background: #0b1121;
+  border-bottom: none !important;
 }
-/* Cards, sections, panels in dark mode — remove colored/visible separator lines */
+/* Cards, sections, panels in dark mode — borderless clean surfaces */
 .dark .doc-card,
 .dark .template-card,
 .dark .user-management-card,
@@ -1510,56 +1510,62 @@ input::-ms-clear {
 .dark .wf-section,
 .dark .modal-panel,
 .dark .confirm-modal-panel {
-  border-color: #141414;
-  box-shadow: none;
+  background: #141b2d;
+  border: none !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
 }
 .dark .doc-track-template-header {
-  border-bottom: none;
+  border-bottom: none !important;
 }
 .dark .doc-track-stats {
-  background: #141414;
-  border-color: #141414;
+  background: #141b2d;
+  border: none !important;
 }
 .dark .doc-track-stat {
-  background: #0A0A0A;
+  background: #0b1121;
+  border: none !important;
 }
 .dark .doc-delivery {
-  border-top-color: #141414;
+  border-top: none !important;
 }
 .dark .template-table,
 .dark .template-list-table,
 .dark .user-management-table,
 .dark .bulk-validation-table {
-  border-color: #141414;
+  border: none !important;
 }
 .dark .template-table th,
 .dark .template-list-table th,
 .dark .user-management-table th,
 .dark .bulk-validation-table th {
-  background: #101010;
-  border-bottom-color: #141414;
+  background: #101728;
+  border-bottom: none !important;
+  color: #94A3B8;
 }
 .dark .template-table td,
 .dark .template-list-table td,
 .dark .user-management-table td,
 .dark .bulk-validation-table td {
-  border-top-color: #141414;
+  border-top: 1px solid rgba(255,255,255,0.03) !important;
+  background: #141b2d;
 }
 .dark .user-management-toolbar {
-  border-bottom-color: #141414;
+  border-bottom: none !important;
 }
 .dark .user-management-search {
-  border-color: #1A1A1A;
+  border: 1px solid #1e293b;
+  background: #0b1121;
 }
 .dark .modal-header {
-  border-bottom-color: #141414;
+  border-bottom: none !important;
 }
 .dark .btn-secondary {
-  border-color: #1F1F1F;
-  background: #0A0A0A;
+  border: none !important;
+  background: #182238;
+  color: #FFFFFF;
 }
 .dark .btn-secondary:hover:not(:disabled) {
-  background: #141414;
+  background: #1e293b;
 }
 
 /* ── Dark mode: surface transition for smooth theme switching ── */
