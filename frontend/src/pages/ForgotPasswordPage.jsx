@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
         />
 
         {/* Brand Title: Full Horizontal */}
-        <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900 dark:text-white uppercase whitespace-nowrap mb-6 sm:mb-8 select-none">
+        <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-[#0F2856] dark:text-white whitespace-nowrap mb-6 sm:mb-8 select-none">
           Document Automation System
         </h1>
 
