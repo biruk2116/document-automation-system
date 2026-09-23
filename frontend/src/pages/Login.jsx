@@ -64,6 +64,14 @@ const loginStyles = `
     font-size: 0.875rem; color: #1e293b; outline: none;
     transition: border-color 0.15s, box-shadow 0.15s; box-sizing: border-box;
   }
+  .login-input::-ms-reveal,
+  .login-input::-ms-clear,
+  input::-ms-reveal,
+  input::-ms-clear {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
   .login-input::placeholder { color: #94a3b8; }
   .login-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
   .login-input-pr { padding-right: 44px; }
