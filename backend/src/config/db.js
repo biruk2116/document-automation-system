@@ -906,6 +906,7 @@ async function ensureSchema() {
     console.error('[db] Full error:', err);
     throw err;
   }
+
 }
 
 module.exports = { pool, verifyConnection, ensureSchema };
