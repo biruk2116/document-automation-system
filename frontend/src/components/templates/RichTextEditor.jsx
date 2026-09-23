@@ -89,6 +89,12 @@ const IconZoomIn = () => <Icon><circle cx="7.5" cy="7.5" r="4.5" /><path d="M11 
 const IconZoomOut = () => <Icon><circle cx="7.5" cy="7.5" r="4.5" /><path d="M11 11l4 4" /><path d="M5.5 7.5h4" /></Icon>;
 const IconIf = () => <Icon><path d="M5 4l-3 5 3 5M13 4l3 5-3 5" /><text x="6.4" y="10.5" fontSize="5.5" fontWeight="700" fill="currentColor" stroke="none">if</text></Icon>;
 const IconEach = () => <Icon><rect x="2.5" y="3.5" width="13" height="3" rx="0.8" /><rect x="2.5" y="7.5" width="13" height="3" rx="0.8" /><rect x="2.5" y="11.5" width="13" height="3" rx="0.8" /></Icon>;
+const IconTable = () => (
+  <Icon>
+    <rect x="2" y="3" width="14" height="12" rx="1.5" />
+    <path d="M2 7.5h14M2 11.5h14M7 7.5v7.5M11.5 7.5v7.5" />
+  </Icon>
+);
 
 /** Small toolbar button: icon + tooltip, consistent styling, optional active state. */
 function ToolBtn({ onClick, title, active, children, disabled }) {
@@ -124,7 +130,25 @@ function ToolBtn({ onClick, title, active, children, disabled }) {
 export default function RichTextEditor({ value, onChange, availableFields = [], region = 'body', insertBlockRef }) {
   const editorRef = useRef(null);
   const fileInputRef = useRef(null);
-  const [redactMode, setRedactMode] = useState(false);
+  const tableMenuRef = useRef(null);
+  const savedRangeRef = useRef(null);
+
+  const [showTableMenu, setShowTableMenu] = useState(false);
+  const [tableRows, setTableRows] = useState(3);
+  const [tableCols, setTableCols] = useState(3);
+  const [tableHeader, setTableHeader] = useState(true);
+
+  // Close table popover when clicking outside
+  useEffect(() => {
+    if (!showTableMenu) return;
+    const handleClickOutside = (e) => {
+      if (tableMenuRef.current && !tableMenuRef.current.contains(e.target)) {
+        setShowTableMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showTableMenu]);
 
   // Keep the DOM in sync when `value` changes externally (e.g. prefill on edit mode)
   useEffect(() => {
@@ -221,10 +245,179 @@ export default function RichTextEditor({ value, onChange, availableFields = [], 
     exec('insertHTML', `<div class="rte-block-marker">{{#each ${listPath}}}</div><p>{{this.note}}</p><div class="rte-block-marker">{{/each}}</div>`);
   };
 
-  const insertPlaceholder = (fieldPath, redact = false) => {
+  const saveSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      if (editorRef.current && editorRef.current.contains(range.commonAncestorContainer)) {
+        savedRangeRef.current = range.cloneRange();
+      }
+    }
+  };
+
+  const restoreSelection = () => {
+    if (savedRangeRef.current && editorRef.current) {
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(savedRangeRef.current);
+    }
+  };
+
+  const getTableElements = () => {
+    let node = null;
+    if (savedRangeRef.current) {
+      node = savedRangeRef.current.commonAncestorContainer;
+    } else {
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount) node = sel.anchorNode;
+    }
+    if (!node) return null;
+    if (node.nodeType === 3) node = node.parentNode;
+    const td = node.closest?.('td, th');
+    const tr = node.closest?.('tr');
+    const table = node.closest?.('table');
+    if (!table || !editorRef.current?.contains(table)) return null;
+    return { table, tr, td };
+  };
+
+  const insertTable = (rows = 3, cols = 3, hasHeader = true) => {
+    const numRows = Math.max(1, Math.min(50, parseInt(rows, 10) || 3));
+    const numCols = Math.max(1, Math.min(20, parseInt(cols, 10) || 3));
+
+    if (editorRef.current) {
+      editorRef.current.focus();
+      restoreSelection();
+
+      const sel = window.getSelection();
+      if (!sel || !sel.rangeCount || !editorRef.current.contains(sel.anchorNode)) {
+        const range = document.createRange();
+        range.selectNodeContents(editorRef.current);
+        range.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    }
+
+    let html = '<table style="width: 100%; border-collapse: collapse; margin: 12px 0;">';
+    if (hasHeader) {
+      html += '<thead><tr style="background-color: #f1f5f9;">';
+      for (let c = 1; c <= numCols; c++) {
+        html += `<th style="border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; font-weight: 600;">Header ${c}</th>`;
+      }
+      html += '</tr></thead>';
+    }
+    html += '<tbody>';
+    const bodyRows = hasHeader ? Math.max(1, numRows - 1) : numRows;
+    for (let r = 1; r <= bodyRows; r++) {
+      html += '<tr>';
+      for (let c = 1; c <= numCols; c++) {
+        html += '<td style="border: 1px solid #cbd5e1; padding: 8px 10px;">&nbsp;</td>';
+      }
+      html += '</tr>';
+    }
+    html += '</tbody></table><p><br></p>';
+
+    document.execCommand('insertHTML', false, html);
+    emitChange();
+    setShowTableMenu(false);
+  };
+
+  const handleAddRow = (below = true) => {
+    const elems = getTableElements();
+    if (!elems || !elems.tr) return;
+    const { tr } = elems;
+    const colCount = tr.cells.length;
+    const newRow = document.createElement('tr');
+    for (let i = 0; i < colCount; i++) {
+      const td = document.createElement('td');
+      td.style.border = '1px solid #cbd5e1';
+      td.style.padding = '8px 10px';
+      td.innerHTML = '&nbsp;';
+      newRow.appendChild(td);
+    }
+    if (below) {
+      tr.parentNode.insertBefore(newRow, tr.nextSibling);
+    } else {
+      tr.parentNode.insertBefore(newRow, tr);
+    }
+    emitChange();
+    setShowTableMenu(false);
+  };
+
+  const handleAddColumn = (right = true) => {
+    const elems = getTableElements();
+    if (!elems || !elems.td) return;
+    const { td, table } = elems;
+    const colIndex = td.cellIndex;
+    const rows = table.rows;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const isHead = row.parentNode?.tagName?.toLowerCase() === 'thead' || row.cells[0]?.tagName?.toLowerCase() === 'th';
+      const cell = document.createElement(isHead ? 'th' : 'td');
+      cell.style.border = '1px solid #cbd5e1';
+      cell.style.padding = '8px 10px';
+      if (isHead) {
+        cell.style.backgroundColor = '#f1f5f9';
+        cell.style.fontWeight = '600';
+        cell.style.textAlign = 'left';
+        cell.innerText = `Header`;
+      } else {
+        cell.innerHTML = '&nbsp;';
+      }
+      const targetCell = row.cells[colIndex];
+      if (right) {
+        row.insertBefore(cell, targetCell ? targetCell.nextSibling : null);
+      } else {
+        row.insertBefore(cell, targetCell);
+      }
+    }
+    emitChange();
+    setShowTableMenu(false);
+  };
+
+  const handleDeleteRow = () => {
+    const elems = getTableElements();
+    if (!elems || !elems.tr) return;
+    const { tr, table } = elems;
+    if (table.rows.length <= 1) {
+      table.remove();
+    } else {
+      tr.remove();
+    }
+    emitChange();
+    setShowTableMenu(false);
+  };
+
+  const handleDeleteColumn = () => {
+    const elems = getTableElements();
+    if (!elems || !elems.td) return;
+    const { td, table } = elems;
+    const colIndex = td.cellIndex;
+    const rows = table.rows;
+    if (rows[0].cells.length <= 1) {
+      table.remove();
+    } else {
+      for (let i = 0; i < rows.length; i++) {
+        if (rows[i].cells[colIndex]) {
+          rows[i].deleteCell(colIndex);
+        }
+      }
+    }
+    emitChange();
+    setShowTableMenu(false);
+  };
+
+  const handleDeleteTable = () => {
+    const elems = getTableElements();
+    if (!elems || !elems.table) return;
+    elems.table.remove();
+    emitChange();
+    setShowTableMenu(false);
+  };
+
+  const insertPlaceholder = (fieldPath) => {
     if (!fieldPath) return;
-    const token = redact ? `${fieldPath}|redact` : fieldPath;
-    exec('insertHTML', `<span class="placeholder-token" contenteditable="false">{{${token}}}</span>&nbsp;`);
+    exec('insertHTML', `<span class="placeholder-token" contenteditable="false">{{${fieldPath}}}</span>&nbsp;`);
   };
 
   /**
@@ -242,13 +435,13 @@ export default function RichTextEditor({ value, onChange, availableFields = [], 
   };
 
   /** Routes a field (from the dropdown or a dropped chip) to the right insertion behavior. */
-  const insertField = (field, redact = false) => {
+  const insertField = (field) => {
     if (!field) return;
     if (isListField(field)) {
       insertLoopBlockFor(field.field_path);
       return;
     }
-    insertPlaceholder(field.field_path, redact);
+    insertPlaceholder(field.field_path);
   };
 
 const handleImageButtonClick = () => fileInputRef.current?.click();
@@ -346,13 +539,13 @@ const handleImageFileSelected = (e) => {
 
     if (rawJson) {
       try {
-        insertField(JSON.parse(rawJson), redactMode);
+        insertField(JSON.parse(rawJson));
         return;
       } catch {
         // fall through to plain insertion below
       }
     }
-    insertPlaceholder(fieldPath, redactMode);
+    insertPlaceholder(fieldPath);
   };
   const handleDragOver = (e) => e.preventDefault();
 
@@ -430,10 +623,169 @@ const handleImageFileSelected = (e) => {
 
         <span className="rte-divider" />
 
-        <div className="rte-group">
+        <div className="rte-group" style={{ position: 'relative' }}>
           <ToolBtn onClick={insertLink} title="Insert link"><IconLink /></ToolBtn>
+          <ToolBtn
+            onClick={(e) => {
+              e.preventDefault();
+              saveSelection();
+              setShowTableMenu((prev) => !prev);
+            }}
+            title="Insert or edit table"
+            active={showTableMenu}
+          >
+            <IconTable />
+          </ToolBtn>
           <ToolBtn onClick={() => exec('insertHorizontalRule')} title="Insert horizontal rule"><IconRule /></ToolBtn>
           <ToolBtn onClick={() => exec('removeFormat')} title="Clear formatting"><IconClear /></ToolBtn>
+
+          {showTableMenu && (
+            <div
+              ref={tableMenuRef}
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                marginTop: 6,
+                zIndex: 150,
+                width: 260,
+                background: 'var(--bg-surface, #ffffff)',
+                border: '1px solid var(--border, #cbd5e1)',
+                borderRadius: 8,
+                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                padding: '14px',
+                color: 'var(--text-primary, #1e293b)',
+                fontSize: '0.85rem',
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              {getTableElements() && (
+                <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid var(--border, #e2e8f0)' }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-secondary, #64748b)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Current Table
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                    <button type="button" className="rte-table-action-btn" onClick={() => handleAddRow(false)}>+ Row Above</button>
+                    <button type="button" className="rte-table-action-btn" onClick={() => handleAddRow(true)}>+ Row Below</button>
+                    <button type="button" className="rte-table-action-btn" onClick={() => handleAddColumn(false)}>+ Col Left</button>
+                    <button type="button" className="rte-table-action-btn" onClick={() => handleAddColumn(true)}>+ Col Right</button>
+                    <button type="button" className="rte-table-action-btn" onClick={handleDeleteRow}>Delete Row</button>
+                    <button type="button" className="rte-table-action-btn" onClick={handleDeleteColumn}>Delete Col</button>
+                  </div>
+                  <button
+                    type="button"
+                    className="rte-table-action-btn rte-table-action-danger"
+                    onClick={handleDeleteTable}
+                    style={{ width: '100%', marginTop: 6 }}
+                  >
+                    Delete Table
+                  </button>
+                </div>
+              )}
+
+              <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>Insert Table</span>
+                <button
+                  type="button"
+                  onClick={() => setShowTableMenu(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', lineHeight: 1, color: 'var(--text-muted, #94a3b8)' }}
+                  title="Close"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 500, color: 'var(--text-secondary, #64748b)', marginBottom: 4 }}>
+                    Rows
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={tableRows}
+                    onChange={(e) => setTableRows(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '6px 8px',
+                      borderRadius: 6,
+                      border: '1px solid var(--border, #cbd5e1)',
+                      background: 'var(--bg-base, #ffffff)',
+                      color: 'var(--text-primary, #1e293b)',
+                      fontSize: '0.85rem',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 500, color: 'var(--text-secondary, #64748b)', marginBottom: 4 }}>
+                    Columns
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={tableCols}
+                    onChange={(e) => setTableCols(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '6px 8px',
+                      borderRadius: 6,
+                      border: '1px solid var(--border, #cbd5e1)',
+                      background: 'var(--bg-base, #ffffff)',
+                      color: 'var(--text-primary, #1e293b)',
+                      fontSize: '0.85rem',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+              </div>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.82rem', marginBottom: 14, cursor: 'pointer', color: 'var(--text-primary, #1e293b)' }}>
+                <input
+                  type="checkbox"
+                  checked={tableHeader}
+                  onChange={(e) => setTableHeader(e.target.checked)}
+                />
+                Include Header Row
+              </label>
+
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowTableMenu(false)}
+                  style={{
+                    padding: '5px 12px',
+                    borderRadius: 6,
+                    border: '1px solid var(--border, #cbd5e1)',
+                    background: 'transparent',
+                    color: 'var(--text-secondary, #475569)',
+                    cursor: 'pointer',
+                    fontSize: '0.82rem',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => insertTable(tableRows, tableCols, tableHeader)}
+                  style={{
+                    padding: '5px 14px',
+                    borderRadius: 6,
+                    border: 'none',
+                    background: 'var(--brand, #2563eb)',
+                    color: '#ffffff',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    fontSize: '0.82rem',
+                  }}
+                >
+                  Insert Table
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <span className="rte-divider" />
@@ -472,11 +824,11 @@ const handleImageFileSelected = (e) => {
             onChange={(e) => {
               const field = availableFields.find((f) => f.field_path === e.target.value);
               if (field) {
-                insertField(field, redactMode);
+                insertField(field);
               } else {
                 // generation_date / generation_date_gc / generation_date_ec — always
                 // plain scalar auto-fields. There is no auto-filled "effective date".
-                insertPlaceholder(e.target.value, redactMode);
+                insertPlaceholder(e.target.value);
               }
               e.target.selectedIndex = 0;
             }}
@@ -494,11 +846,6 @@ const handleImageFileSelected = (e) => {
             <option value="generation_date_gc">generation_date_gc (auto, G.C.)</option>
             <option value="generation_date_ec">generation_date_ec (auto, E.C.)</option>
           </select>
-
-          <label className="rte-redact-toggle" title="When checked, the next inserted placeholder is masked (NFR-005 PII redaction)">
-            <input type="checkbox" checked={redactMode} onChange={(e) => setRedactMode(e.target.checked)} />
-            Redact
-          </label>
         </div>
       </div>
 
