@@ -921,6 +921,62 @@ input::-ms-clear {
   font-size: 0.8rem; padding: 3px 8px; border-radius: 4px; margin: 4px 0; display: inline-block;
 }
 
+/* RTE Table & Table Actions */
+.rte-table-action-btn {
+  padding: 5px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+}
+.rte-table-action-btn:hover {
+  background: var(--bg-subtle);
+  border-color: var(--brand);
+  color: var(--brand);
+}
+.rte-table-action-danger {
+  color: #dc2626 !important;
+  border-color: #fca5a5 !important;
+}
+.rte-table-action-danger:hover {
+  background: #fef2f2 !important;
+  border-color: #dc2626 !important;
+}
+.dark .rte-table-action-danger:hover {
+  background: #450a0a !important;
+  border-color: #ef4444 !important;
+}
+
+.rte-content table:not(.signature-table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+}
+.rte-content table:not(.signature-table) th,
+.rte-content table:not(.signature-table) td {
+  border: 1px solid var(--border, #cbd5e1);
+  padding: 8px 10px;
+  min-width: 40px;
+}
+.rte-content table:not(.signature-table) th {
+  background-color: var(--bg-subtle, #f1f5f9);
+  font-weight: 600;
+  text-align: left;
+}
+.dark .rte-content table:not(.signature-table) th {
+  background-color: #1e293b;
+  color: #f1f5f9;
+}
+.dark .rte-content table:not(.signature-table) td,
+.dark .rte-content table:not(.signature-table) th {
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
 /* ============================================================
    TEMPLATE VIEWER (A4)
    ============================================================ */
@@ -1416,7 +1472,6 @@ input::-ms-clear {
    ============================================================ */
 .rte-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
 .logo-upload-btn { font-size: 0.82rem; padding: 6px 12px; cursor: pointer; }
-.rte-redact-toggle { display: flex; align-items: center; gap: 4px; font-size: 0.82rem; color: var(--text-secondary); cursor: pointer; }
 .template-view-toggle { display: flex; gap: 8px; margin-bottom: 14px; }
 .template-view-toggle button {
   background: var(--bg-subtle); border: none; padding: 7px 14px;
