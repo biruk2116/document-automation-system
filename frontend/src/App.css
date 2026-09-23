@@ -149,9 +149,20 @@ h1, .page-title {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 1.35rem;
   font-weight: 700;
-  color: #2563EB;
+  color: #0F2856;
   margin-top: 0;
   letter-spacing: -0.02em;
+}
+
+.dark h1, .dark .page-title {
+  color: #FFFFFF;
+}
+
+.app-brand-title {
+  color: #0F2856;
+}
+.dark .app-brand-title {
+  color: #FFFFFF;
 }
 
 h2, .section-title {
@@ -181,6 +192,14 @@ h4 {
 img { max-width: 100%; display: block; }
 button { font-family: inherit; }
 a { font-family: inherit; }
+
+/* Hide browser-native password reveal and clear buttons (Edge / IE) to prevent duplicate eye icons */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
 
 /* ============================================================
    APP SHELL — sidebar + main content
