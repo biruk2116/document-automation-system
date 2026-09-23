@@ -162,6 +162,22 @@ function assembleDocumentHtml({ headerHtml, bodyHtml, footerHtml, tamperProofFoo
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
+  table:not(.signature-table) {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+  }
+  table:not(.signature-table) th,
+  table:not(.signature-table) td {
+    border: 1px solid #cbd5e1;
+    padding: 8px 10px;
+    word-break: break-word;
+  }
+  table:not(.signature-table) th {
+    background-color: #f1f5f9;
+    font-weight: 600;
+    text-align: left;
+  }
   /* Conditional/loop block markers are authoring-time visual aids only — never shown in the final PDF. */
   .rte-block-marker { display: none; }
 </style>
