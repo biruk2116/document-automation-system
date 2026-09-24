@@ -29,15 +29,27 @@ function inlineStorageImages(html) {
 }
 
 /**
+ * Automatically ensures block-level text containers have dir="auto" if not explicitly specified.
+ * This activates the browser's native Unicode Bidirectional Algorithm (UBA) on paragraphs,
+ * headings, list items, and table cells, correctly handling Arabic (RTL) vs Amharic/Chinese/Latin (LTR).
+ */
+function ensureAutoBidi(html) {
+  if (!html || typeof html !== 'string') return html || '';
+  return html.replace(/<(p|h[1-6]|li|blockquote|td|th)(?![^>]*\bdir=)([^>]*)>/gi, '<$1 dir="auto"$2>');
+}
+
+/**
  * Wraps rendered header/body/footer into a complete, styled A4 HTML document
  * ready for either on-screen preview or Puppeteer PDF rendering.
  * FR-017: watermark (DRAFT/CONFIDENTIAL/FINAL) rendered as a diagonal overlay.
+ * FR-014: Full multilingual support for Amharic, Arabic, Chinese, and Latin scripts.
  */
 function assembleDocumentHtml({ headerHtml, bodyHtml, footerHtml, tamperProofFooterHtml, deliveryVerificationQrHtml, watermarkText, signatureHtml }) {
-  // Strip editor-only elements (remove buttons, etc.) before assembling the final PDF
-  const cleanHeaderHtml = inlineStorageImages(stripEditorOnlyElements(headerHtml || ''));
-  const cleanBodyHtml = inlineStorageImages(stripEditorOnlyElements(bodyHtml || ''));
-  const cleanFooterHtml = inlineStorageImages(stripEditorOnlyElements(footerHtml || ''));
+  // Strip editor-only elements (remove buttons, etc.) before assembling the final PDF,
+  // inline storage images as base64 data URLs, and ensure auto-bidi on block tags.
+  const cleanHeaderHtml = ensureAutoBidi(inlineStorageImages(stripEditorOnlyElements(headerHtml || '')));
+  const cleanBodyHtml = ensureAutoBidi(inlineStorageImages(stripEditorOnlyElements(bodyHtml || '')));
+  const cleanFooterHtml = ensureAutoBidi(inlineStorageImages(stripEditorOnlyElements(footerHtml || '')));
   
   // FR-017 color coding: DRAFT stays red (unapproved/in-progress), FINAL is green
   // (approved/complete) so the two are never visually confusable. Anything else
@@ -57,6 +69,11 @@ function assembleDocumentHtml({ headerHtml, bodyHtml, footerHtml, tamperProofFoo
 <html>
 <head>
 <meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<!-- High-fidelity Google Fonts CDN for Amharic (Ethiopic), Arabic, and Chinese (Simplified & Traditional) -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&family=Noto+Sans+Ethiopic:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
 <style>
   /* Uniform on all 4 sides, sourced from pageSpec — kept in sync with the .page rule
      below even though page.pdf() currently passes its own margin:0 and overrides this
@@ -64,35 +81,48 @@ function assembleDocumentHtml({ headerHtml, bodyHtml, footerHtml, tamperProofFoo
      (e.g. a direct browser "Print" of this HTML) instead of silently going stale. */
   @page { size: A4; margin: ${pageSpec.pagePaddingMm}mm; }
   /*
-   * FR-014 Unicode support: the base "Noto Sans" family only covers Latin/Cyrillic/
-   * Greek/Vietnamese — it does NOT include Arabic, Ethiopic (Amharic/Ge'ez), or CJK
-   * (Chinese/Japanese/Korean) glyphs, despite the name suggesting otherwise. Chromium
-   * (which Puppeteer drives) resolves font-family lists per-character: for every glyph
-   * it walks the stack left-to-right and uses the first font that actually has that
-   * character, falling through to the next entry rather than failing. So listing every
-   * script's dedicated Noto family here — instead of relying on one generic name — is
-   * what actually makes Arabic/Amharic/Chinese (and Hebrew/Devanagari/Korean/Japanese)
-   * text render instead of showing as tofu boxes (□□□) or blank space.
-   * This still depends on the fonts being installed on the machine/container running
-   * Puppeteer's Chromium — see backend/FONTS.md for the required OS packages; there is
-   * no bundled/embedded font file here to fall back on.
+   * Multilingual typography support:
+   * 1. Google Web Fonts: Noto Sans Ethiopic, Noto Sans Arabic, Noto Sans SC/TC, Amiri.
+   * 2. Windows native fallbacks: Nyala & Ebrima (Amharic), Segoe UI & Tahoma (Arabic),
+   *    Microsoft YaHei (微软雅黑) & SimSun (宋体) & SimHei (黑体) (Chinese).
+   * 3. macOS native fallbacks: Kefa (Amharic), Geeza Pro & Damascus (Arabic),
+   *    PingFang SC & Hiragino Sans GB (Chinese).
+   * 4. Linux native fallbacks: Noto Sans Ethiopic, Abyssinica SIL, Noto Sans Arabic,
+   *    WenQuanYi Zen Hei & WenQuanYi Micro Hei.
+   * Chromium walks the stack left-to-right per character, guaranteeing crisp glyph rendering
+   * across all platforms without tofu boxes (□□□) or blank gaps.
    */
   body {
-    font-family: 'Noto Sans', 'Noto Sans Arabic', 'Noto Naskh Arabic', 'Noto Sans Ethiopic',
-      'Noto Sans Hebrew', 'Noto Sans Devanagari', 'Noto Sans SC', 'Noto Sans TC',
-      'Noto Sans JP', 'Noto Sans KR', Arial, sans-serif;
-    /* No forced text color here on purpose: the PDF must render placeholders and
-       authored content in exactly the color they were given in the template editor
-       (RichTextEditor) / preview (TemplateViewer) — same #1a1a2e inherited default,
-       and any inline color a field/placeholder itself carries. Never overwrite it
-       with a separate "PDF-only" color. */
+    font-family: 'Noto Sans',
+      /* Arabic fonts */
+      'Noto Sans Arabic', 'Noto Naskh Arabic', 'Amiri', 'Segoe UI', 'Tahoma', 'Traditional Arabic', 'Arabic Typesetting', 'Geeza Pro', 'Damascus',
+      /* Amharic / Ethiopic fonts */
+      'Noto Sans Ethiopic', 'Nyala', 'Ebrima', 'Abyssinica SIL', 'Kefa',
+      /* Chinese (Simplified & Traditional) fonts */
+      'Noto Sans SC', 'Noto Sans TC', 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'Hiragino Sans GB', 'SimSun', '宋体', 'SimHei', '黑体', 'WenQuanYi Zen Hei', 'WenQuanYi Micro Hei',
+      /* Additional scripts */
+      'Noto Sans Hebrew', 'Noto Sans Devanagari', 'Noto Sans JP', 'Noto Sans KR',
+      Arial, sans-serif;
     color: #1a1a2e;
     position: relative;
     margin: 0;
-    /* Lets the browser's bidi algorithm pick text direction per paragraph instead of
-       forcing LTR everywhere — needed for Arabic (RTL) content mixed into an otherwise
-       LTR (English/Amharic) document to flow and punctuate correctly. */
+    line-height: 1.6;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
     unicode-bidi: plaintext;
+  }
+  /* BiDi & RTL Support: Auto text direction and alignment */
+  p, h1, h2, h3, h4, h5, h6, li, td, th, blockquote, div {
+    unicode-bidi: plaintext;
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+  [dir="auto"] {
+    text-align: start;
+  }
+  [dir="rtl"], :dir(rtl), .rtl-block {
+    direction: rtl;
+    text-align: right;
   }
   .page {
     width: 210mm;
@@ -117,7 +147,8 @@ function assembleDocumentHtml({ headerHtml, bodyHtml, footerHtml, tamperProofFoo
      content above it. */
   .doc-footer-meta { margin-top: 24px; font-size: 11px; color: #444; }
   /* Two-QR footer row: left QR = verify by Doc ID, right QR = scan for VALID/REVOKED.
-     Both sit inside .doc-footer-meta so they share the same border-top stamp styling. */
+     Both sit inside .doc-footer-meta so they share the same border-top stamp styling.
+     Always kept LTR so technical QR stamps don't invert in RTL Arabic layouts. */
   .qr-footer-row {
     display: flex;
     align-items: flex-start;
@@ -128,9 +159,10 @@ function assembleDocumentHtml({ headerHtml, bodyHtml, footerHtml, tamperProofFoo
     padding-top: 8px;
     font-size: 9px;
     color: #555;
+    direction: ltr !important;
   }
-  .qr-footer-left  { display:flex; align-items:center; gap:6px; }
-  .qr-footer-right { display:flex; align-items:center; gap:6px; }
+  .qr-footer-left  { display:flex; align-items:center; gap:6px; direction: ltr !important; }
+  .qr-footer-right { display:flex; align-items:center; gap:6px; direction: ltr !important; }
   .watermark-overlay {
     position: fixed;
     top: 45%;
@@ -176,7 +208,7 @@ function assembleDocumentHtml({ headerHtml, bodyHtml, footerHtml, tamperProofFoo
   table:not(.signature-table) th {
     background-color: #f1f5f9;
     font-weight: 600;
-    text-align: left;
+    text-align: start;
   }
   /* Conditional/loop block markers are authoring-time visual aids only — never shown in the final PDF. */
   .rte-block-marker { display: none; }
@@ -185,9 +217,9 @@ function assembleDocumentHtml({ headerHtml, bodyHtml, footerHtml, tamperProofFoo
 <body>
   <div class="page">
     ${watermarkBlock}
-    <div class="doc-header">${cleanHeaderHtml}</div>
-    <div class="doc-body">${cleanBodyHtml}</div>
-    <div class="doc-footer">${cleanFooterHtml}</div>
+    <div class="doc-header" dir="auto">${cleanHeaderHtml}</div>
+    <div class="doc-body" dir="auto">${cleanBodyHtml}</div>
+    <div class="doc-footer" dir="auto">${cleanFooterHtml}</div>
     <div class="doc-footer-meta">
       ${signatureHtml || ''}
       <div class="qr-footer-row">
@@ -328,7 +360,7 @@ function injectSignatureIntoFooter(footerHtml, name, photoDataUrl, signedAt) {
   <tbody>
     <tr style="page-break-inside:avoid !important;break-inside:avoid !important;">
       <td style="width:38%;padding:4px 8px 4px 0;vertical-align:bottom;page-break-inside:avoid !important;break-inside:avoid !important;">
-        <div style="padding-bottom:3px;min-width:80px;font-family:Georgia,serif;font-size:14px;font-weight:600;color:#0F2747;border-bottom:2px solid #0F2747;">
+        <div style="padding-bottom:3px;min-width:80px;font-family:inherit;font-size:14px;font-weight:600;color:#0F2747;border-bottom:2px solid #0F2747;">
           ${name ? escapeHtml(name) : '&nbsp;'}
         </div>
         <div style="margin-top:4px;font-size:9px;color:#64748B;letter-spacing:0.04em;text-transform:uppercase;font-weight:600;">Name</div>
