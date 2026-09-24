@@ -136,7 +136,7 @@ async function getTemplateById(req, res) {
 // in the bulk validation report even though they're always auto-filled.
 // Note: there is no auto-injected "effective_date" — only the generation date
 // (Gregorian and Ethiopian calendar) is ever auto-filled.
-const AUTO_INJECTED_FIELDS = new Set(['generation_date', 'generation_date_gc', 'generation_date_ec']);
+const AUTO_INJECTED_FIELDS = new Set(['generation_date', 'generation_date_gc', 'generation_date_ec', 'generation_date_am', 'generation_date_ec_am']);
 
 /**
  * Template names must be unique (case-insensitive, whitespace-trimmed) so the same
