@@ -890,9 +890,18 @@ input::-ms-clear {
 }
 .rte-content {
   min-height: 90px; padding-top: 14px; padding-bottom: 14px; outline: none;
-  line-height: 1.55; border: 1px solid var(--border);
+  line-height: 1.6; border: 1px solid var(--border);
   color: var(--text-primary);
+  font-family: 'Noto Sans', 'Noto Sans Arabic', 'Noto Naskh Arabic', 'Amiri', 'Segoe UI', 'Tahoma',
+    'Noto Sans Ethiopic', 'Nyala', 'Ebrima', 'Abyssinica SIL',
+    'Noto Sans SC', 'Noto Sans TC', 'Microsoft YaHei', 'PingFang SC', 'SimSun',
+    'Noto Sans JP', 'Noto Sans KR', Arial, sans-serif;
+  unicode-bidi: plaintext;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
+.rte-content [dir="auto"] { text-align: start; }
+.rte-content [dir="rtl"], .rte-content :dir(rtl) { direction: rtl; text-align: right; }
 .rte-content:focus { background: var(--bg-surface); }
 .rte-content-body { min-height: 240px; }
 .rte-content a { color: var(--brand); }
