@@ -92,7 +92,32 @@ export default function TemplateViewer({ data }) {
 
   /* ── Shared CSS for document content inside every page ── */
   const contentCSS = `
-    .a4-content { font-size: 11pt; line-height: 1.5; color: #1a1a2e; font-family: 'Calibri', 'Arial', sans-serif; }
+    .a4-content {
+      font-size: 11pt;
+      line-height: 1.6;
+      color: #1a1a2e;
+      font-family: 'Noto Sans',
+        'Noto Sans Arabic', 'Noto Naskh Arabic', 'Amiri', 'Segoe UI', 'Tahoma', 'Traditional Arabic',
+        'Noto Sans Ethiopic', 'Nyala', 'Ebrima', 'Abyssinica SIL', 'Kefa',
+        'Noto Sans SC', 'Noto Sans TC', 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'Hiragino Sans GB', 'SimSun', '宋体', 'SimHei', 'WenQuanYi Zen Hei',
+        'Noto Sans Hebrew', 'Noto Sans Devanagari', 'Noto Sans JP', 'Noto Sans KR',
+        Arial, sans-serif;
+      unicode-bidi: plaintext;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+    .a4-content p, .a4-content h1, .a4-content h2, .a4-content h3, .a4-content h4, .a4-content h5, .a4-content h6, .a4-content li, .a4-content td, .a4-content th, .a4-content div {
+      unicode-bidi: plaintext;
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+    .a4-content [dir="auto"] {
+      text-align: start;
+    }
+    .a4-content [dir="rtl"], .a4-content :dir(rtl), .a4-content .rtl-block {
+      direction: rtl;
+      text-align: right;
+    }
     .a4-content h1 { font-size: 16pt; margin: 0.4em 0 0.3em; }
     .a4-content h2 { font-size: 14pt; margin: 0.4em 0 0.3em; }
     .a4-content h3 { font-size: 12pt; margin: 0.4em 0 0.3em; }
@@ -100,7 +125,7 @@ export default function TemplateViewer({ data }) {
     .a4-content img        { max-width: 100%; height: auto; display: block; }
     .a4-content table      { width: 100%; border-collapse: collapse; table-layout: fixed; }
     .a4-content td,
-    .a4-content th         { word-break: break-word; overflow-wrap: break-word; padding: 4px 6px; }
+    .a4-content th         { word-break: break-word; overflow-wrap: break-word; padding: 4px 6px; text-align: start; }
     .a4-content pre,
     .a4-content code       { white-space: pre-wrap; word-break: break-all; }
     .a4-content *          { max-width: 100%; box-sizing: border-box; }
@@ -155,12 +180,12 @@ export default function TemplateViewer({ data }) {
         width: CONTENT_W,
         top: 0, left: '-9999px',
         background: '#ffffff', color: '#1a1a2e',
-        fontSize: '11pt', lineHeight: '1.5',
-        fontFamily: "'Calibri', 'Arial', sans-serif",
+        fontSize: '11pt', lineHeight: '1.6',
+        fontFamily: "'Noto Sans', 'Noto Sans Arabic', 'Noto Sans Ethiopic', 'Noto Sans SC', Arial, sans-serif",
         boxSizing: 'border-box',
       }}>
         <style>{contentCSS}</style>
-        <div ref={ghostRef} className="a4-content"
+        <div ref={ghostRef} className="a4-content" dir="auto"
           dangerouslySetInnerHTML={{ __html: html }} />
       </div>
 
@@ -256,7 +281,7 @@ export default function TemplateViewer({ data }) {
                     zIndex: 1,
                   }}>
                     <style>{contentCSS}</style>
-                    <div className="a4-content"
+                    <div className="a4-content" dir="auto"
                       dangerouslySetInnerHTML={{ __html: html }} />
                   </div>
 
