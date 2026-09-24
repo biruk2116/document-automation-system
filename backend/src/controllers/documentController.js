@@ -989,7 +989,7 @@ async function validateBulkGeneration(req, res) {
       'SELECT field_path FROM template_placeholders WHERE template_id = ?',
       [template_id]
     );
-    const AUTO_DATE_FIELDS = new Set(['generation_date', 'generation_date_gc', 'generation_date_ec']);
+    const AUTO_DATE_FIELDS = new Set(['generation_date', 'generation_date_gc', 'generation_date_ec', 'generation_date_am', 'generation_date_ec_am']);
     const requiredFields = placeholderRows.map((r) => r.field_path).filter((f) => !AUTO_DATE_FIELDS.has(f));
 
     const report = [];
