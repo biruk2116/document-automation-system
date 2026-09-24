@@ -29,7 +29,7 @@
  * tabular data — but forgetting to do so no longer blocks generation.
  */
 
-const { formatGregorianDate, formatEthiopianDate } = require('./ethiopianCalendar');
+const { formatGregorianDate, formatEthiopianDate, formatEthiopianDateAmharic } = require('./ethiopianCalendar');
 
 function getByPath(obj, path) {
   return path.split('.').reduce((acc, key) => (acc == null ? undefined : acc[key]), obj);
@@ -205,6 +205,8 @@ function withAutoDates(data) {
     generation_date: now.toISOString().slice(0, 10),
     generation_date_gc: formatGregorianDate(now),
     generation_date_ec: formatEthiopianDate(now),
+    generation_date_am: formatEthiopianDateAmharic(now),
+    generation_date_ec_am: formatEthiopianDateAmharic(now),
   };
 }
 
