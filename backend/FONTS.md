@@ -1,25 +1,69 @@
-# Unicode fonts for PDF generation (Arabic / Amharic / Chinese / etc.)
+# Multilingual Unicode Font & Script Support (Amharic / Arabic / Chinese)
 
-Puppeteer's PDF output is only as good as the fonts installed on the **machine or
-container that actually runs headless Chromium** — the app ships CSS font-family
-rules (see `src/utils/documentAssembler.js`), but it does not, and cannot, bundle the
-font *files* themselves. If the right font packages aren't installed on the host,
-non-Latin text (Arabic, Amharic/Ge'ez, Chinese/Japanese/Korean, Hebrew, Devanagari,
-etc.) will render as blank boxes ("tofu") or empty space in the generated PDF even
-though the HTML/placeholder data is completely correct.
+The document generation engine provides production-grade, multi-tiered support for **Amharic (Ethiopic)**, **Arabic (Right-to-Left)**, and **Chinese (Simplified & Traditional)**, as well as Hebrew, Japanese, Korean, and Devanagari.
 
-## Why "Noto Sans" alone isn't enough
+---
 
-The generic "Noto Sans" family only covers Latin, Cyrillic, Greek, and Vietnamese.
-Google splits the rest of Noto's Unicode coverage into separate, script-specific
-families — `Noto Sans Arabic`, `Noto Sans Ethiopic` (Amharic/Ge'ez), `Noto Sans SC`
-(Simplified Chinese), etc. The app's PDF template now lists all of these explicitly in
-its `font-family` stack, and Chromium resolves that stack **per character** — for
-every glyph it walks the list and uses the first font that actually has it. That only
-works if those font families are actually installed on the server.
+## Architecture: Multi-Tiered Typography Engine
 
-## Install (Debian/Ubuntu — the common Docker base)
+The system uses a 4-tier font resolution and layout strategy:
 
+### 1. High-Fidelity Google Web Fonts CDN (Tier 1)
+Inside [`src/utils/documentAssembler.js`](src/utils/documentAssembler.js), every generated HTML document embeds Google Fonts CDN stylesheets:
+- `Noto Sans Ethiopic` (weights 400, 500, 600, 700) for Amharic and Ge'ez script.
+- `Noto Sans Arabic` (weights 400, 500, 600, 700) & `Amiri` (weights 400, 700) for Arabic.
+- `Noto Sans SC` & `Noto Sans TC` (weights 400, 500, 700) for Simplified and Traditional Chinese.
+- `Noto Sans` for Latin, Greek, and Cyrillic.
+
+When Puppeteer generates a PDF ([`src/utils/pdfGenerator.js`](src/utils/pdfGenerator.js)), it calls:
+```javascript
+await page.setContent(html, { waitUntil: 'networkidle0' });
+await page.evaluate(async () => {
+  if (document.fonts && document.fonts.ready) await document.fonts.ready;
+});
+```
+This guarantees all web font glyphs are fully downloaded and compiled before the PDF is printed.
+
+---
+
+### 2. Multi-Platform Local System Font Fallbacks (Tier 2 - Offline / Zero-Latency)
+If the server is offline, firewalled, or generating in an air-gapped environment, Chromium resolves glyphs per-character using native system fonts:
+
+- **Amharic / Ethiopic**:
+  - Windows: `Nyala` (preinstalled on all Windows versions), `Ebrima`.
+  - macOS: `Kefa`.
+  - Linux: `Noto Sans Ethiopic`, `Abyssinica SIL`.
+- **Arabic**:
+  - Windows: `Segoe UI`, `Tahoma`, `Arial`, `Traditional Arabic`, `Arabic Typesetting`.
+  - macOS: `Geeza Pro`, `Damascus`.
+  - Linux: `Noto Sans Arabic`, `Noto Naskh Arabic`, `Amiri`.
+- **Chinese (Simplified & Traditional)**:
+  - Windows: `Microsoft YaHei` (微软雅黑), `SimSun` (宋体), `SimHei` (黑体).
+  - macOS: `PingFang SC`, `Hiragino Sans GB`, `Heiti SC`.
+  - Linux: `Noto Sans SC`, `WenQuanYi Zen Hei`, `WenQuanYi Micro Hei`.
+
+---
+
+### 3. Bidirectional (BiDi) & RTL Layout Engine for Arabic (Tier 3)
+Arabic requires both character shaping and right-to-left layout direction:
+- **Automatic Paragraph Direction (`dir="auto"`)**: Injected automatically onto all block elements (`<p>`, `<h1>`–`<h6>`, `<li>`, `<td>`, `<th>`, `blockquote`) via `ensureAutoBidi()`.
+- **Unicode BiDi Isolation**: `unicode-bidi: plaintext;` ensures mixed Arabic and English/numbers flow naturally.
+- **RTL Alignment**: `[dir="auto"] { text-align: start; }` and `[dir="rtl"] { direction: rtl; text-align: right; }` align Arabic paragraphs to the right while keeping LTR text on the left.
+- **Protected Technical Stamps**: `.qr-footer-row` is explicitly pinned to `direction: ltr !important;` so that verification QR codes do not invert positions.
+
+---
+
+### 4. Amharic Date & Calendar Localization (Tier 4)
+- Dynamic placeholders available in templates:
+  - `{{generation_date_gc}}`: Gregorian date (e.g. `September 24, 2026 G.C.`).
+  - `{{generation_date_ec}}`: Ethiopian civil calendar in English transliteration (e.g. `Meskerem 14, 2018 E.C.`).
+  - `{{generation_date_am}}` / `{{generation_date_ec_am}}`: Pure Amharic Ge'ez script date (e.g. `መስከረም 14 ቀን 2018 ዓ.ም.`).
+
+---
+
+## Installing Local System Fonts (For Offline Linux / Docker Deployments)
+
+### Debian / Ubuntu / Render Docker:
 ```bash
 apt-get update && apt-get install -y \
   fonts-noto-core \
@@ -27,37 +71,7 @@ apt-get update && apt-get install -y \
   fonts-noto-color-emoji
 ```
 
-- `fonts-noto-core` — Noto Sans/Serif for Latin, Arabic, Hebrew, Ethiopic (Amharic),
-  Devanagari, and most other non-CJK scripts.
-- `fonts-noto-cjk` — Chinese, Japanese, Korean (kept separate upstream because it's large).
-- `fonts-noto-color-emoji` — optional, only needed if templates might include emoji.
-
-## Install (Alpine — common in slim Docker images)
-
+### Alpine Linux:
 ```sh
 apk add --no-cache font-noto font-noto-cjk font-noto-ethiopic font-noto-arabic
 ```
-
-(Package names vary slightly by Alpine version — `apk search noto` to confirm what's
-available on the base image in use.)
-
-## Verifying after install
-
-Restart the backend. It runs a best-effort check on boot (see
-`checkUnicodeFontsAvailable` in `src/utils/pdfGenerator.js`) and logs a warning naming
-any of Arabic/Amharic/Chinese it can't find via `fc-list`. You can also check manually:
-
-```bash
-fc-list | grep -i "noto sans arabic"
-fc-list | grep -i "noto sans ethiopic"
-fc-list | grep -i "noto sans sc"
-```
-
-Each should print at least one matching font file. If a line prints nothing, that
-script's font package isn't installed yet.
-
-## Docker note
-
-If this app runs in a container, the fonts must be installed **inside that container's
-image** (add the `apt-get`/`apk` lines above to the Dockerfile) — installing fonts on
-the host machine has no effect on what Chromium sees inside the container.
