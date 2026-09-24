@@ -54,10 +54,22 @@ function toEthiopian(gDate) {
   };
 }
 
+const ETHIOPIAN_MONTHS_AMHARIC = [
+  'መስከረም', 'ጥቅምት', 'ኅዳር', 'ታኅሣሥ', 'ጥር', 'የካቲት',
+  'መጋቢት', 'ሚያዝያ', 'ግንቦት', 'ሰኔ', 'ሐምሌ', 'ነሐሴ', 'ጳጉሜ',
+];
+
 /** e.g. "Nehase 13, 2018 E.C." */
 function formatEthiopianDate(gDate) {
   const { year, day, monthName } = toEthiopian(gDate);
   return `${monthName} ${day}, ${year} E.C.`;
+}
+
+/** e.g. "ነሐሴ 13 ቀን 2018 ዓ.ም." */
+function formatEthiopianDateAmharic(gDate) {
+  const { year, day, month } = toEthiopian(gDate);
+  const amharicMonth = ETHIOPIAN_MONTHS_AMHARIC[month - 1] || '';
+  return `${amharicMonth} ${day} ቀን ${year} ዓ.ም.`;
 }
 
 /** e.g. "August 19, 2026 G.C." */
@@ -66,4 +78,4 @@ function formatGregorianDate(gDate) {
   return `${formatted} G.C.`;
 }
 
-module.exports = { toEthiopian, formatEthiopianDate, formatGregorianDate };
+module.exports = { toEthiopian, formatEthiopianDate, formatEthiopianDateAmharic, formatGregorianDate };
