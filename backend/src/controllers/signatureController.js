@@ -1,11 +1,17 @@
 const fs = require('fs');
+const path = require('path');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../config/db');
 const { generateOtp, hashOtp, verifyOtp, otpExpiryDate, lockoutExpiryDate, MAX_OTP_ATTEMPTS } = require('../utils/otp');
 const { computeSignatureHmac } = require('../utils/hmac');
 const { getSyncedTime } = require('../utils/ntpTime');
 const { sha256 } = require('../utils/documentIntegrity');
-const { assembleDocumentHtml, resolveWatermarkForStatus } = require('../utils/documentAssembler');
+const { 
+  assembleDocumentHtml, 
+  resolveWatermarkForStatus, 
+  injectSignatureIntoDocument, 
+  generateSignatureSvg 
+} = require('../utils/documentAssembler');
 const { htmlToPdfBuffer } = require('../utils/pdfGenerator');
 const { sendMail, templates } = require('../utils/emailService');
 const { recordAudit } = require('../utils/auditLog');
@@ -567,12 +573,18 @@ async function applyApproval(sigReq) {
   const approver = approverRows[0];
 
   const { timestamp } = await getSyncedTime(); // FR-026
-  const visualSignatureText = `Digitally Approved by ${approver.full_name} on ${timestamp.toISOString()}`;
+  const visualSignatureText = `document is digitally signed by ${approver.full_name} Digitally Approved by ${approver.full_name} on ${timestamp.toISOString()}`;
 
   const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
-  const pieces = meta.renderPieces || {};
+  let pieces = meta.renderPieces || {};
 
+  // 1. Keep the visual digital approval banner in doc metadata / footer
   const signatureHtml = `<p class="visual-signature" style="margin-top:10px;font-style:italic;">${visualSignatureText}</p>`;
+  pieces.signatureHtml = signatureHtml;
+  pieces.visualSignatureText = visualSignatureText;
+  pieces.approverName = approver.full_name;
+  pieces.approvedAt = timestamp.toISOString();
+
   const stampedHtml = assembleDocumentHtml({
     ...pieces,
     watermarkText: resolveWatermarkForStatus('signed', pieces.watermarkText), // FR-017: DRAFT -> FINAL/CONFIDENTIAL on approval
@@ -581,7 +593,11 @@ async function applyApproval(sigReq) {
   const pdfBuffer = await htmlToPdfBuffer(stampedHtml);
   const newHash = sha256(pdfBuffer);
 
-  fs.writeFileSync(doc.file_path, pdfBuffer); // overwrite in place — same doc, now signed
+  const fileDir = path.dirname(doc.file_path);
+  if (!fs.existsSync(fileDir)) {
+    fs.mkdirSync(fileDir, { recursive: true });
+  }
+  fs.writeFileSync(doc.file_path, pdfBuffer); // overwrite in place — same doc, now approved
 
   const cryptoHmac = computeSignatureHmac(newHash, timestamp.toISOString()); // FR-024
 
@@ -592,7 +608,7 @@ async function applyApproval(sigReq) {
   );
 
   await pool.query('UPDATE generated_docs SET status = $1, file_hash = $2, metadata = $3 WHERE id = $4', [
-    'signed', newHash, JSON.stringify({ ...meta, signedAt: timestamp.toISOString() }), doc.id,
+    'signed', newHash, JSON.stringify({ ...meta, renderPieces: pieces, signedAt: timestamp.toISOString() }), doc.id,
   ]);
   await pool.query('UPDATE signature_requests SET status = $1, approved_at = $2 WHERE id = $3', ['approved', timestamp, sigReq.id]);
 
@@ -607,9 +623,16 @@ async function applyApproval(sigReq) {
     docId: doc.doc_uuid,
     reviewUrl: buildDocNotifyUrl(doc.id),
   });
-  await sendMail({ to: generator.email, subject, html });
+  
+  // Requirement 1: Approver role is to approve/reject only and send the link to generator.
+  // The approver must NOT send the PDF document attachment.
+  await sendMail({
+    to: generator.email,
+    subject,
+    html,
+  });
 
-  console.log(`[signatures] Document ${doc.doc_uuid} approved by ${approver.full_name}`);
+  console.log(`[signatures] Document ${doc.doc_uuid} approved by ${approver.full_name} and review link sent to generator`);
 
   return {
     ok: true,
