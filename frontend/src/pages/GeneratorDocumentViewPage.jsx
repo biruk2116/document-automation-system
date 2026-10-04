@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import SecureOneTimeDocumentViewer from '../components/common/SecureOneTimeDocumentViewer';
 import {
   downloadDocumentViaNotifyToken,
   getNotifyTokenMeta,
 } from '../services/publicService';
 import { useToast } from '../hooks/useToast';
+import { useAuth } from '../hooks/useAuth';
 
 const BASE_URL = import.meta.env?.VITE_API_URL || 'http://localhost:5000/api';
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -272,6 +273,9 @@ function DeliverySendForm({ notifyToken, recordIdentifier }) {
 export default function GeneratorDocumentViewPage() {
   const { token } = useParams();
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
   const fileUrl = `${BASE_URL}/documents/notify-view/${encodeURIComponent(token)}`;
   const [downloading, setDownloading] = useState(false);
   const [meta, setMeta] = useState(null); // { outcome, doc_uuid, rejection_reason, ... }
@@ -322,6 +326,27 @@ export default function GeneratorDocumentViewPage() {
       }
     : { from: { pathname: plainLoginTarget } };
 
+  const handleEditResubmit = () => {
+    if (user && meta) {
+      navigate('/documents', {
+        state: {
+          resubmitDoc: {
+            id: meta.id,
+            doc_uuid: meta.doc_uuid,
+            template_id: meta.template_id,
+            template_name: meta.template_name,
+            record_identifier: meta.record_identifier,
+            approver_id: meta.approver_id,
+            approver_name: meta.approver_name,
+            rejection_reason: meta.rejection_reason,
+          },
+        },
+      });
+    } else {
+      navigate('/login', { state: editResubmitState });
+    }
+  };
+
   /**
    * Fetches the PDF as a blob and triggers a real save-as download in-app — never a
    * plain <a href> straight to the backend, which would leave the tab showing the
@@ -349,11 +374,27 @@ export default function GeneratorDocumentViewPage() {
   return (
     <div className="verify-page">
       <div className="verify-card" style={{ maxWidth: 900 }}>
+        {user && (
+          <div style={{ marginBottom: 16 }}>
+            <button
+              type="button"
+              onClick={() => navigate(docId ? `/document-tracking?doc=${encodeURIComponent(docId)}` : '/document-tracking')}
+              className="btn-secondary"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', padding: '6px 14px' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              Back to Document Tracking
+            </button>
+          </div>
+        )}
+
         <h1>{isRejected ? 'Document Rejected' : isSigned ? 'Document Approved & Signed' : 'Document Update'}</h1>
         <p className="verify-subtitle">
-          This is your one-time secure link to review this document in the system — it
-          can only be opened once, and the PDF will disappear from this page if you
-          switch away from this tab. Use the options below afterward.
+          {user
+            ? 'Review the document details and take the necessary action below.'
+            : 'This is your one-time secure link to review this document in the system — it can only be opened once, and the PDF will disappear from this page if you switch away from this tab. Use the options below afterward.'}
         </p>
 
         {isRejected && (
@@ -374,16 +415,16 @@ export default function GeneratorDocumentViewPage() {
           <p className="login-error" style={{ marginBottom: 12 }}>{metaError}</p>
         )}
 
-        <SecureOneTimeDocumentViewer fetchUrl={fileUrl} title="Document update" />
+        <SecureOneTimeDocumentViewer fetchUrl={fileUrl} title="Document update" isOneTime={!user} />
 
         <div className="template-form-actions" style={{ marginTop: 16, flexWrap: 'wrap', gap: 10 }}>
           <button type="button" onClick={handleDownload} disabled={downloading} className="btn-secondary">
             {downloading ? 'Downloading…' : 'Download the Document'}
           </button>
           {isRejected && (
-            <Link to="/login" state={editResubmitState} className="btn-primary">
+            <button type="button" onClick={handleEditResubmit} className="btn-primary">
               Edit &amp; Resubmit
-            </Link>
+            </button>
           )}
         </div>
 
@@ -399,9 +440,19 @@ export default function GeneratorDocumentViewPage() {
 
         {!loadingMeta && !isRejected && (
           <div className="template-form-actions" style={{ marginTop: 20 }}>
-            <Link to="/login" state={editResubmitState} className="btn-primary">
-              Sign in to Doc Automation
-            </Link>
+            {user ? (
+              <button
+                type="button"
+                onClick={() => navigate(docId ? `/document-tracking?doc=${encodeURIComponent(docId)}` : '/document-tracking')}
+                className="btn-primary"
+              >
+                View in Document Tracking
+              </button>
+            ) : (
+              <Link to="/login" state={editResubmitState} className="btn-primary">
+                Sign in to Doc Automation
+              </Link>
+            )}
           </div>
         )}
       </div>
