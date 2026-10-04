@@ -325,59 +325,72 @@ input::-ms-clear {
 .app-content { padding: 20px 24px; margin-top: var(--navbar-height); }
 
 /* ============================================================
-   COMMON BUTTONS — Compact, content-wrapping, clean
+   COMMON BUTTONS — Compact, consistent, professional
+   All variants share the same height (30px), font size (0.8rem),
+   padding, and radius so every button in the app looks uniform.
    ============================================================ */
-.btn-primary {
-  background: #2563EB; color: #FFFFFF; border: 1px solid transparent;
-  padding: 6px 14px; min-height: 32px; width: fit-content;
+
+/* ── Shared base ── */
+.btn-primary,
+.btn-secondary,
+.btn-accent,
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 5px 12px;
+  min-height: 30px;
   border-radius: var(--radius-sm);
-  font-weight: 600; cursor: pointer; text-decoration: none;
-  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-  transition: background 0.15s; font-size: 0.8125rem;
-  line-height: 1.3; white-space: nowrap; box-sizing: border-box;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  box-sizing: border-box;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  width: fit-content;
+  user-select: none;
+}
+
+.btn-primary {
+  background: #2563EB;
+  color: #FFFFFF;
+  border: 1px solid transparent;
   background-clip: padding-box;
 }
 .btn-primary:hover:not(:disabled) { background: #1D4ED8; }
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .btn-secondary {
-  background: var(--bg-surface); color: var(--text-primary);
+  background: var(--bg-surface);
+  color: var(--text-primary);
   border: 1px solid var(--border-strong);
-  padding: 6px 14px; min-height: 32px; width: fit-content;
-  border-radius: var(--radius-sm); cursor: pointer; font-weight: 500;
-  font-size: 0.8125rem; transition: background 0.15s, border-color 0.15s;
-  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-  line-height: 1.3; white-space: nowrap; box-sizing: border-box;
+  font-weight: 500;
 }
 .btn-secondary:hover:not(:disabled) { background: var(--bg-subtle); }
+.btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }
 .dark .btn-secondary {
-  background: var(--bg-surface); color: var(--text-primary);
+  background: var(--bg-surface);
+  color: var(--text-primary);
   border-color: var(--border);
 }
-.dark .btn-secondary:hover:not(:disabled) {
-  background: var(--bg-subtle);
-}
-.btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }
+.dark .btn-secondary:hover:not(:disabled) { background: var(--bg-subtle); }
 
-/* Accent action button */
 .btn-accent {
-  background: #2563EB; color: #FFFFFF; border: 1px solid transparent;
-  padding: 6px 14px; min-height: 32px; border-radius: var(--radius-sm); width: fit-content;
-  font-weight: 600; cursor: pointer; text-decoration: none;
-  display: inline-flex; align-items: center; gap: 5px;
-  transition: background 0.15s; font-size: 0.8125rem;
-  line-height: 1.3; white-space: nowrap; box-sizing: border-box;
+  background: #2563EB;
+  color: #FFFFFF;
+  border: 1px solid transparent;
 }
 .btn-accent:hover:not(:disabled) { background: #1D4ED8; }
 .btn-accent:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .btn-danger {
-  background: var(--bg-surface); color: var(--error-text);
+  background: var(--bg-surface);
+  color: var(--error-text);
   border: 1px solid var(--error-border);
-  padding: 5px 12px; border-radius: var(--radius-sm); cursor: pointer; font-weight: 600;
-  font-size: 0.8125rem; width: fit-content; min-height: 30px;
-  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-  transition: background 0.15s; box-sizing: border-box;
 }
 .btn-danger:hover:not(:disabled) { background: var(--error-bg); }
 .btn-danger:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -492,21 +505,25 @@ input::-ms-clear {
   padding-top: 10px;
 }
 
-/* Create Template Submit Button (Requirement 2) */
-.template-create-submit-btn,
-.template-form-actions .btn-primary {
-  padding: 6px 18px;
-  min-height: 32px;
+/* Create Template Submit Button — inherits global .btn-primary sizing */
+.template-create-submit-btn {
+  padding: 5px 16px;
+  min-height: 30px;
   width: auto;
   max-width: fit-content;
-  font-size: 0.8125rem;
-  line-height: 1.3;
-  border-radius: var(--radius-sm);
-  border: 1px solid transparent;
-  background-clip: padding-box;
-  box-sizing: border-box;
-  box-shadow: none;
   margin: 0 auto;
+}
+
+.template-form-actions button,
+.template-form-actions a,
+.template-form-actions .btn-primary,
+.template-form-actions .btn-secondary,
+.template-form-actions .btn-danger {
+  padding: 5px 16px;
+  min-height: 30px;
+  width: auto;
+  max-width: fit-content;
+  margin: 0;
 }
 
 .field-invalid { border-color: var(--error-text) !important; }
@@ -1582,11 +1599,11 @@ input::-ms-clear {
   border-bottom: none !important;
 }
 .dark .doc-track-stats {
-  background: #141b2d;
+  background: transparent !important;
   border: none !important;
 }
 .dark .doc-track-stat {
-  background: #0b1121;
+  background: transparent !important;
   border: none !important;
 }
 .dark .doc-delivery {
@@ -1624,7 +1641,7 @@ input::-ms-clear {
   border-bottom: none !important;
 }
 .dark .btn-secondary {
-  border: none !important;
+  border-color: var(--border) !important;
   background: #182238;
   color: #FFFFFF;
 }
