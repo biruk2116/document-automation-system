@@ -865,7 +865,7 @@ export default function SecureDeliveryPage() {
                           {new Date().toLocaleDateString()}
                         </p>
                       </div>
-                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                         <ActionBtn onClick={handleSubmitSignature} loading={signing}
                           disabled={signing} variant="navy">
                           {signing ? 'Submitting…' : 'Submit to Generator'}
@@ -1218,7 +1218,7 @@ export default function SecureDeliveryPage() {
                           color: 'var(--text-primary)',
                         }}
                       />
-                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                         <ActionBtn onClick={handleRespond} loading={responding}
                           disabled={responding || !responseText.trim() || ownershipStatus !== 'CONFIRMED'}
                           variant="primary">
