@@ -79,21 +79,27 @@ export default function RejectionReviewPage() {
     setActing(true);
     try {
       if (!user) {
-        // Not logged in — use the auto-login endpoint to get a short-lived session.
+        // Not logged in — use the auto-login endpoint to get a short-lived JWT
+        // that was mailed only to the Generator's registered address.
         const loginRes = await autoLoginForRejectionReview(token);
-        const { token: sessionToken, user: sessionUser } = loginRes.data;
+        const { token: sessionToken } = loginRes.data;
 
-        // Store exactly the same way as normal login (authService.login).
+        // Set the bearer token in the API layer immediately so the next call
+        // (/auth/me inside refreshUser) is authenticated.
         setAuthToken(sessionToken);
-        sessionStorage.setItem('doc_automation_token', sessionToken);
 
-        // Patch AuthContext user so the rest of the app sees an authenticated session.
-        // We call refreshUser() to let AuthContext do a full /auth/me fetch using the
-        // new token — this is more robust than patching state directly.
+        // Persist to both storages so a same-tab reload or a back-navigation
+        // keeps the session alive for the full 15-minute token lifetime.
+        sessionStorage.setItem('doc_automation_token', sessionToken);
+        localStorage.setItem('doc_automation_token', sessionToken);
+
+        // Sync AuthContext so ProtectedRoute on /documents sees a valid user
+        // before React Router renders it.
         await refreshUser();
       }
 
       // Navigate to My Documents in Edit & Resubmit mode.
+      // The resubmitDoc state is picked up by ResubmitPanel on that page.
       navigate('/documents', {
         replace: true,
         state: { resubmitDoc: data.resubmitDoc },
