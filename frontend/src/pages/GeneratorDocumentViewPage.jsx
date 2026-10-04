@@ -4,7 +4,9 @@ import SecureOneTimeDocumentViewer from '../components/common/SecureOneTimeDocum
 import {
   downloadDocumentViaNotifyToken,
   getNotifyTokenMeta,
+  autoLoginForNotifyView,
 } from '../services/publicService';
+import { setAuthToken } from '../services/api';
 import { useToast } from '../hooks/useToast';
 import { useAuth } from '../hooks/useAuth';
 
@@ -273,7 +275,7 @@ function DeliverySendForm({ notifyToken, recordIdentifier }) {
 export default function GeneratorDocumentViewPage() {
   const { token } = useParams();
   const { showToast } = useToast();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
 
   const fileUrl = `${BASE_URL}/documents/notify-view/${encodeURIComponent(token)}`;
@@ -287,6 +289,23 @@ export default function GeneratorDocumentViewPage() {
   useEffect(() => {
     let cancelled = false;
     setLoadingMeta(true);
+
+    // Auto-login generator so clicking the email link opens directly in the system without asking for login
+    if (token) {
+      autoLoginForNotifyView(token)
+        .then(async (loginRes) => {
+          if (cancelled) return;
+          const { token: sessionToken } = loginRes.data;
+          setAuthToken(sessionToken);
+          sessionStorage.setItem('doc_automation_token', sessionToken);
+          localStorage.setItem('doc_automation_token', sessionToken);
+          if (refreshUser) await refreshUser().catch(() => {});
+        })
+        .catch(() => {
+          // If auto-login fails, still allow public view
+        });
+    }
+
     getNotifyTokenMeta(token)
       .then((res) => { if (!cancelled) setMeta(res.data); })
       .catch((err) => { if (!cancelled) setMetaError(err.message || 'Failed to load document status.'); })
@@ -297,37 +316,8 @@ export default function GeneratorDocumentViewPage() {
   const isRejected = meta?.outcome === 'rejected';
   const isSigned = meta?.outcome === 'signed';
 
-  // Plain sign-in target (used whenever we don't have enough context yet, e.g. the
-  // meta lookup is still loading or failed) — falls back to Document Tracking with
-  // the doc pre-highlighted, same as before.
-  const plainLoginTarget = docId ? `/document-tracking?doc=${encodeURIComponent(docId)}` : '/document-tracking';
-
-  // "Edit & Resubmit" straight from the email: carries the same resubmitDoc shape
-  // DocumentTrackingPage.handleEditResubmit builds, so after signing in the person
-  // lands directly in My Documents' resubmit form instead of a plain document list.
-  // See Login.jsx, which now forwards this state through to the redirect target.
-  const editResubmitState = isRejected
-    ? {
-        from: {
-          pathname: '/documents',
-          state: {
-            resubmitDoc: {
-              id: meta.id,
-              doc_uuid: meta.doc_uuid,
-              template_id: meta.template_id,
-              template_name: meta.template_name,
-              record_identifier: meta.record_identifier,
-              approver_id: meta.approver_id,
-              approver_name: meta.approver_name,
-              rejection_reason: meta.rejection_reason,
-            },
-          },
-        },
-      }
-    : { from: { pathname: plainLoginTarget } };
-
   const handleEditResubmit = () => {
-    if (user && meta) {
+    if (meta) {
       navigate('/documents', {
         state: {
           resubmitDoc: {
@@ -342,8 +332,6 @@ export default function GeneratorDocumentViewPage() {
           },
         },
       });
-    } else {
-      navigate('/login', { state: editResubmitState });
     }
   };
 
@@ -440,19 +428,13 @@ export default function GeneratorDocumentViewPage() {
 
         {!loadingMeta && !isRejected && (
           <div className="template-form-actions" style={{ marginTop: 20 }}>
-            {user ? (
-              <button
-                type="button"
-                onClick={() => navigate(docId ? `/document-tracking?doc=${encodeURIComponent(docId)}` : '/document-tracking')}
-                className="btn-primary"
-              >
-                View in Document Tracking
-              </button>
-            ) : (
-              <Link to="/login" state={editResubmitState} className="btn-primary">
-                Sign in to Doc Automation
-              </Link>
-            )}
+            <button
+              type="button"
+              onClick={() => navigate(docId ? `/document-tracking?doc=${encodeURIComponent(docId)}` : '/document-tracking')}
+              className="btn-primary"
+            >
+              Open in Document Tracking
+            </button>
           </div>
         )}
       </div>
