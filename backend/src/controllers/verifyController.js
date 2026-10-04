@@ -67,17 +67,23 @@ async function verifyDocument(req, res) {
     }
 
     const hashToCompare = uploadedHash || dbRow.file_hash;
-    const isAuthentic = hashToCompare === dbRow.file_hash;
+    const hashMatches = hashToCompare === dbRow.file_hash;
+    const isDraft = dbRow.status === 'draft';
+
+    // Requirement 2: For DRAFT document status, do NOT verify the document is authentic
+    const isAuthentic = !isDraft && hashMatches;
     const isApproved = Boolean(
       (Number(dbRow.approved_sr_count) > 0 || Number(dbRow.digital_sig_count) > 0 || dbRow.status === 'signed' || dbRow.status === 'delivered') &&
-      dbRow.status !== 'draft' &&
+      !isDraft &&
       dbRow.status !== 'pending' &&
       dbRow.status !== 'rejected'
     );
     const isVerified = isAuthentic && isApproved;
 
     let message = '';
-    if (!isAuthentic) {
+    if (isDraft) {
+      message = 'Document is in Draft status — not verified or authentic.';
+    } else if (!hashMatches) {
       message = 'Document is Corrupt/Forged — hash mismatch.';
     } else if (!isApproved) {
       if (dbRow.status === 'rejected') {
@@ -94,7 +100,7 @@ async function verifyDocument(req, res) {
     await recordAudit({
       docId: dbRow.id,
       action: 'VERIFY',
-      details: { result: isVerified ? 'authentic' : isAuthentic ? 'unapproved' : 'corrupt' },
+      details: { result: isDraft ? 'draft' : isVerified ? 'authentic' : isAuthentic ? 'unapproved' : 'corrupt' },
       req,
     });
 
@@ -105,6 +111,7 @@ async function verifyDocument(req, res) {
         verified: isVerified,
         isAuthentic,
         isApproved,
+        isDraft,
         docId: dbRow.doc_uuid,
         status: dbRow.status,
         originalSignedAt: dbRow.generated_at,
