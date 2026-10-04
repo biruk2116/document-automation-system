@@ -252,16 +252,38 @@ export default function DocumentTrackingPage() {
               handleEditResubmit(target, banner);
             }
           }
-        } else if (pendingAction === 'edit_resubmit') {
-          // No rejected delivery — still navigate for draft-rejected docs.
-          const wasRejected = target.status === 'draft' && target.signature_status === 'rejected';
-          if (wasRejected) {
-            handleEditResubmit(target, null);
+        } else {
+          // If no delivery rejection found, check if it's an approver rejection
+          const wasApproverRejected = target.status === 'draft' && target.signature_status === 'rejected';
+          if (wasApproverRejected || target.rejection_reason) {
+            const banner = {
+              docId: String(target.id),
+              reason: target.rejection_reason || '(no reason given)',
+              recipientName: target.approver_name ? `Approver (${target.approver_name})` : 'Approver',
+              isApprover: true,
+            };
+            setOwnershipRejectionBanner(banner);
+          }
+          if (pendingAction === 'edit_resubmit') {
+            const wasRejected = target.status === 'draft' && target.signature_status === 'rejected';
+            if (wasRejected) {
+              handleEditResubmit(target, null);
+            }
           }
         }
       })
       .catch(() => {
-        // Non-critical — if delivery log fetch fails, still navigate for draft-rejected.
+        // Non-critical — if delivery log fetch fails, still surface approver rejection if applicable
+        const wasApproverRejected = target.status === 'draft' && target.signature_status === 'rejected';
+        if (wasApproverRejected || target.rejection_reason) {
+          const banner = {
+            docId: String(target.id),
+            reason: target.rejection_reason || '(no reason given)',
+            recipientName: target.approver_name ? `Approver (${target.approver_name})` : 'Approver',
+            isApprover: true,
+          };
+          setOwnershipRejectionBanner(banner);
+        }
         if (pendingAction === 'edit_resubmit') {
           const wasRejected = target.status === 'draft' && target.signature_status === 'rejected';
           if (wasRejected) handleEditResubmit(target, null);
@@ -474,9 +496,6 @@ function DocumentCard({ doc, highlighted, isAdmin, user, onNeedsApprover, onSecu
   const isAssignedApprover = doc.status === 'pending' && doc.approver_id === user?.id;
   const canDelete = !isDeleted && (isOwner || isAdmin || isAssignedApprover);
 
-  // The "⋮" menu holds Delete only (Hand Delivered is now a primary action button).
-  const hasSecondaryActions = canDelete;
-
   const handleView = async () => {
     setViewingDoc(true);
     try {
@@ -541,50 +560,67 @@ function DocumentCard({ doc, highlighted, isAdmin, user, onNeedsApprover, onSecu
       ref={cardRef}
       className={`doc-card${highlighted ? ' doc-card-highlighted' : ''}${isDeleted ? ' doc-card-deleted' : ''}`}
     >
-      <div className="doc-card-top">
-        <div className="doc-card-id-block">
-          <span className="doc-card-template">{doc.template_name}</span>
-          <span className="doc-card-id">{doc.doc_uuid}</span>
-          <div className="doc-card-meta">
-            <span><b>Record:</b> {doc.record_identifier}</span>
-            <span><b>Generated:</b> {new Date(doc.generated_at).toLocaleString()}</span>
-          </div>
+      <div className="doc-card-header">
+        <h3 className="doc-card-template">{doc.template_name}</h3>
+        <div className="doc-card-id">{doc.doc_uuid}</div>
+      </div>
+
+      <div className="doc-card-meta">
+        <div className="doc-card-meta-row">
+          <span className="doc-card-meta-label">Record:</span>
+          <span className="doc-card-meta-value">{doc.record_identifier}</span>
         </div>
-        <div>
-          {isDeleted ? <span className="doc-badge doc-badge-red"><span className="doc-badge-dot" />Deleted</span> : <DocBadge status={doc.status} />}
-          {doc.status === 'pending' && doc.approver_name && !isDeleted && (
-            <div className="doc-card-subline doc-card-subline-amber">Awaiting {doc.approver_name}</div>
-          )}
-          {doc.status === 'signed' && doc.approver_name && !isDeleted && (
-            <div className="doc-card-subline doc-card-subline-green">Approved by {doc.approver_name}</div>
-          )}
-          {doc.status === 'delivered' && doc.delivered_to && !isDeleted && (
-            <div className="doc-card-subline doc-card-subline-blue">
-              Sent to {doc.delivered_to}
-              {doc.delivered_at && <> · Delivered {new Date(doc.delivered_at).toLocaleString()}</>}
-            </div>
-          )}
-          {wasRejected && !isDeleted && (
-            <div className="doc-card-subline doc-card-subline-red">
-              Rejected{doc.rejection_reason ? `: ${doc.rejection_reason}` : ''}
-            </div>
-          )}
-          {/* Ownership rejection banner — shown when Generator arrives from the bell
-              notification (?action=edit_resubmit) for a delivered doc whose recipient
-              rejected ownership. Different from the approver rejection above. */}
-          {ownershipRejectionBanner && !wasRejected && !isDeleted && (
-            <div style={{
-              marginTop: 4, padding: '4px 10px', borderRadius: 6,
-              background: '#FEF2F2', border: '1px solid #FECACA',
-              fontSize: '0.8rem', color: '#DC2626',
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-              Recipient rejected: <i>{ownershipRejectionBanner.reason}</i>
-            </div>
-          )}
+        <div className="doc-card-meta-row">
+          <span className="doc-card-meta-label">Generated:</span>
+          <span className="doc-card-meta-value">{new Date(doc.generated_at).toLocaleString()}</span>
         </div>
       </div>
+
+      <div className="doc-card-status-block">
+        <div className="doc-card-badge-row">
+          {isDeleted ? (
+            <span className="doc-badge doc-badge-red"><span className="doc-badge-dot" />Deleted</span>
+          ) : (
+            <DocBadge status={doc.status} />
+          )}
+        </div>
+        {doc.status === 'pending' && doc.approver_name && !isDeleted && (
+          <div className="doc-card-subline doc-card-subline-amber">Awaiting {doc.approver_name}</div>
+        )}
+        {doc.status === 'signed' && doc.approver_name && !isDeleted && (
+          <div className="doc-card-subline doc-card-subline-green">Approved by {doc.approver_name}</div>
+        )}
+        {doc.status === 'delivered' && doc.delivered_to && !isDeleted && (
+          <div className="doc-card-subline doc-card-subline-blue">
+            Sent to {doc.delivered_to}
+            {doc.delivered_at && <> · Delivered {new Date(doc.delivered_at).toLocaleString()}</>}
+          </div>
+        )}
+        {doc.status === 'delivered' && !doc.delivered_to && !isDeleted && (
+          <div className="doc-card-subline doc-card-subline-blue">
+            Hand delivered
+            {doc.delivered_at && <> · {new Date(doc.delivered_at).toLocaleString()}</>}
+          </div>
+        )}
+        {wasRejected && !isDeleted && (
+          <div className="doc-card-subline doc-card-subline-red">
+            Rejected{doc.rejection_reason ? `: ${doc.rejection_reason}` : ''}
+          </div>
+        )}
+        {/* Rejection banner — shown when arriving from notification (?action=view_rejection) */}
+        {ownershipRejectionBanner && !isDeleted && (
+          <div style={{
+            marginTop: 6, padding: '6px 12px', borderRadius: 8,
+            background: '#FEF2F2', border: '1px solid #FECACA',
+            fontSize: '0.82rem', color: '#DC2626',
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+            <span>{ownershipRejectionBanner.isApprover ? 'Approver rejected:' : 'Recipient rejected:'} <b>{ownershipRejectionBanner.reason}</b></span>
+          </div>
+        )}
+      </div>
+
       {isDeleted ? (
         <div className="doc-card-deleted-note">
           This document was deleted — its file is no longer available to view, download, or deliver. It can still be checked for authenticity on the <b>Verify Document</b> page using its Doc ID (<span className="doc-card-id">{doc.doc_uuid}</span>).
@@ -592,63 +628,68 @@ function DocumentCard({ doc, highlighted, isAdmin, user, onNeedsApprover, onSecu
       ) : (
         <>
           <div className="doc-card-actions">
-            <button type="button" onClick={handleView} disabled={viewingDoc} className="doc-btn doc-btn-secondary">
-              {viewingDoc ? 'Opening…' : 'View'}
-            </button>
-            <button type="button" onClick={handleDownload} disabled={downloading} className="doc-btn doc-btn-secondary">
-              {downloading ? 'Downloading…' : 'Download'}
-            </button>
-            {doc.status === 'draft' && !wasRejected && (
-              <button type="button" onClick={onNeedsApprover} className="doc-btn doc-btn-primary">Select Approver</button>
-            )}
-            {wasRejected && (
-              <button type="button" onClick={() => onEditResubmit(null)} className="doc-btn doc-btn-primary">
-                Edit &amp; Resubmit
+            {/* Primary Action Row: View, Download, Send / Select Approver / Edit & Resubmit */}
+            <div className="doc-card-actions-row">
+              <button type="button" onClick={handleView} disabled={viewingDoc} className="doc-btn doc-btn-secondary">
+                {viewingDoc ? 'Opening…' : 'View'}
               </button>
-            )}
-            {/* Send button - disabled if hand delivered */}
-            {showDeliveryButtons && (
-              <button 
-                type="button" 
-                onClick={handleSend} 
-                className="doc-btn doc-btn-primary"
-                disabled={wasHandDelivered || markingDelivered || sendingDocument}
-                title={wasHandDelivered ? 'Document has been marked as hand delivered' : ''}
-              >
-                {sendingDocument ? 'Opening...' : 'Send'}
+              <button type="button" onClick={handleDownload} disabled={downloading} className="doc-btn doc-btn-secondary">
+                {downloading ? 'Downloading…' : 'Download'}
               </button>
-            )}
-            {/* Hand Delivered button - disabled if sent via secure delivery */}
-            {showDeliveryButtons && (
-              <button
-                type="button"
-                onClick={handleMarkDelivered}
-                disabled={wasSecureDelivered || markingDelivered || sendingDocument}
-                className="doc-btn doc-btn-secondary"
-                title={wasSecureDelivered ? 'Document has been sent via secure delivery' : 'Record that a physical copy was handed to the recipient'}
-              >
-                {markingDelivered ? 'Updating…' : 'Hand Delivered'}
-              </button>
-            )}
-            {/* When arriving from an ownership-rejection bell notification, surface
-                Edit & Resubmit prominently even for a delivered doc — the rejection
-                means the recipient never owned it, so it needs to be resent. */}
-            {ownershipRejectionBanner && isSignedOrDelivered && (
-              <button type="button" onClick={() => onEditResubmit(ownershipRejectionBanner)} className="doc-btn doc-btn-primary" style={{ background: '#DC2626', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                Edit &amp; Resubmit
-              </button>
-            )}
-            {/* Direct compact Delete button — replaces the three-dot menu */}
-            {canDelete && (
-              <button
-                type="button"
-                className="doc-btn doc-btn-danger"
-                onClick={() => setConfirmingDelete(true)}
-                title="Delete document"
-              >
-                Delete
-              </button>
+              {doc.status === 'draft' && !wasRejected && (
+                <button type="button" onClick={onNeedsApprover} className="doc-btn doc-btn-primary">Select Approver</button>
+              )}
+              {wasRejected && (
+                <button type="button" onClick={() => onEditResubmit(null)} className="doc-btn doc-btn-primary">
+                  Edit &amp; Resubmit
+                </button>
+              )}
+              {/* Send button - disabled if hand delivered */}
+              {showDeliveryButtons && (
+                <button
+                  type="button"
+                  onClick={handleSend}
+                  className="doc-btn doc-btn-primary"
+                  disabled={wasHandDelivered || markingDelivered || sendingDocument}
+                  title={wasHandDelivered ? 'Document has been marked as hand delivered' : ''}
+                >
+                  {sendingDocument ? 'Opening...' : 'Send'}
+                </button>
+              )}
+              {/* When arriving from an ownership-rejection bell notification */}
+              {ownershipRejectionBanner && isSignedOrDelivered && (
+                <button type="button" onClick={() => onEditResubmit(ownershipRejectionBanner)} className="doc-btn doc-btn-primary" style={{ background: '#DC2626', borderColor: '#DC2626', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  Edit &amp; Resubmit
+                </button>
+              )}
+            </div>
+
+            {/* Secondary / Danger Action Row: Hand Delivered, Delete */}
+            {(showDeliveryButtons || canDelete) && (
+              <div className="doc-card-actions-row">
+                {showDeliveryButtons && (
+                  <button
+                    type="button"
+                    onClick={handleMarkDelivered}
+                    disabled={wasSecureDelivered || markingDelivered || sendingDocument}
+                    className="doc-btn doc-btn-secondary doc-btn-hand-delivered"
+                    title={wasSecureDelivered ? 'Document has been sent via secure delivery' : 'Record that a physical copy was handed to the recipient'}
+                  >
+                    {markingDelivered ? 'Updating…' : 'Hand Delivered'}
+                  </button>
+                )}
+                {canDelete && (
+                  <button
+                    type="button"
+                    className="doc-btn doc-btn-danger"
+                    onClick={() => setConfirmingDelete(true)}
+                    title="Delete document"
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
             )}
           </div>
           {/* Compact delete confirmation dialog — preserves the document view context */}
@@ -702,3 +743,4 @@ function DocumentCard({ doc, highlighted, isAdmin, user, onNeedsApprover, onSecu
     </div>
   );
 }
+
