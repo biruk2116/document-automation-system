@@ -8,7 +8,13 @@ const { generateSecureToken, hashToken, tokenExpiryDate } = require('../utils/se
 const { validateRecipientEmail, validateEmailMatchesRecord } = require('../utils/recipientValidation');
 const { embedSignatureIntoPdf } = require('../utils/signatureEmbedder');
 const { sha256 } = require('../utils/documentIntegrity');
-const { assembleDocumentHtml, resolveWatermarkForStatus, injectSignatureIntoFooter } = require('../utils/documentAssembler');
+const { 
+  assembleDocumentHtml, 
+  resolveWatermarkForStatus, 
+  injectSignatureIntoFooter, 
+  injectSignatureIntoDocument, 
+  generateSignatureSvg 
+} = require('../utils/documentAssembler');
 const { htmlToPdfBuffer } = require('../utils/pdfGenerator');
 const { STORAGE_ROOT } = require('../utils/fileStorage');
 require('dotenv').config();
@@ -41,9 +47,52 @@ async function resolveDocFilePath(doc) {
     const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
     const pieces = meta.renderPieces;
     if (pieces && pieces.headerHtml && pieces.bodyHtml) {
+      let signatureHtml = pieces.signatureHtml || '';
+      if (!signatureHtml && (doc.status === 'signed' || doc.status === 'delivered')) {
+        const [sigRows] = await pool.query(
+          `SELECT ds.visual_signature_text, ds.signature_timestamp, u.full_name AS approver_name
+           FROM digital_signatures ds
+           JOIN users u ON u.id = ds.signer_id
+           WHERE ds.doc_id = ?
+           ORDER BY ds.id DESC LIMIT 1`,
+          [doc.id]
+        );
+        let approverName = sigRows?.[0]?.approver_name;
+        let ts = sigRows?.[0]?.signature_timestamp;
+        if (!approverName) {
+          const [srRows] = await pool.query(
+            `SELECT sr.approved_at, u.full_name AS approver_name
+             FROM signature_requests sr
+             JOIN users u ON u.id = sr.approver_id
+             WHERE sr.doc_id = ? AND sr.status = 'approved'
+             ORDER BY sr.id DESC LIMIT 1`,
+            [doc.id]
+          );
+          if (srRows.length > 0) {
+            approverName = srRows[0].approver_name;
+            ts = srRows[0].approved_at;
+          }
+        }
+        if (approverName) {
+          const timeStr = ts ? new Date(ts).toISOString() : new Date().toISOString();
+          signatureHtml = `<p class="visual-signature" style="margin-top:10px;font-style:italic;">document is digitally signed by ${approverName} Digitally Approved by ${approverName} on ${timeStr}</p>`;
+        }
+      }
+
+      // If document was signed by recipient, inject their exact signature and name into signature field
+      if (meta.userSigned && (meta.userSigned.name || meta.userSigned.photo)) {
+        pieces = injectSignatureIntoDocument(
+          pieces,
+          meta.userSigned.name,
+          meta.userSigned.photo,
+          meta.userSigned.signedAt
+        );
+      }
+
       const documentHtml = assembleDocumentHtml({
         ...pieces,
         watermarkText: resolveWatermarkForStatus(doc.status || 'generated', pieces.watermarkText),
+        signatureHtml,
       });
       const pdfBuffer = await htmlToPdfBuffer(documentHtml);
       if (!fs.existsSync(STORAGE_ROOT)) {
@@ -1009,10 +1058,12 @@ async function downloadDeliveredDocument(req, res) {
   if (delivery.downloaded_at) {
     return res.status(410).json({ success: false, message: 'This document has already been downloaded. The link is no longer valid.' });
   }
-  const filePath = await resolveDocFilePath(doc);
+  let filePath = await resolveDocFilePath(doc);
   if (!filePath) {
     return res.status(410).json({ success: false, message: 'The file is no longer available.' });
   }
+
+  // Do not regenerate if file already exists on disk — preserve the exact signed PDF with recipient signature
 
   const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
 
@@ -1454,6 +1505,19 @@ async function getPublicVerificationStatus(req, res) {
       });
     }
 
+    if (doc.status === 'draft') {
+      await recordAudit({ docId: doc.id, action: 'VERIFY', details: { event: 'qr_public_verify', result: 'DRAFT' }, req });
+      return res.status(200).json({
+        success: true,
+        data: {
+          status: 'DRAFT',
+          docId: doc.doc_uuid,
+          templateName: doc.template_name,
+          generatedAt: doc.generated_at,
+        },
+      });
+    }
+
     await recordAudit({ docId: doc.id, action: 'VERIFY', details: { event: 'qr_public_verify', result: 'VALID' }, req });
     return res.status(200).json({
       success: true,
@@ -1760,12 +1824,47 @@ async function _sendWorkflowCompleteNotification({ delivery, doc, triggerStep, s
         </div>`;
     }
 
+    // Attach the signed PDF to the email when the recipient has signed it,
+    // so the generator immediately receives the document with the embedded signature.
+    let emailAttachments = [];
+    if (triggerStep === 'sign') {
+      try {
+        const resolvedFilePath = await resolveDocFilePath(doc);
+        if (resolvedFilePath && fs.existsSync(resolvedFilePath)) {
+          const pdfContent = fs.readFileSync(resolvedFilePath);
+          const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
+          const fileName = meta.fileName || `${doc.doc_uuid || 'document'}.pdf`;
+          emailAttachments = [{
+            filename: fileName,
+            content: pdfContent,
+            contentType: 'application/pdf',
+          }];
+          console.log('[_sendWorkflowCompleteNotification] Attaching signed PDF to generator email:', fileName, `(${pdfContent.length} bytes)`);
+        } else {
+          console.warn('[_sendWorkflowCompleteNotification] Signed PDF not found on disk — sending email without attachment');
+        }
+      } catch (attachErr) {
+        console.warn('[_sendWorkflowCompleteNotification] Could not attach PDF (non-fatal):', attachErr.message);
+      }
+    }
+
     await sendMail({
       to: generator.email,
       subject: `Document ${doc.doc_uuid} — action completed by recipient`,
       html: `<p>Hi ${generator.full_name || 'there'},</p>
         <p>The recipient <b>${recipientLabel}</b> has ${actionDescription}</p>
         ${sigHtml}
+        ${triggerStep === 'sign' && emailAttachments.length > 0 ? `
+        <div style="margin:12px 0;padding:14px 18px;background:#EFF6FF;
+                    border:1px solid #BFDBFE;border-radius:8px;
+                    border-left:3px solid #2563EB;">
+          <p style="margin:0;font-size:0.9rem;color:#1D4ED8;font-weight:600;">
+            📎 The signed document is attached to this email
+          </p>
+          <p style="margin:4px 0 0;font-size:0.8rem;color:#1E40AF;">
+            The recipient's name and signature have been embedded in the document at the designated signature field.
+          </p>
+        </div>` : ''}
         ${latestResponse ? `
         <div style="margin:12px 0;padding:14px 18px;background:#F8FAFC;
                     border:1px solid #E2E8F0;border-radius:8px;
@@ -1789,6 +1888,7 @@ async function _sendWorkflowCompleteNotification({ delivery, doc, triggerStep, s
           This link is valid for 7 days and opens the submitted document and full
           workflow result directly — no sign-in required.
         </p>`,
+      ...(emailAttachments.length > 0 ? { attachments: emailAttachments } : {}),
     });
 
     return true;
@@ -2078,6 +2178,10 @@ async function workflowSign(req, res) {
                                signatureField.x !== undefined && 
                                signatureField.y !== undefined;
         
+        const meta = typeof doc.metadata === 'string' 
+          ? JSON.parse(doc.metadata) 
+          : (doc.metadata || {});
+
         if (hasCoordinates && !signatureField.inFooter) {
           // ═══════════════════════════════════════════════════════════════════
           // METHOD 1: Direct PDF coordinate-based embedding (EXACT POSITION)
@@ -2107,10 +2211,15 @@ async function workflowSign(req, res) {
           fs.writeFileSync(resolvedPath, signedBuffer);
           
           const newHash = sha256(signedBuffer);
+          meta.userSigned = {
+            name: nameToEmbed,
+            photo: photoToEmbed,
+            signedAt,
+          };
           
           await pool.query(
-            'UPDATE generated_docs SET file_hash = ? WHERE id = ?',
-            [newHash, doc.id]
+            'UPDATE generated_docs SET file_hash = ?, metadata = ? WHERE id = ?',
+            [newHash, JSON.stringify(meta), doc.id]
           );
           
           await recordAudit({
@@ -2134,58 +2243,85 @@ async function workflowSign(req, res) {
           
         } else {
           // ═══════════════════════════════════════════════════════════════════
-          // METHOD 2: HTML footer placeholder replacement (FOOTER POSITION)
+          // METHOD 2: Template document placeholder replacement (Body or Footer)
           // ═══════════════════════════════════════════════════════════════════
-          console.log('[workflowSign] Using HTML footer placeholder replacement');
+          console.log('[workflowSign] Using template signature placeholder replacement');
           
-          const meta = typeof doc.metadata === 'string' 
-            ? JSON.parse(doc.metadata) 
-            : (doc.metadata || {});
-          const pieces = meta.renderPieces;
+          let pieces = meta.renderPieces;
 
           if (!pieces) {
             console.error('[workflowSign] ERROR: No renderPieces in metadata!');
             throw new Error('Document metadata missing renderPieces - cannot embed signature');
           }
 
-          if (!pieces.footerHtml) {
-            console.error('[workflowSign] ERROR: No footerHtml in renderPieces!');
-            throw new Error('Document metadata missing footerHtml - cannot embed signature');
-          }
-
-          const signedFooterHtml = injectSignatureIntoFooter(
-            pieces.footerHtml,
+          // Use injectSignatureIntoDocument to replace placeholder in bodyHtml OR footerHtml
+          const updatedPieces = injectSignatureIntoDocument(
+            pieces,
             nameToEmbed,
             photoToEmbed,
             signedAt
           );
-          
-          console.log('[workflowSign] Signature injection result:', {
-            footerChanged: signedFooterHtml !== pieces.footerHtml,
-            containsSignatureEmbedded: signedFooterHtml?.includes('SIGNATURE_EMBEDDED')
-          });
 
-          if (signedFooterHtml === pieces.footerHtml) {
-            console.warn('[workflowSign] WARNING: Footer unchanged! Placeholder may be missing.');
+          let approverSigHtml = pieces.signatureHtml || '';
+          if (!approverSigHtml) {
+            try {
+              const [sigRows] = await pool.query(
+                `SELECT ds.visual_signature_text, ds.signature_timestamp, u.full_name AS approver_name
+                 FROM digital_signatures ds
+                 JOIN users u ON u.id = ds.signer_id
+                 WHERE ds.doc_id = ?
+                 ORDER BY ds.id DESC LIMIT 1`,
+                [doc.id]
+              );
+              let approverName = sigRows?.[0]?.approver_name;
+              let ts = sigRows?.[0]?.signature_timestamp;
+              if (!approverName) {
+                const [srRows] = await pool.query(
+                  `SELECT sr.approved_at, u.full_name AS approver_name
+                   FROM signature_requests sr
+                   JOIN users u ON u.id = sr.approver_id
+                   WHERE sr.doc_id = ? AND sr.status = 'approved'
+                   ORDER BY sr.id DESC LIMIT 1`,
+                  [doc.id]
+                );
+                if (srRows.length > 0) {
+                  approverName = srRows[0].approver_name;
+                  ts = srRows[0].approved_at;
+                }
+              }
+              if (approverName) {
+                const timeStr = ts ? new Date(ts).toISOString() : new Date().toISOString();
+                approverSigHtml = `<p class="visual-signature" style="margin-top:10px;font-style:italic;">document is digitally signed by ${approverName} Digitally Approved by ${approverName} on ${timeStr}</p>`;
+              }
+            } catch (sigErr) {
+              console.warn('[workflowSign] signature lookup warning:', sigErr.message);
+            }
           }
 
           const fullHtml = assembleDocumentHtml({
-            headerHtml:               pieces.headerHtml  || '',
-            bodyHtml:                 pieces.bodyHtml    || '',
-            footerHtml:               signedFooterHtml,
-            tamperProofFooterHtml:    pieces.tamperProofFooterHtml    || '',
-            deliveryVerificationQrHtml: pieces.deliveryVerificationQrHtml || '',
-            watermarkText: resolveWatermarkForStatus('delivered', pieces.watermarkText),
+            headerHtml:               updatedPieces.headerHtml  || '',
+            bodyHtml:                 updatedPieces.bodyHtml    || '',
+            footerHtml:               updatedPieces.footerHtml  || '',
+            tamperProofFooterHtml:    updatedPieces.tamperProofFooterHtml    || '',
+            deliveryVerificationQrHtml: updatedPieces.deliveryVerificationQrHtml || '',
+            watermarkText: resolveWatermarkForStatus('delivered', updatedPieces.watermarkText),
+            signatureHtml:            approverSigHtml,
           });
 
           const newBuffer = await htmlToPdfBuffer(fullHtml);
           fs.writeFileSync(resolvedPath, newBuffer);
 
           const newHash = sha256(newBuffer);
+          meta.renderPieces = updatedPieces;
+          meta.userSigned = {
+            name: nameToEmbed,
+            photo: photoToEmbed,
+            signedAt,
+          };
           
           await pool.query(
-            'UPDATE generated_docs SET file_hash = ? WHERE id = ?',
-            [newHash, doc.id]
+            'UPDATE generated_docs SET file_hash = ?, metadata = ? WHERE id = ?',
+            [newHash, JSON.stringify(meta), doc.id]
           );
 
           await recordAudit({
@@ -2198,12 +2334,12 @@ async function workflowSign(req, res) {
               recipientEmail: delivery.recipient_email,
               recipientName: delivery.recipient_name,
               newFileHash: newHash,
-              method: 'footer_html_replacement',
+              method: 'document_signature_field_replacement',
             },
             req,
           });
           
-          console.log('[workflowSign] Signature successfully embedded in footer!');
+          console.log('[workflowSign] Signature successfully embedded into document!');
         }
       } catch (embedErr) {
         console.error('[secureDelivery] workflowSign PDF embedding error (non-fatal):', embedErr);
@@ -2214,6 +2350,29 @@ async function workflowSign(req, res) {
     }
 
     console.log('[workflowSign] Signature complete. Document ready for download.');
+
+    // ── Notify Generator with signed PDF attached ─────────────────────────────
+    // Parse stored signature data for the email (do not throw if missing).
+    let parsedSigData = null;
+    try {
+      parsedSigData = JSON.parse(signatureData);
+    } catch { /* non-fatal */ }
+
+    // _sendWorkflowCompleteNotification is idempotent — the atomic lock inside
+    // ensures only ONE email is ever sent even if acknowledge/respond steps also
+    // try to trigger it. Re-fetch fresh delivery row so the function sees the
+    // latest workflow_signed_at / workflow_signature_data timestamps.
+    const [[freshDeliveryForNotify]] = await pool.query(
+      'SELECT * FROM document_deliveries WHERE id = ?', [delivery.id]
+    ).catch(() => [[delivery]]);
+
+    await _sendWorkflowCompleteNotification({
+      delivery: freshDeliveryForNotify || delivery,
+      doc,
+      triggerStep: 'sign',
+      signatureData: parsedSigData,
+      req,
+    });
 
     return res.status(200).json({
       success: true,
