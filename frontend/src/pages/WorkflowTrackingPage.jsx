@@ -120,9 +120,10 @@ export default function WorkflowTrackingPage() {
 
           const { token: sessionToken } = loginRes.data;
 
-          // Store the JWT the same way a normal (rememberMe=false) login does.
+          // Store the JWT in both storages so session stays active across tabs
           setAuthToken(sessionToken);
           sessionStorage.setItem('doc_automation_token', sessionToken);
+          localStorage.setItem('doc_automation_token', sessionToken);
 
           // Hydrate AuthContext by calling /auth/me with the new token.
           // After this resolves, user is non-null and ProtectedRoute will pass.
