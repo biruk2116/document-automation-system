@@ -262,6 +262,22 @@ async function searchDocuments(req, res) {
 
   let paramIndex = 1;
   
+  // Role-based credential access control:
+  // If the authenticated user is NOT an admin (super_admin or system_admin):
+  // - Generator role: restricted to their own generated documents
+  // - Approver role: restricted to documents assigned to them
+  if (req.user) {
+    if (req.user.role === 'generator') {
+      conditions.push(`gd.generated_by = $${paramIndex}`);
+      params.push(req.user.id);
+      paramIndex++;
+    } else if (req.user.role === 'approver') {
+      conditions.push(`EXISTS (SELECT 1 FROM signature_requests sr_role WHERE sr_role.doc_id = gd.id AND sr_role.approver_id = $${paramIndex})`);
+      params.push(req.user.id);
+      paramIndex++;
+    }
+  }
+
   // Single-doc lookup by numeric id
   if (id) { 
     conditions.push(`gd.id = $${paramIndex}`); 
@@ -282,8 +298,9 @@ async function searchDocuments(req, res) {
   }
   
   if (date_to) { 
+    // Include the entire day up to 23:59:59
     conditions.push(`gd.generated_at <= $${paramIndex}`); 
-    params.push(date_to); 
+    params.push(`${date_to} 23:59:59.999`); 
     paramIndex++;
   }
   
@@ -293,13 +310,15 @@ async function searchDocuments(req, res) {
     paramIndex++;
   }
   
-  if (generated_by) { 
+  // Filter by generator (for admin roles who can search by generator)
+  if (generated_by && (!req.user || req.user.role === 'super_admin' || req.user.role === 'system_admin')) { 
     conditions.push(`gd.generated_by = $${paramIndex}`); 
     params.push(generated_by); 
     paramIndex++;
   }
   
-  if (approver_id) {
+  // Filter by approver (for admin roles who can search by approver)
+  if (approver_id && (!req.user || req.user.role === 'super_admin' || req.user.role === 'system_admin')) {
     conditions.push(`EXISTS (SELECT 1 FROM signature_requests sr WHERE sr.doc_id = gd.id AND sr.approver_id = $${paramIndex})`);
     params.push(approver_id);
     paramIndex++;
@@ -311,7 +330,7 @@ async function searchDocuments(req, res) {
     const [rows] = await pool.query(
       `SELECT gd.id, gd.doc_uuid, gd.record_identifier, gd.status, gd.generated_at,
               gd.archive_status, gd.deleted_at, gd.template_id, gd.generated_by, t.data_source_table,
-              t.name AS template_name, u.full_name AS generated_by_name,
+              t.name AS template_name, COALESCE(u.full_name, 'Unknown Generator') AS generated_by_name,
               latest_sr.approver_id, approver_u.full_name AS approver_name,
               latest_sr.status AS signature_status, latest_sr.rejection_reason,
               latest_sr.created_at AS sent_for_approval_at, latest_sr.approved_at,
@@ -320,7 +339,7 @@ async function searchDocuments(req, res) {
               latest_dd.email_status AS delivery_email_status
        FROM generated_docs gd
        JOIN templates t ON t.id = gd.template_id
-       JOIN users u ON u.id = gd.generated_by
+       LEFT JOIN users u ON u.id = gd.generated_by
        LEFT JOIN LATERAL (
          SELECT sr2.id, sr2.approver_id, sr2.status, sr2.rejection_reason, 
                 sr2.created_at, sr2.approved_at
@@ -467,25 +486,50 @@ async function getDashboardTrends(req, res) {
  */
 async function getReportFilterOptions(req, res) {
   try {
-    // Same version-lineage issue as the KPI's top-templates list: dedupe by name so the
-    // Template filter doesn't list "Employment Verification Letter" once per version.
+    // 1. Templates: dedupe by name
     const [templates] = await pool.query(
-      `SELECT MIN(id) AS id, name, MIN(category) AS category FROM templates GROUP BY name ORDER BY name ASC`
+      `SELECT MIN(id) AS id, name, MIN(category) AS category FROM templates WHERE deleted_at IS NULL GROUP BY name ORDER BY name ASC`
     );
+
+    // 2. Generators: Only list real users registered with the 'generator' role (active)
+    // Deduplicate so each person (e.g. Biruk Belay) appears only once in the dropdown.
     const [generators] = await pool.query(
-      `SELECT DISTINCT u.id, u.full_name
-       FROM users u JOIN generated_docs gd ON gd.generated_by = u.id
-       ORDER BY u.full_name ASC`
+      `SELECT id, full_name, email
+       FROM users
+       WHERE role = 'generator' AND is_active = 1
+       ORDER BY full_name ASC`
     );
+    const uniqueGenerators = [];
+    const seenGenNames = new Set();
+    for (const g of generators) {
+      const key = (g.full_name || '').trim().toLowerCase();
+      if (!seenGenNames.has(key)) {
+        seenGenNames.add(key);
+        uniqueGenerators.push(g);
+      }
+    }
+
+    // 3. Approvers: Only list real users registered with the 'approver' role (active)
     const [approvers] = await pool.query(
-      `SELECT DISTINCT u.id, u.full_name
-       FROM users u JOIN signature_requests sr ON sr.approver_id = u.id
-       ORDER BY u.full_name ASC`
+      `SELECT id, full_name, email
+       FROM users
+       WHERE role = 'approver' AND is_active = 1
+       ORDER BY full_name ASC`
     );
+    const uniqueApprovers = [];
+    const seenAppNames = new Set();
+    for (const a of approvers) {
+      const key = (a.full_name || '').trim().toLowerCase();
+      if (!seenAppNames.has(key)) {
+        seenAppNames.add(key);
+        uniqueApprovers.push(a);
+      }
+    }
+
     return res.status(200).json({
       success: true,
       message: 'Filter options fetched.',
-      data: { templates, generators, approvers },
+      data: { templates, generators: uniqueGenerators, approvers: uniqueApprovers },
     });
   } catch (err) {
     console.error('[audit] filter options error:', err);
