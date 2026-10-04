@@ -14,6 +14,7 @@ const {
 const {
   viewDocumentByNotifyToken,
   getNotifyTokenMeta,
+  notifyViewAutoLogin,
   downloadViaNotifyToken,
   sendSecureLinkViaNotifyToken,
   sendDocumentViaNotifyToken,
@@ -84,6 +85,10 @@ router.get('/documents/notify-view/:token', viewDocumentByNotifyToken);
 // docblock. Called by the page on load, before/alongside the PDF stream above, and
 // never consumes the one-time view.
 router.get('/documents/notify-view/:token/meta', getNotifyTokenMeta);
+
+// Auto-login endpoint for the Generator's notification email link: issues an 8-hour
+// JWT session so the link navigates directly into the system without asking for login.
+router.post('/documents/notify-view/:token/auto-login', notifyViewAutoLogin);
 
 // Generator's one-time notify-view page action bar: download, send-secure-link-by-
 // email, and send-document-directly-by-email — all usable from that same public page
