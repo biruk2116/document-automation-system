@@ -734,7 +734,7 @@ const templates = {
     reviewUrl,
   }) => ({
     subject:
-      `Document ${docId} has been signed`,
+      `Document ${docId} has been approved`,
 
     html: `
       <p>
@@ -743,12 +743,12 @@ const templates = {
 
       <p>
         Document <b>${escapeHtml(docId)}</b>
-        was approved and digitally signed.
+        has been approved.
       </p>
 
       <p>
         <a href="${escapeHtml(reviewUrl)}">
-          Review the signed document
+          Review the approved document
         </a>
       </p>
     `,
