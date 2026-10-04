@@ -16,7 +16,9 @@ const RELOAD_FLAG_PREFIX = 'secure-one-time-viewer:left:';
 const inFlightRequests = new Map();
 
 async function fetchDocumentOnce(url) {
-  const res = await fetch(url);
+  const token = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('doc_automation_token') : null;
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await fetch(url, { headers });
   if (!res.ok) {
     let message = null;
     try {
@@ -49,7 +51,7 @@ async function fetchDocumentOnce(url) {
  *     confirmed by the server on return, not just a client-side illusion that could
  *     be undone by inspecting in-memory state.
  */
-export default function SecureOneTimeDocumentViewer({ fetchUrl, title = 'Document Review', heightVh = 70 }) {
+export default function SecureOneTimeDocumentViewer({ fetchUrl, title = 'Document Review', heightVh = 70, isOneTime = true }) {
   const [pdfUrl, setPdfUrl] = useState(null);
   const [status, setStatus] = useState('loading'); // loading | ready | gone | error
   const [errorMessage, setErrorMessage] = useState('');
@@ -64,8 +66,8 @@ export default function SecureOneTimeDocumentViewer({ fetchUrl, title = 'Documen
     // back to this tab, don't even bother showing the PDF again if the fetch somehow
     // still succeeds (it shouldn't — the server-side token is already spent) — treat
     // it as timed out regardless, for defense in depth.
-    const cameBackAfterLeaving = sessionStorage.getItem(reloadFlagKey) === '1';
-    if (cameBackAfterLeaving) sessionStorage.removeItem(reloadFlagKey);
+    const cameBackAfterLeaving = isOneTime && sessionStorage.getItem(reloadFlagKey) === '1';
+    if (sessionStorage.getItem(reloadFlagKey) === '1') sessionStorage.removeItem(reloadFlagKey);
 
     async function load() {
       try {
@@ -122,8 +124,9 @@ export default function SecureOneTimeDocumentViewer({ fetchUrl, title = 'Documen
 
     // Fires on tab switch, minimize, app backgrounding (mobile), or switching to another
     // window — without needing a refresh or tab close. This is the core "leaves the
-    // browser, data disappears" requirement.
+    // browser, data disappears" requirement for public one-time view links.
     function handleVisibilityChange() {
+      if (!isOneTime) return;
       if (document.hidden) {
         if (hadActiveViewRef.current) {
           wipe('gone');
@@ -141,6 +144,7 @@ export default function SecureOneTimeDocumentViewer({ fetchUrl, title = 'Documen
     }
     // Extra safety net for cases visibilitychange can miss (e.g. some in-app browsers).
     function handlePageHide() {
+      if (!isOneTime) return;
       if (hadActiveViewRef.current) wipe('gone');
     }
 
