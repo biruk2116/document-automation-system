@@ -204,68 +204,150 @@ async function resetPassword(req, res) {
 
 /**
  * DELETE /api/users/:id
- * Super admin only. A hard delete is only allowed when the account has no history
- * that other tables depend on (generated documents, signature requests it was
- * assigned to approve, or digital signatures it produced) — those foreign keys are
- * ON DELETE RESTRICT by design (see schema.sql), so this checks first and returns a
- * clear message instead of letting the user hit a raw DB constraint error.
+ * Super admin only.
+ *
+ * Performs a full hard-delete inside a single DB transaction:
+ *   1. Collects all generated_doc IDs owned by this user.
+ *   2. Deletes every child row in FK-safe order so no RESTRICT constraint fires:
+ *        digital_signatures → signature_requests → document_deliveries
+ *        → delivery_logs → audit_logs → generated_docs
+ *   3. Deletes remaining per-user rows (notification_reads, document_deliveries
+ *      where created_by = user, signature_requests as approver, digital_signatures
+ *      as signer) that are not covered by the doc cascade.
+ *   4. Finally deletes the user row itself.
+ *   5. Rolls back and returns 500 on any error, leaving the DB untouched.
+ *
  * Super admin accounts and the caller's own account can never be deleted here.
  */
 async function deleteUser(req, res) {
   const { id } = req.params;
+  const userId = Number(id);
+
+  // Acquire a raw client so we can run an explicit transaction.
+  const { Pool } = require('pg');
+  // Re-use the same underlying pool — grab a client from the module-level pool.
+  const pgPool = pool._pool || pool; // pool is already the pg Pool (wrapped by db.js)
+
+  // We need access to the raw pg client to run BEGIN / COMMIT / ROLLBACK.
+  // db.js exports `pool` with a wrapped `.query`; get the raw pg Pool via a
+  // stored reference set on module load.
+  let client;
+  try {
+    client = await pgPool.connect();
+  } catch (connErr) {
+    console.error('[users] delete — could not acquire DB client:', connErr);
+    return res.status(500).json({ success: false, message: 'Failed to delete user (DB connection error).' });
+  }
 
   try {
-    const [[user]] = await pool.query('SELECT * FROM users WHERE id = ?', [id]);
+    // ── Guard checks (read-only, no transaction needed yet) ──────────────────
+    const userResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
+    const user = userResult.rows[0];
     if (!user) {
+      client.release();
       return res.status(404).json({ success: false, message: 'User not found.' });
     }
     if (user.role === ROLES.SUPER_ADMIN) {
+      client.release();
       return res.status(403).json({ success: false, message: 'Super admin accounts cannot be deleted.' });
     }
-    if (Number(id) === req.user.id) {
+    if (userId === req.user.id) {
+      client.release();
       return res.status(403).json({ success: false, message: 'You cannot delete your own account.' });
     }
 
-    const [[{ docCount }]] = await pool.query(
-      'SELECT COUNT(*) AS docCount FROM generated_docs WHERE generated_by = ?',
-      [id]
-    );
-    const [[{ approverCount }]] = await pool.query(
-      'SELECT COUNT(*) AS approverCount FROM signature_requests WHERE approver_id = ?',
-      [id]
-    );
-    const [[{ signerCount }]] = await pool.query(
-      'SELECT COUNT(*) AS signerCount FROM digital_signatures WHERE signer_id = ?',
-      [id]
-    );
+    // ── Transaction ──────────────────────────────────────────────────────────
+    await client.query('BEGIN');
 
-    if (docCount > 0 || approverCount > 0 || signerCount > 0) {
-      return res.status(409).json({
-        success: false,
-        message: `Cannot delete "${user.full_name}": this account has ${docCount} document(s) and/or ${approverCount + signerCount} signature record(s) linked to it. Deactivate the account instead so that history is preserved.`,
-      });
+    // 1. Collect doc IDs owned by this user (needed to cascade child tables).
+    const docIdResult = await client.query(
+      'SELECT id FROM generated_docs WHERE generated_by = $1',
+      [userId]
+    );
+    const docIds = docIdResult.rows.map(r => r.id);
+
+    if (docIds.length > 0) {
+      // 2a. Delete digital_signatures on those docs first (deepest FK child).
+      await client.query(
+        'DELETE FROM digital_signatures WHERE doc_id = ANY($1::int[])',
+        [docIds]
+      );
+      // 2b. Delete signature_requests on those docs.
+      await client.query(
+        'DELETE FROM signature_requests WHERE doc_id = ANY($1::int[])',
+        [docIds]
+      );
+      // 2c. Delete document_deliveries on those docs.
+      await client.query(
+        'DELETE FROM document_deliveries WHERE doc_id = ANY($1::int[])',
+        [docIds]
+      );
+      // 2d. Delete delivery_logs on those docs.
+      await client.query(
+        'DELETE FROM delivery_logs WHERE doc_id = ANY($1::int[])',
+        [docIds]
+      );
+      // 2e. Nullify audit_log doc references (audit_logs.doc_id → ON DELETE CASCADE
+      //     but the user_id FK is SET NULL, so we only need to clear doc refs that
+      //     would violate if we delete the docs).
+      //     audit_logs.doc_id is ON DELETE CASCADE so this will be auto-handled,
+      //     but explicitly cleaning up avoids any FK ordering issues.
+      await client.query(
+        'DELETE FROM audit_logs WHERE doc_id = ANY($1::int[])',
+        [docIds]
+      );
+      // 2f. Now safe to delete the documents themselves.
+      await client.query(
+        'DELETE FROM generated_docs WHERE id = ANY($1::int[])',
+        [docIds]
+      );
     }
 
-    const [result] = await pool.query('DELETE FROM users WHERE id = ?', [id]);
-    if (result.affectedRows === 0) {
+    // 3. Delete remaining per-user rows not covered by the doc cascade above.
+    // Signature requests where this user was the approver (on other docs).
+    await client.query('DELETE FROM signature_requests WHERE approver_id = $1', [userId]);
+    // Digital signatures produced by this user (on other docs).
+    await client.query('DELETE FROM digital_signatures WHERE signer_id = $1', [userId]);
+    // Deliveries created by this user.
+    await client.query('DELETE FROM document_deliveries WHERE created_by = $1', [userId]);
+    // Notification reads.
+    await client.query('DELETE FROM notification_reads WHERE user_id = $1', [userId]);
+
+    // 4. Delete the user.
+    const deleteResult = await client.query('DELETE FROM users WHERE id = $1', [userId]);
+    if (deleteResult.rowCount === 0) {
+      await client.query('ROLLBACK');
+      client.release();
       return res.status(404).json({ success: false, message: 'User not found.' });
     }
 
+    await client.query('COMMIT');
+    client.release();
+
+    // 5. Audit the deletion (uses the module-level wrapped pool — safe after commit).
     await recordAudit({
       userId: req.user.id,
       action: 'DELETE_USER',
-      details: { deletedUserId: Number(id), deletedUserEmail: user.email, deletedUserRole: user.role },
+      details: {
+        deletedUserId: userId,
+        deletedUserEmail: user.email,
+        deletedUserRole: user.role,
+        cascadedDocs: docIds.length,
+      },
       req,
     });
 
-    return res.status(200).json({ success: true, message: `User "${user.full_name}" deleted successfully.` });
+    console.log(`[users] Hard-deleted user ${userId} (${user.email}) and ${docIds.length} document(s).`);
+    return res.status(200).json({
+      success: true,
+      message: `User "${user.full_name}" and their ${docIds.length} document(s) have been permanently deleted.`,
+    });
+
   } catch (err) {
-    // Fallback safety net in case a future table adds a users FK without a check above.
-    if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.code === 'ER_ROW_IS_REFERENCED') {
-      return res.status(409).json({ success: false, message: 'Cannot delete: this user is still referenced by other records. Deactivate the account instead.' });
-    }
+    try { await client.query('ROLLBACK'); } catch (_) {}
+    client.release();
     console.error('[users] delete error:', err);
-    return res.status(500).json({ success: false, message: 'Failed to delete user.' });
+    return res.status(500).json({ success: false, message: 'Failed to delete user. The operation was rolled back.' });
   }
 }
 
