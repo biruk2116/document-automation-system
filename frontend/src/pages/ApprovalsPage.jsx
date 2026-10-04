@@ -174,7 +174,7 @@ export default function ApprovalsPage() {
     setSubmitting(true);
     try {
       const res = await signatureService.approve(activeRequest.id, otpCode.trim());
-      showToast(res.message || 'Document approved and signed.', 'success');
+      showToast(res.message || 'Document approved successfully.', 'success');
       closePanel();
       dismissDeepLink();
       loadPending();
@@ -281,20 +281,22 @@ export default function ApprovalsPage() {
             <span className="doc-badge doc-badge-amber"><span className="doc-badge-dot" />Pending Approval</span>
           </div>
           <div className="doc-card-actions">
-            <button type="button" onClick={() => handleViewPdf(deepLinkReq)} disabled={viewingPdf} className="doc-btn doc-btn-secondary">View PDF</button>
-            <button type="button" onClick={() => openApprove(deepLinkReq)} className="doc-btn doc-btn-primary">Approve</button>
-            <button type="button" onClick={() => openReject(deepLinkReq)} className="doc-btn doc-btn-danger">Reject</button>
-            {canDeletePending && (
-              <button type="button" onClick={() => setDeleteTarget(deepLinkReq)} className="doc-btn doc-btn-danger">
-                Delete
-              </button>
-            )}
+            <div className="doc-card-actions-row" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+              <button type="button" onClick={() => handleViewPdf(deepLinkReq)} disabled={viewingPdf} className="doc-btn doc-btn-secondary">View PDF</button>
+              <button type="button" onClick={() => openApprove(deepLinkReq)} className="doc-btn doc-btn-primary">Approve</button>
+              <button type="button" onClick={() => openReject(deepLinkReq)} className="doc-btn doc-btn-danger">Reject</button>
+              {canDeletePending && (
+                <button type="button" onClick={() => setDeleteTarget(deepLinkReq)} className="doc-btn doc-btn-danger">
+                  Delete
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
 
       {pending.length === 0 ? (
-        <div className="doc-track-empty">Nothing awaiting your signature right now.</div>
+        <div className="doc-track-empty">Nothing awaiting your approval right now.</div>
       ) : visibleRequests.length === 0 ? (
         <div className="doc-track-empty">No approvals match your search/filters. <button type="button" className="doc-track-link-btn" onClick={clearFilters}>Clear filters</button></div>
       ) : (
@@ -317,16 +319,18 @@ export default function ApprovalsPage() {
               </div>
 
               <div className="doc-card-actions">
-                <button type="button" onClick={() => handleViewPdf(req)} disabled={viewingPdf} className="doc-btn doc-btn-secondary">
-                  {viewingPdf ? 'Opening…' : 'View PDF'}
-                </button>
-                <button type="button" onClick={() => openApprove(req)} className="doc-btn doc-btn-primary">Approve</button>
-                <button type="button" onClick={() => openReject(req)} className="doc-btn doc-btn-danger">Reject</button>
-                {canDeletePending && (
-                  <button type="button" onClick={() => setDeleteTarget(req)} className="doc-btn doc-btn-danger">
-                    Delete
+                <div className="doc-card-actions-row" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+                  <button type="button" onClick={() => handleViewPdf(req)} disabled={viewingPdf} className="doc-btn doc-btn-secondary">
+                    {viewingPdf ? 'Opening…' : 'View PDF'}
                   </button>
-                )}
+                  <button type="button" onClick={() => openApprove(req)} className="doc-btn doc-btn-primary">Approve</button>
+                  <button type="button" onClick={() => openReject(req)} className="doc-btn doc-btn-danger">Reject</button>
+                  {canDeletePending && (
+                    <button type="button" onClick={() => setDeleteTarget(req)} className="doc-btn doc-btn-danger">
+                      Delete
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -362,9 +366,14 @@ export default function ApprovalsPage() {
                       {sendingOtp ? 'Sending…' : 'Resend OTP'}
                     </button>
                   </div>
-                  <button type="button" onClick={submitApprove} disabled={submitting || sendingOtp} className="btn-primary" style={{ marginTop: 10 }}>
-                    {submitting ? 'Verifying…' : 'Confirm & Sign'}
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: 12 }}>
+                    <button type="button" onClick={submitApprove} disabled={submitting || sendingOtp} className="btn-primary" style={{ margin: 0 }}>
+                      {submitting ? 'Verifying…' : 'Confirm Approval'}
+                    </button>
+                    <button type="button" onClick={closePanel} disabled={submitting} className="btn-secondary" style={{ margin: 0 }}>
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -383,9 +392,14 @@ export default function ApprovalsPage() {
                     selectedIds={selectedRecipientIds}
                     onChange={setSelectedRecipientIds}
                   />
-                  <button type="button" onClick={submitReject} disabled={submitting || recipientsLoading} className="btn-danger" style={{ marginTop: 10 }}>
-                    {submitting ? 'Submitting…' : 'Confirm Rejection'}
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: 12 }}>
+                    <button type="button" onClick={submitReject} disabled={submitting || recipientsLoading} className="btn-danger" style={{ margin: 0 }}>
+                      {submitting ? 'Submitting…' : 'Confirm Rejection'}
+                    </button>
+                    <button type="button" onClick={closePanel} disabled={submitting} className="btn-secondary" style={{ margin: 0 }}>
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -409,12 +423,13 @@ export default function ApprovalsPage() {
                 The pending approval request will be cancelled and the document will be permanently removed from Document Tracking.
                 The Doc ID can still be used on the Verify Document page.
               </p>
-              <div className="template-form-actions" style={{ marginTop: 16 }}>
+              <div className="template-form-actions" style={{ marginTop: 16, display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
                 <button
                   type="button"
                   onClick={confirmDelete}
                   disabled={deleting}
                   className="btn-danger"
+                  style={{ margin: 0 }}
                 >
                   {deleting ? 'Deleting…' : 'Delete'}
                 </button>
@@ -423,6 +438,7 @@ export default function ApprovalsPage() {
                   onClick={() => setDeleteTarget(null)}
                   disabled={deleting}
                   className="btn-secondary"
+                  style={{ margin: 0 }}
                 >
                   Cancel
                 </button>
