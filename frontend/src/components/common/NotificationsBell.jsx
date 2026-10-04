@@ -141,9 +141,26 @@ export default function NotificationsBell() {
       // Close dropdown first
       setOpen(false);
 
-      // Validate navigation data before proceeding
-      if (n.notification_type === 'password_reset_requested_notify' || n.notification_type === 'password_reset_completed_notify') {
+      // Navigate to the exact part of the notification, just like the email notification link
+      if (n.target_url) {
+        navigate(n.target_url);
+      } else if (n.notification_type === 'password_reset_requested_notify' || n.notification_type === 'password_reset_completed_notify') {
         // System notifications — no document navigation needed
+      } else if (n.notification_type === 'your_document_rejected' || n.notification_type === 'your_document_approved') {
+        if (n.notify_token) {
+          navigate(`/document-view/${encodeURIComponent(n.notify_token)}`);
+        } else if (n.doc_id) {
+          navigate(`/document-tracking?doc=${encodeURIComponent(n.doc_id)}&action=view_rejection`);
+        } else {
+          showToast('Unable to navigate: Missing document ID', 'error');
+          return;
+        }
+      } else if (n.notification_type === 'recipient_response_notify' || n.notification_type === 'recipient_signed_notify' || n.notification_type === 'delivery_confirmed_notify') {
+        if (!n.doc_id) {
+          showToast('Unable to navigate: Missing document ID', 'error');
+          return;
+        }
+        navigate(`/workflow-result?doc=${encodeURIComponent(n.doc_id)}`);
       } else if (n.notification_type === 'awaiting_your_signature') {
         if (!n.signature_request_id && !n.id) {
           showToast('Unable to navigate: Missing approval request ID', 'error');
@@ -218,10 +235,16 @@ export default function NotificationsBell() {
                 style={{ display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer' }}
                 title={
                   n.notification_type === 'awaiting_your_signature'
-                    ? 'Click to go to pending approvals'
+                    ? 'Click to review and approve/reject'
+                    : n.notification_type === 'your_document_rejected'
+                    ? 'Click to review rejected document and edit & resubmit'
+                    : n.notification_type === 'your_document_approved'
+                    ? 'Click to review approved document and deliver'
+                    : n.notification_type === 'recipient_response_notify' || n.notification_type === 'recipient_signed_notify' || n.notification_type === 'delivery_confirmed_notify'
+                    ? 'Click to view submitted workflow result'
                     : n.notification_type === 'ownership_rejected_notify'
                     ? 'Click to review and edit & resubmit'
-                    : 'Click to view document tracking'
+                    : 'Click to view document'
                 }
               >
                 <div>
@@ -229,6 +252,21 @@ export default function NotificationsBell() {
                   <b>{labelFor(n, user?.id)}</b>
                 </div>
                 <div>{n.doc_uuid}</div>
+                {n.notification_type === 'your_document_rejected' && (
+                  <div style={{ color: '#EF4444', fontSize: '0.78rem', marginTop: 2, fontWeight: 500 }}>
+                    → Review Rejection &amp; Resubmit
+                  </div>
+                )}
+                {n.notification_type === 'your_document_approved' && (
+                  <div style={{ color: '#16A34A', fontSize: '0.78rem', marginTop: 2, fontWeight: 500 }}>
+                    ✓ Approved &amp; Signed — Ready for delivery
+                  </div>
+                )}
+                {n.notification_type === 'awaiting_your_signature' && (
+                  <div style={{ color: '#D97706', fontSize: '0.78rem', marginTop: 2, fontWeight: 500 }}>
+                    → Review &amp; Sign
+                  </div>
+                )}
                 {n.notification_type === 'ownership_rejected_notify' && n.action_details && (() => {
                   try {
                     const details = typeof n.action_details === 'string' ? JSON.parse(n.action_details) : n.action_details;
