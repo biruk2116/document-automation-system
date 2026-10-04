@@ -1,5 +1,8 @@
 const fs = require('fs');
+const jwt = require('jsonwebtoken');
 const { pool } = require('../config/db');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'insecure_dev_fallback_secret';
 
 /**
  * GET /api/notifications
@@ -211,10 +214,59 @@ async function getNotifications(req, res) {
       console.warn('[notifications] notification_reads table missing — restart the server to auto-create it, or run migrations.');
     }
 
-    const withReadState = combined.map((n) => ({
-      ...n,
-      is_read: readKeys.has(`${n.notification_type}-${n.id}`),
-    }));
+    const withReadState = combined.map((n) => {
+      let notifyToken = null;
+      let targetUrl = null;
+
+      if (n.notification_type === 'your_document_rejected' || n.notification_type === 'your_document_approved') {
+        if (n.doc_id) {
+          notifyToken = jwt.sign(
+            { docId: n.doc_id, purpose: 'doc_notify_view', inApp: true },
+            JWT_SECRET,
+            { expiresIn: '72h' }
+          );
+          targetUrl = `/document-view/${encodeURIComponent(notifyToken)}`;
+        }
+      } else if (n.notification_type === 'awaiting_your_signature') {
+        const reqId = n.signature_request_id || n.id;
+        targetUrl = `/approvals?open=${encodeURIComponent(reqId)}`;
+      } else if (n.notification_type === 'recipient_response_notify' || n.notification_type === 'recipient_signed_notify' || n.notification_type === 'delivery_confirmed_notify') {
+        if (n.doc_id) {
+          targetUrl = `/workflow-result?doc=${encodeURIComponent(n.doc_id)}`;
+        }
+      } else if (n.notification_type === 'ownership_rejected_notify') {
+        let reviewToken = null;
+        try {
+          const details = typeof n.action_details === 'string' ? JSON.parse(n.action_details) : n.action_details;
+          reviewToken = details?.reviewToken || null;
+        } catch {}
+        if (reviewToken) {
+          targetUrl = `/rejection-review/${encodeURIComponent(reviewToken)}`;
+        } else if (n.doc_id) {
+          targetUrl = `/document-tracking?doc=${encodeURIComponent(n.doc_id)}&action=view_rejection`;
+        }
+      } else if (n.notification_type === 'document_delivered_notify') {
+        let delToken = null;
+        try {
+          const details = typeof n.action_details === 'string' ? JSON.parse(n.action_details) : n.action_details;
+          delToken = details?.deliveryToken || null;
+        } catch {}
+        if (delToken) {
+          targetUrl = `/deliver/${encodeURIComponent(delToken)}`;
+        } else if (n.doc_id) {
+          targetUrl = `/document-tracking?doc=${encodeURIComponent(n.doc_id)}`;
+        }
+      } else if (n.doc_id) {
+        targetUrl = `/document-tracking?doc=${encodeURIComponent(n.doc_id)}`;
+      }
+
+      return {
+        ...n,
+        notify_token: notifyToken,
+        target_url: targetUrl,
+        is_read: readKeys.has(`${n.notification_type}-${n.id}`),
+      };
+    });
 
     console.log(`[notifications] Fetched ${withReadState.length} notifications for user ${req.user.id}`);
 
