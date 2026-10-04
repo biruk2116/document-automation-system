@@ -855,6 +855,72 @@ async function getNotifyTokenMeta(req, res) {
 }
 
 /**
+ * POST /api/documents/notify-view/:token/auto-login   PUBLIC — no password required.
+ * Issues an 8-hour JWT session for the generator so the link directly opens
+ * inside the authenticated system without asking for login username/password.
+ */
+async function notifyViewAutoLogin(req, res) {
+  const { token } = req.params;
+
+  let decoded;
+  try {
+    decoded = decodeNotifyToken(token);
+  } catch {
+    return res.status(401).json({ success: false, message: 'This link is invalid or has expired.' });
+  }
+
+  try {
+    const [[doc]] = await pool.query(
+      'SELECT id, generated_by, deleted_at FROM generated_docs WHERE id = ?',
+      [decoded.docId]
+    );
+    if (!doc || doc.deleted_at) {
+      return res.status(410).json({ success: false, message: 'The document is no longer available.' });
+    }
+
+    const [[user]] = await pool.query(
+      'SELECT id, email, full_name, role FROM users WHERE id = ? LIMIT 1',
+      [doc.generated_by]
+    );
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Generator account not found.' });
+    }
+
+    const sessionToken = jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        role: user.role,
+        purpose: 'notify_view_auto_login',
+      },
+      JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
+    await recordAudit({
+      userId: user.id,
+      docId: doc.id,
+      action: 'VIEW',
+      details: { event: 'notify_view_auto_login' },
+      req,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Auto-login successful.',
+      data: {
+        token: sessionToken,
+        user: { id: user.id, email: user.email, full_name: user.full_name, role: user.role },
+      },
+    });
+  } catch (err) {
+    console.error('[documents] notifyViewAutoLogin error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to auto-login.' });
+  }
+}
+
+/**
  * GET /api/documents/notify-view/:token/download   PUBLIC — no login required.
  * "Download the document" action on the Generator's one-time notify-view page.
  * Deliberately NOT gated by generated_docs.notify_view_token_used_at — that flag only
@@ -1575,6 +1641,7 @@ module.exports = {
   resubmitDocument,
   viewDocumentByNotifyToken,
   getNotifyTokenMeta,
+  notifyViewAutoLogin,
   downloadViaNotifyToken,
   sendSecureLinkViaNotifyToken,
   sendDocumentViaNotifyToken,
