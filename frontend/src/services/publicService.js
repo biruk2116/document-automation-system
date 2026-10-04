@@ -320,3 +320,18 @@ export async function autoLoginForWorkflowTracking(token) {
   if (!res.ok) throw new Error(data.message || 'Auto-login failed.');
   return data; // { success, data: { token, user } }
 }
+
+/**
+ * Issues an 8-hour JWT session for the document generator using only the
+ * notify-view token from the notification email as the credential.
+ * Enables direct navigation into the system without asking for username/password.
+ */
+export async function autoLoginForNotifyView(token) {
+  const res = await fetch(`${BASE_URL}/documents/notify-view/${encodeURIComponent(token)}/auto-login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Auto-login failed.');
+  return data; // { success, data: { token, user } }
+}
