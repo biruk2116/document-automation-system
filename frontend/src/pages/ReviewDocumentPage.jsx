@@ -117,7 +117,7 @@ export default function ReviewDocumentPage() {
     setFeedback(null);
     try {
       const res = await reviewApproveViaToken(token);
-      setFeedback({ type: 'success', message: res.message || 'Document approved and signed.' });
+      setFeedback({ type: 'success', message: res.message || 'Document approved successfully.' });
       setOutcome('approved');
     } catch (err) {
       setFeedback({ type: 'error', message: err.message || 'Approval failed.' });
@@ -221,7 +221,7 @@ export default function ReviewDocumentPage() {
                 style={{ maxWidth: 600, margin: '16px auto 0', textAlign: 'center' }}
               >
                 <p style={{ fontWeight: 600, margin: 0 }}>
-                  {outcome === 'approved' ? 'Document approved and digitally signed.' : 'Document rejected.'}
+                  {outcome === 'approved' ? 'Document approved.' : 'Document rejected.'}
                 </p>
                 <p style={{ color: '#475569', fontSize: '0.85rem', marginTop: 8 }}>
                   This link is now spent. You can close this tab.
@@ -234,11 +234,11 @@ export default function ReviewDocumentPage() {
                 </p>
 
                 {!mode && (
-                  <div className="template-form-actions">
-                    <button type="button" onClick={() => { setMode('approve'); setFeedback(null); }} className="btn-primary">
+                  <div className="template-form-actions" style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
+                    <button type="button" onClick={() => { setMode('approve'); setFeedback(null); }} className="btn-primary" style={{ margin: 0 }}>
                       Approve
                     </button>
-                    <button type="button" onClick={openRejectMode} className="btn-danger">
+                    <button type="button" onClick={openRejectMode} className="btn-danger" style={{ margin: 0 }}>
                       Reject
                     </button>
                   </div>
@@ -247,13 +247,13 @@ export default function ReviewDocumentPage() {
                 {mode === 'approve' && (
                   <div className="form-field">
                     <p style={{ margin: '0 0 10px', fontSize: '0.85rem', color: '#475569' }}>
-                      Your identity was already confirmed by the OTP you entered to open this document.
+                      Your identity was confirmed by the OTP you entered to open this document.
                     </p>
-                    <div className="template-form-actions">
-                      <button type="button" onClick={submitApprove} disabled={submitting} className="btn-primary">
-                        {submitting ? 'Signing…' : 'Confirm & Sign'}
+                    <div className="template-form-actions" style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
+                      <button type="button" onClick={submitApprove} disabled={submitting} className="btn-primary" style={{ margin: 0 }}>
+                        {submitting ? 'Approving…' : 'Confirm Approval'}
                       </button>
-                      <button type="button" onClick={() => { setMode(null); setFeedback(null); }} disabled={submitting} className="btn-secondary">
+                      <button type="button" onClick={() => { setMode(null); setFeedback(null); }} disabled={submitting} className="btn-secondary" style={{ margin: 0 }}>
                         Cancel
                       </button>
                     </div>
@@ -276,11 +276,11 @@ export default function ReviewDocumentPage() {
                       selectedIds={selectedRecipientIds}
                       onChange={setSelectedRecipientIds}
                     />
-                    <div className="template-form-actions" style={{ marginTop: 10 }}>
-                      <button type="button" onClick={submitReject} disabled={submitting || recipientsLoading} className="btn-danger">
+                    <div className="template-form-actions" style={{ marginTop: 12, display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
+                      <button type="button" onClick={submitReject} disabled={submitting || recipientsLoading} className="btn-danger" style={{ margin: 0 }}>
                         {submitting ? 'Submitting…' : 'Confirm Rejection'}
                       </button>
-                      <button type="button" onClick={() => { setMode(null); setFeedback(null); }} disabled={submitting} className="btn-secondary">
+                      <button type="button" onClick={() => { setMode(null); setFeedback(null); }} disabled={submitting} className="btn-secondary" style={{ margin: 0 }}>
                         Cancel
                       </button>
                     </div>
