@@ -194,6 +194,13 @@ function assembleDocumentHtml({ headerHtml, bodyHtml, footerHtml, tamperProofFoo
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
+  .visual-signature {
+    font-style: italic !important;
+    font-size: 11px !important;
+    color: #334155 !important;
+    margin: 8px 0 !important;
+    line-height: 1.5 !important;
+  }
   table:not(.signature-table) {
     width: 100%;
     border-collapse: collapse;
@@ -323,37 +330,38 @@ function stripEditorOnlyElements(html) {
  * @returns {string}  Footer HTML with the placeholder replaced by the filled-in signature.
  *                    If no placeholder is found, returns footerHtml unchanged.
  */
-function injectSignatureIntoFooter(footerHtml, name, photoDataUrl, signedAt) {
-  console.log('[injectSignatureIntoFooter] Called with:', {
-    hasFooter: !!footerHtml,
-    footerLength: footerHtml?.length || 0,
-    name: name,
-    hasPhoto: !!photoDataUrl,
-    signedAt: signedAt,
-    footerPreview: footerHtml?.substring(0, 300)
-  });
-  
-  if (!footerHtml) return footerHtml || '';
+/**
+ * Generates an SVG data URL containing an elegant cursive signature of the given name.
+ * Renders crisply in Puppeteer/Chromium without external web font dependencies.
+ */
+function generateSignatureSvg(name) {
+  const cleanName = (name || 'Approved').trim();
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="52" viewBox="0 0 220 52">
+  <text x="50%" y="36" text-anchor="middle" font-family="'Brush Script MT', 'Dancing Script', 'Segoe Script', 'Great Vibes', cursive, sans-serif" font-size="26" font-style="italic" font-weight="600" fill="#0F2747">${escapeHtml(cleanName)}</text>
+</svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
 
-  // The NEW placeholder format includes unique field IDs: [[SIGNATURE_FIELD:sig-field-123456789]]
-  // We need to find and replace ALL signature fields, not just one.
-  // Support both old format (without ID) and new format (with ID).
-  
-  let updated = footerHtml;
+/**
+ * Injects a signed block (name, signature image/SVG, date) into any HTML string
+ * containing signature field placeholders (<!-- [[SIGNATURE_FIELD ... or [ SIGNATURE FIELD ]).
+ */
+function injectSignatureIntoHtml(html, name, photoDataUrl, signedAt, fallbackAppend = false) {
+  if (!html || typeof html !== 'string') return { html: html || '', replaced: false };
+
+  let updated = html;
   let replaced = false;
 
-  // Format the date in a human-readable way for the PDF
   const dateStr = signedAt
     ? new Date(signedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     : new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
-  // Build the signature image cell — only included when a photo/drawing was provided
-  const sigImgHtml = photoDataUrl
-    ? `<img src="${photoDataUrl}" alt="Signature"
+  const effectivePhotoUrl = photoDataUrl || (name ? generateSignatureSvg(name) : null);
+  const sigImgHtml = effectivePhotoUrl
+    ? `<img src="${effectivePhotoUrl}" alt="Signature"
             style="display:block;max-height:48px;max-width:180px;object-fit:contain;" />`
-    : `<span style="font-size:0.72rem;color:#94A3B8;font-style:italic;">No image provided</span>`;
+    : `<div style="font-family:'Brush Script MT','Dancing Script','Segoe Script',cursive;font-size:22px;color:#0F2747;font-style:italic;text-align:center;">${name ? escapeHtml(name) : 'Digitally Approved'}</div>`;
 
-  // Build the complete signed block HTML — page-break-inside: avoid ensures it stays on one page
   const signedBlock = `<!-- SIGNATURE_EMBEDDED -->
 <div class="signature-block" style="page-break-inside:avoid !important;break-inside:avoid !important;margin-top:12px;display:block;">
 <table class="signature-table" style="width:100%;border-collapse:collapse;font-family:inherit;font-size:12px;color:#1a1a2e;page-break-inside:avoid !important;break-inside:avoid !important;">
@@ -385,24 +393,18 @@ function injectSignatureIntoFooter(footerHtml, name, photoDataUrl, signedAt) {
 </div>
 <!-- /SIGNATURE_EMBEDDED -->`;
 
-  // Replace ALL signature field placeholders (handles multiple fields)
+  // 1. Replace ALL comment-delimited signature field placeholders: <!-- [[SIGNATURE_FIELD ...
   while (true) {
-    // Try new format first: [[SIGNATURE_FIELD:field-id]]
     let startIdx = updated.indexOf('<!-- [[SIGNATURE_FIELD:');
     let isNewFormat = true;
-    
-    // If not found, try old format: [[SIGNATURE_FIELD]]
     if (startIdx === -1) {
       startIdx = updated.indexOf('<!-- [[SIGNATURE_FIELD]] -->');
       isNewFormat = false;
     }
-    
-    if (startIdx === -1) break; // No more fields to replace
+    if (startIdx === -1) break;
 
-    // Find the corresponding end marker
     let endMarker, endIdx;
     if (isNewFormat) {
-      // Extract field ID from start marker
       const fieldIdMatch = updated.substring(startIdx).match(/<!-- \[\[SIGNATURE_FIELD:([^\]]+)\]\] -->/);
       if (!fieldIdMatch) break;
       const fieldId = fieldIdMatch[1];
@@ -412,43 +414,105 @@ function injectSignatureIntoFooter(footerHtml, name, photoDataUrl, signedAt) {
       endMarker = '<!-- [[/SIGNATURE_FIELD]] -->';
       endIdx = updated.indexOf(endMarker, startIdx);
     }
-
     if (endIdx === -1) break;
 
-    // Find the outer wrapper <div> that contains this field
     let outerStart = updated.lastIndexOf('<div', startIdx);
     let outerEnd = updated.indexOf('</div>', endIdx + endMarker.length);
 
     if (outerStart === -1 || outerEnd === -1) {
-      // Fallback: replace just between markers
       const before = updated.slice(0, startIdx);
       const after = updated.slice(endIdx + endMarker.length);
       updated = before + signedBlock + after;
     } else {
-      // Replace entire wrapper div
       const before = updated.slice(0, outerStart);
       const after = updated.slice(outerEnd + '</div>'.length);
       updated = before + signedBlock + after;
     }
-    
     replaced = true;
   }
 
-  // FALLBACK: If no placeholder found, APPEND signature to the end of footer
-  if (!replaced && (name || photoDataUrl)) {
-    console.log('[injectSignatureIntoFooter] No placeholder found - appending signature to end of footer');
-    updated = footerHtml + '\n<div style="margin-top:20px;padding-top:12px;border-top:1px solid #e5e7eb;">' + signedBlock + '</div>';
+  // 2. Also handle if the HTML table contains [ SIGNATURE FIELD ] without HTML comments
+  while (updated.includes('[ SIGNATURE FIELD ]') || updated.includes('[SIGNATURE FIELD]')) {
+    const sigIdx = Math.max(updated.indexOf('[ SIGNATURE FIELD ]'), updated.indexOf('[SIGNATURE FIELD]'));
+    if (sigIdx === -1) break;
+    const tableStart = updated.lastIndexOf('<table', sigIdx);
+    const tableEnd = updated.indexOf('</table>', sigIdx);
+    if (tableStart !== -1 && tableEnd !== -1) {
+      const outerDivStart = updated.lastIndexOf('<div', tableStart);
+      const outerDivEnd = updated.indexOf('</div>', tableEnd);
+      if (outerDivStart !== -1 && outerDivEnd !== -1 && (outerDivEnd - outerDivStart) < (tableEnd - tableStart) + 400) {
+        updated = updated.slice(0, outerDivStart) + signedBlock + updated.slice(outerDivEnd + '</div>'.length);
+      } else {
+        updated = updated.slice(0, tableStart) + signedBlock + updated.slice(tableEnd + '</table>'.length);
+      }
+      replaced = true;
+    } else {
+      updated = updated.replace(/\[\s*SIGNATURE FIELD\s*\]/i, sigImgHtml);
+      replaced = true;
+    }
+  }
+
+  // 3. Fallback: append signature to end if requested and nothing was replaced
+  if (!replaced && fallbackAppend && (name || photoDataUrl)) {
+    updated = html + '\n<div style="margin-top:20px;padding-top:12px;border-top:1px solid #e5e7eb;">' + signedBlock + '</div>';
     replaced = true;
   }
 
-  console.log('[injectSignatureIntoFooter] Completed:', {
-    replaced: replaced,
-    originalLength: footerHtml?.length || 0,
-    newLength: updated?.length || 0,
-    containsEmbedded: updated?.includes('SIGNATURE_EMBEDDED')
-  });
-
-  return replaced ? updated : footerHtml;
+  return { html: updated, replaced };
 }
 
-module.exports = { assembleDocumentHtml, resolveWatermarkForStatus, injectSignatureIntoFooter, stripEditorOnlyElements };
+/**
+ * injectSignatureIntoFooter
+ * Replaces the signature placeholder in footerHtml with the signed block.
+ */
+function injectSignatureIntoFooter(footerHtml, name, photoDataUrl, signedAt) {
+  const res = injectSignatureIntoHtml(footerHtml, name, photoDataUrl, signedAt, true);
+  return res.html;
+}
+
+/**
+ * injectSignatureIntoDocument
+ * Checks both footerHtml and bodyHtml of renderPieces, replacing any signature
+ * field with the signed block. If none found, appends to footerHtml.
+ */
+function injectSignatureIntoDocument(pieces, name, photoDataUrl, signedAt) {
+  if (!pieces) return pieces;
+  const newPieces = { ...pieces };
+  let replaced = false;
+
+  // Check footerHtml
+  if (newPieces.footerHtml && (newPieces.footerHtml.includes('SIGNATURE_FIELD') || newPieces.footerHtml.includes('SIGNATURE FIELD'))) {
+    const resFooter = injectSignatureIntoHtml(newPieces.footerHtml, name, photoDataUrl, signedAt, false);
+    if (resFooter.replaced) {
+      newPieces.footerHtml = resFooter.html;
+      replaced = true;
+    }
+  }
+
+  // Check bodyHtml
+  if (newPieces.bodyHtml && (newPieces.bodyHtml.includes('SIGNATURE_FIELD') || newPieces.bodyHtml.includes('SIGNATURE FIELD'))) {
+    const resBody = injectSignatureIntoHtml(newPieces.bodyHtml, name, photoDataUrl, signedAt, false);
+    if (resBody.replaced) {
+      newPieces.bodyHtml = resBody.html;
+      replaced = true;
+    }
+  }
+
+  // If no placeholder was found in either, append to footerHtml
+  if (!replaced && (name || photoDataUrl)) {
+    const resFallback = injectSignatureIntoHtml(newPieces.footerHtml || '', name, photoDataUrl, signedAt, true);
+    newPieces.footerHtml = resFallback.html;
+  }
+
+  return newPieces;
+}
+
+module.exports = {
+  assembleDocumentHtml,
+  resolveWatermarkForStatus,
+  injectSignatureIntoFooter,
+  injectSignatureIntoHtml,
+  injectSignatureIntoDocument,
+  generateSignatureSvg,
+  stripEditorOnlyElements,
+};
