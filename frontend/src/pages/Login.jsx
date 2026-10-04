@@ -25,7 +25,7 @@ const loginStyles = `
     width: 50%; height: 100%; display: flex; flex-direction: column;
     justify-content: center; align-items: center;
     background: #ffffff;
-    border-right: 1px solid #e8edf5; flex-shrink: 0; overflow: hidden;
+    border-right: none; flex-shrink: 0; overflow: hidden;
   }
   .login-left-inner { display: flex; flex-direction: column; align-items: center; gap: 28px; padding: 40px; }
   .login-left-title {
