@@ -9,6 +9,8 @@ import {
   reviewResendOtpViaToken,
   reviewGetRejectRecipientsViaToken,
 } from '../services/publicService';
+import { setAuthToken } from '../services/api';
+import { useAuth } from '../hooks/useAuth';
 
 const BASE_URL = import.meta.env?.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -55,6 +57,7 @@ function readSigReqIdFromToken(token) {
 export default function ReviewDocumentPage() {
   const { token } = useParams();
   const reviewFileUrl = `${BASE_URL}/signatures/review/${encodeURIComponent(token)}`;
+  const { user, refreshUser } = useAuth();
 
   const sigReqId = useMemo(() => readSigReqIdFromToken(token), [token]);
   const loginTarget = sigReqId ? `/approvals?open=${encodeURIComponent(sigReqId)}` : '/approvals';
@@ -103,8 +106,14 @@ export default function ReviewDocumentPage() {
     setVerifyingOtp(true);
     setGateFeedback(null);
     try {
-      await reviewVerifyOtpViaToken(token, otpCode.trim());
+      const res = await reviewVerifyOtpViaToken(token, otpCode.trim());
       setOtpVerified(true); // unlocks the document below
+      if (res?.data?.token) {
+        setAuthToken(res.data.token);
+        sessionStorage.setItem('doc_automation_token', res.data.token);
+        localStorage.setItem('doc_automation_token', res.data.token);
+        if (refreshUser) await refreshUser().catch(() => {});
+      }
     } catch (err) {
       setGateFeedback({ type: 'error', message: err.message || 'OTP verification failed.' });
     } finally {
@@ -169,9 +178,11 @@ export default function ReviewDocumentPage() {
         <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
           One-time secure document — viewable once, disappears if you leave this tab
         </span>
-        <Link to="/login" state={{ from: { pathname: loginTarget } }} className="public-page-header-action" style={{ fontSize: 13 }}>
-          Trouble with this page? Sign in instead
-        </Link>
+        {user ? (
+          <Link to="/approvals" className="public-page-header-action" style={{ fontSize: 13 }}>
+            Dashboard
+          </Link>
+        ) : null}
       </div>
 
       <div style={{ flex: 1, padding: 12 }}>
