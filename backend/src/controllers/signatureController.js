@@ -478,7 +478,34 @@ async function verifyOtpForReviewToken(req, res) {
       req,
     });
 
-    return res.status(200).json({ success: true, message: 'OTP verified. Loading document…' });
+    const [userRows] = await pool.query(
+      'SELECT id, email, full_name, role FROM users WHERE id = $1',
+      [activeSigReq.approver_id]
+    );
+    const user = userRows[0];
+    let sessionToken = null;
+    if (user) {
+      sessionToken = jwt.sign(
+        {
+          id: user.id,
+          email: user.email,
+          full_name: user.full_name,
+          role: user.role,
+          purpose: 'approver_review_auto_login',
+        },
+        JWT_SECRET,
+        { expiresIn: '8h' }
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'OTP verified. Loading document…',
+      data: {
+        token: sessionToken,
+        user: user ? { id: user.id, email: user.email, full_name: user.full_name, role: user.role } : null,
+      },
+    });
   } catch (err) {
     console.error('[signatures] verifyOtpForReviewToken error:', err);
     return res.status(500).json({ success: false, message: 'Failed to verify OTP.' });
