@@ -6,7 +6,12 @@ const { fetchRecordById: fetchInternalRecordById } = require('./dataSourceContro
 const { loadConnectionConfig } = require('./externalDbController');
 const { fetchRecordById: fetchExternalRecordById } = require('../utils/externalDbClients');
 const { renderTemplate, withAutoDates } = require('../utils/templateRenderer');
-const { assembleDocumentHtml, resolveWatermarkForStatus } = require('../utils/documentAssembler');
+const { 
+  assembleDocumentHtml, 
+  resolveWatermarkForStatus, 
+  injectSignatureIntoDocument, 
+  generateSignatureSvg 
+} = require('../utils/documentAssembler');
 const { sha256, generateDocId, buildTamperProofFooterHtml, buildDeliveryVerificationQrHtml } = require('../utils/documentIntegrity');
 const { generateVerificationId } = require('../utils/secureDeliveryToken');
 const { htmlToPdfBuffer } = require('../utils/pdfGenerator');
@@ -67,15 +72,71 @@ async function regenerateDocument(doc) {
   const deliveryVerifyFooterHtml = doc.verification_id 
     ? await buildDeliveryVerificationQrHtml(doc.verification_id, VERIFY_BASE_URL)
     : '';
+
+  // Look up approver signature if signed or approved
+  let signatureHtml = '';
+  let approverName = null;
+  let approverTs = null;
+
+  try {
+    const [sigRows] = await pool.query(
+      `SELECT ds.visual_signature_text, ds.signature_timestamp, u.full_name AS approver_name
+       FROM digital_signatures ds
+       JOIN users u ON u.id = ds.signer_id
+       WHERE ds.doc_id = ?
+       ORDER BY ds.id DESC LIMIT 1`,
+      [doc.id]
+    );
+    if (sigRows.length > 0) {
+      approverName = sigRows[0].approver_name;
+      approverTs = sigRows[0].signature_timestamp ? new Date(sigRows[0].signature_timestamp).toISOString() : new Date().toISOString();
+      const sigText = `document is digitally signed by ${approverName} Digitally Approved by ${approverName} on ${approverTs}`;
+      signatureHtml = `<p class="visual-signature" style="margin-top:10px;font-style:italic;">${sigText}</p>`;
+    } else {
+      const [srRows] = await pool.query(
+        `SELECT sr.approved_at, u.full_name AS approver_name
+         FROM signature_requests sr
+         JOIN users u ON u.id = sr.approver_id
+         WHERE sr.doc_id = ? AND sr.status = 'approved'
+         ORDER BY sr.id DESC LIMIT 1`,
+        [doc.id]
+      );
+      if (srRows.length > 0) {
+        approverName = srRows[0].approver_name;
+        approverTs = srRows[0].approved_at ? new Date(srRows[0].approved_at).toISOString() : new Date().toISOString();
+        const sigText = `document is digitally signed by ${approverName} Digitally Approved by ${approverName} on ${approverTs}`;
+        signatureHtml = `<p class="visual-signature" style="margin-top:10px;font-style:italic;">${sigText}</p>`;
+      }
+    }
+  } catch (sigErr) {
+    console.warn('[documents] Could not fetch signature info for regeneration:', sigErr.message);
+  }
+
+  let finalBodyHtml = `${bodyHtml}${automaticDateHtml}`;
+  let finalFooterHtml = footerHtml;
+
+  // Inject the recipient / user signature if the document was signed by the recipient in secure delivery workflow
+  const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
+  if (meta.userSigned && (meta.userSigned.name || meta.userSigned.photo)) {
+    const injected = injectSignatureIntoDocument(
+      { headerHtml, bodyHtml: finalBodyHtml, footerHtml: finalFooterHtml },
+      meta.userSigned.name,
+      meta.userSigned.photo,
+      meta.userSigned.signedAt
+    );
+    finalBodyHtml = injected.bodyHtml;
+    finalFooterHtml = injected.footerHtml;
+  }
   
   // Assemble the full HTML with the appropriate watermark for current status
   const fullHtml = assembleDocumentHtml({
     headerHtml,
-    bodyHtml: `${bodyHtml}${automaticDateHtml}`,
-    footerHtml,
+    bodyHtml: finalBodyHtml,
+    footerHtml: finalFooterHtml,
     tamperProofFooterHtml: hashVerifyFooterHtml,
     deliveryVerificationQrHtml: deliveryVerifyFooterHtml,
     watermarkText: resolveWatermarkForStatus(doc.status, template.watermark_text),
+    signatureHtml,
   });
   
   const pdfBuffer = await htmlToPdfBuffer(fullHtml);
@@ -576,6 +637,29 @@ async function downloadDocument(req, res) {
       }
     }
 
+    // Ensure signed/delivered documents always have the visual signature embedded in the PDF
+    if (doc.status === 'signed' || doc.status === 'delivered') {
+      let needsRegen = !resolvedPath || !fs.existsSync(resolvedPath);
+      if (!needsRegen) {
+        try {
+          const fileBuf = fs.readFileSync(resolvedPath);
+          if (!fileBuf.toString('latin1').includes('document is digitally signed by')) {
+            needsRegen = true;
+          }
+        } catch {
+          needsRegen = true;
+        }
+      }
+      if (needsRegen) {
+        try {
+          const regenerated = await regenerateDocument(doc);
+          resolvedPath = regenerated.file_path;
+        } catch (regenErr) {
+          console.warn('[documents] download: signature regeneration warning:', regenErr.message);
+        }
+      }
+    }
+
     const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
     let downloadFileName = meta.fileName;
     if (!downloadFileName || downloadFileName === 'document.pdf') {
@@ -629,7 +713,8 @@ async function viewDocumentByNotifyToken(req, res) {
     if (!doc) {
       return res.status(404).json({ success: false, message: 'Document not found.' });
     }
-    if (doc.notify_view_token_used_at) {
+    const isInternalOrAuth = Boolean(decoded.inApp || req.headers.authorization);
+    if (doc.notify_view_token_used_at && !isInternalOrAuth) {
       return res.status(410).json({
         success: false,
         message: 'This one-time review link has already been used. Please sign in to Doc Automation and open it from My Documents instead.',
@@ -638,11 +723,30 @@ async function viewDocumentByNotifyToken(req, res) {
     if (doc.deleted_at) {
       return res.status(410).json({ success: false, message: 'This document has been deleted and is no longer available to view.' });
     }
-    if (!fs.existsSync(doc.file_path)) {
+    let resolvedPath = doc.file_path;
+    if (!fs.existsSync(resolvedPath)) {
+      const { STORAGE_ROOT } = require('../utils/fileStorage');
+      const filename = path.basename(doc.file_path);
+      const fallback = path.join(STORAGE_ROOT, filename);
+      if (fs.existsSync(fallback)) {
+        resolvedPath = fallback;
+      } else {
+        try {
+          const regenerated = await regenerateDocument(doc);
+          resolvedPath = regenerated.file_path;
+        } catch (e) {
+          console.warn('[documents] viewDocumentByNotifyToken regen warning:', e.message);
+        }
+      }
+    }
+
+    if (!resolvedPath || !fs.existsSync(resolvedPath)) {
       return res.status(410).json({ success: false, message: 'File no longer exists on disk.' });
     }
 
-    await pool.query('UPDATE generated_docs SET notify_view_token_used_at = NOW() WHERE id = ?', [doc.id]);
+    if (!isInternalOrAuth) {
+      await pool.query('UPDATE generated_docs SET notify_view_token_used_at = NOW() WHERE id = ?', [doc.id]);
+    }
 
     const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
     res.setHeader('Content-Type', 'application/pdf');
@@ -650,7 +754,7 @@ async function viewDocumentByNotifyToken(req, res) {
 
     await recordAudit({ docId: doc.id, action: 'VIEW', details: { via: 'generator_notify_link' }, req });
 
-    fs.createReadStream(doc.file_path).pipe(res);
+    fs.createReadStream(resolvedPath).pipe(res);
   } catch (err) {
     console.error('[documents] viewDocumentByNotifyToken error:', err);
     return res.status(500).json({ success: false, message: 'Failed to load document for viewing.' });
@@ -773,7 +877,39 @@ async function downloadViaNotifyToken(req, res) {
     if (!doc) {
       return res.status(404).json({ success: false, message: 'Document not found.' });
     }
-    if (!fs.existsSync(doc.file_path)) {
+    let resolvedPath = doc.file_path;
+    if (!fs.existsSync(resolvedPath)) {
+      const { STORAGE_ROOT } = require('../utils/fileStorage');
+      const filename = path.basename(doc.file_path);
+      const fallback = path.join(STORAGE_ROOT, filename);
+      if (fs.existsSync(fallback)) {
+        resolvedPath = fallback;
+      }
+    }
+
+    if (doc.status === 'signed' || doc.status === 'delivered') {
+      let needsRegen = !resolvedPath || !fs.existsSync(resolvedPath);
+      if (!needsRegen) {
+        try {
+          const fileBuf = fs.readFileSync(resolvedPath);
+          if (!fileBuf.toString('latin1').includes('document is digitally signed by')) {
+            needsRegen = true;
+          }
+        } catch {
+          needsRegen = true;
+        }
+      }
+      if (needsRegen) {
+        try {
+          const regenerated = await regenerateDocument(doc);
+          resolvedPath = regenerated.file_path;
+        } catch (regenErr) {
+          console.warn('[documents] downloadViaNotifyToken: signature regen warning:', regenErr.message);
+        }
+      }
+    }
+
+    if (!resolvedPath || !fs.existsSync(resolvedPath)) {
       return res.status(410).json({ success: false, message: 'File no longer exists on disk.' });
     }
 
@@ -783,7 +919,7 @@ async function downloadViaNotifyToken(req, res) {
 
     await recordAudit({ docId: doc.id, action: 'DOWNLOAD', details: { via: 'generator_notify_link' }, req });
 
-    fs.createReadStream(doc.file_path).pipe(res);
+    fs.createReadStream(resolvedPath).pipe(res);
   } catch (err) {
     console.error('[documents] downloadViaNotifyToken error:', err);
     return res.status(500).json({ success: false, message: 'Failed to download document.' });
