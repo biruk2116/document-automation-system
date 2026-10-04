@@ -66,6 +66,20 @@ export default function RejectionReviewPage() {
 
   useEffect(() => {
     let cancelled = false;
+
+    if (!user && token) {
+      autoLoginForRejectionReview(token)
+        .then(async (loginRes) => {
+          if (cancelled) return;
+          const { token: sessionToken } = loginRes.data;
+          setAuthToken(sessionToken);
+          sessionStorage.setItem('doc_automation_token', sessionToken);
+          localStorage.setItem('doc_automation_token', sessionToken);
+          if (refreshUser) await refreshUser().catch(() => {});
+        })
+        .catch(() => {});
+    }
+
     getPublicRejectionReview(token)
       .then((res) => { if (!cancelled) setData(res.data); })
       .catch((err) => { if (!cancelled) setError(err.message || 'This review link is invalid or has expired.'); })
