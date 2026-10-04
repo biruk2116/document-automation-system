@@ -5,6 +5,7 @@ import brandLogo from '../assets/brand-logo.png';
 
 const STATUS_COPY = {
   VALID: { title: 'Document is Valid', tone: 'ok' },
+  DRAFT: { title: 'Document is a Draft (Not Verified)', tone: 'warn' },
   REVOKED: { title: 'Document has been Revoked', tone: 'fail' },
   INVALID: { title: 'Invalid Verification Code', tone: 'fail' },
 };
@@ -80,7 +81,9 @@ export default function VerifyQrPage() {
             <div className={`p-4 rounded-xl border ${
               copy.tone === 'ok'
                 ? 'bg-green-50/50 dark:bg-green-950/20 border-green-200 dark:border-green-900/40 text-green-800 dark:text-green-300'
-                : 'bg-red-50/50 dark:bg-red-950/20 border-red-200 dark:border-red-900/40 text-red-800 dark:text-red-300'
+                : copy.tone === 'warn'
+                  ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40 text-amber-800 dark:text-amber-300'
+                  : 'bg-red-50/50 dark:bg-red-950/20 border-red-200 dark:border-red-900/40 text-red-800 dark:text-red-300'
             }`}>
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0 mt-0.5">
@@ -88,6 +91,12 @@ export default function VerifyQrPage() {
                     <svg className="w-5 h-5 text-green-600 dark:text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                       <polyline points="22 4 12 14.01 9 11.01" />
+                    </svg>
+                  ) : copy.tone === 'warn' ? (
+                    <svg className="w-5 h-5 text-amber-600 dark:text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="12" />
+                      <line x1="12" y1="16" x2="12.01" y2="16" />
                     </svg>
                   ) : (
                     <svg className="w-5 h-5 text-red-600 dark:text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
