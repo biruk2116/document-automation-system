@@ -1711,26 +1711,39 @@ async function _sendWorkflowCompleteNotification({ delivery, doc, triggerStep, s
     const { rawToken: trackRaw, tokenHash: trackHash } = generateSecureToken();
     const trackExpiry = tokenExpiryDate();
 
-    // ── Atomic single-winner stamp ───────────────────────────────────────────
-    // Only the first caller can flip workflow_notify_sent_at NULL → NOW().
-    // All subsequent callers (even concurrent ones) get affectedRows = 0.
-    const [stampResult] = await pool.query(
-      `UPDATE document_deliveries
-          SET workflow_notify_sent_at          = NOW(),
-              workflow_tracking_token_hash     = ?,
-              workflow_tracking_token_expiry   = ?,
-              workflow_tracking_token_used_at  = NULL
-        WHERE id = ? AND workflow_notify_sent_at IS NULL`,
-      [trackHash, trackExpiry, delivery.id]
-    );
+    // ── Update tracking token and notification stamp ─────────────────────────
+    // For 'sign' or 'respond', we ALWAYS generate a fresh tracking token and send the email
+    // so the generator receives the final signed document / response link even if an earlier
+    // acknowledge step was already recorded.
+    if (triggerStep === 'sign' || triggerStep === 'respond') {
+      await pool.query(
+        `UPDATE document_deliveries
+            SET workflow_notify_sent_at          = NOW(),
+                workflow_tracking_token_hash     = ?,
+                workflow_tracking_token_expiry   = ?,
+                workflow_tracking_token_used_at  = NULL
+          WHERE id = ?`,
+        [trackHash, trackExpiry, delivery.id]
+      );
+    } else {
+      const [stampResult] = await pool.query(
+        `UPDATE document_deliveries
+            SET workflow_notify_sent_at          = NOW(),
+                workflow_tracking_token_hash     = ?,
+                workflow_tracking_token_expiry   = ?,
+                workflow_tracking_token_used_at  = NULL
+          WHERE id = ? AND workflow_notify_sent_at IS NULL`,
+        [trackHash, trackExpiry, delivery.id]
+      );
 
-    if (stampResult.affectedRows === 0) {
-      // Another step already sent the notification — nothing to do.
-      console.log('[_sendWorkflowCompleteNotification] Email already sent - skipping duplicate');
-      return false;
+      if (stampResult.affectedRows === 0) {
+        // Another step already sent the notification — nothing to do.
+        console.log('[_sendWorkflowCompleteNotification] Email already sent - skipping duplicate');
+        return false;
+      }
     }
 
-    console.log('[_sendWorkflowCompleteNotification] Sending ONE email to generator:', {
+    console.log('[_sendWorkflowCompleteNotification] Sending notification email to generator:', {
       deliveryId: delivery.id,
       docId: doc.id,
       triggerStep,
@@ -1762,7 +1775,8 @@ async function _sendWorkflowCompleteNotification({ delivery, doc, triggerStep, s
         ? JSON.parse(tpl.workflow_config)
         : tpl.workflow_config;
     }
-    if (wfConfig?.enabled && wfConfig?.sendResponseToGenerator === false) {
+    // sendResponseToGenerator option only suppresses text responses, never signed document executions!
+    if (triggerStep === 'respond' && wfConfig?.enabled && wfConfig?.sendResponseToGenerator === false) {
       console.log('[_sendWorkflowCompleteNotification] sendResponseToGenerator disabled in template - skipping email');
       return true;
     }
