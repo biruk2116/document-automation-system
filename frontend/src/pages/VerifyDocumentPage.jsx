@@ -28,10 +28,11 @@ export default function VerifyDocumentPage() {
     }
   }
 
-  const verified = result?.verified === true;
+  const isDraft = result?.status === 'draft' || result?.isDraft === true;
+  const verified = !isDraft && result?.verified === true;
   const notFound = result?.verified === false && result?.reason === 'not_found';
-  const unapproved = result?.isAuthentic === true && result?.isApproved === false;
-  const tampered = result?.verified === false && result?.reason !== 'not_found' && !unapproved;
+  const unapproved = !isDraft && result?.isAuthentic === true && result?.isApproved === false;
+  const tampered = !isDraft && result?.verified === false && result?.reason !== 'not_found' && !unapproved;
 
   return (
     <div className="h-screen max-h-screen w-screen overflow-hidden flex flex-col justify-center items-center p-4 bg-white dark:bg-[#0b1121] text-slate-900 dark:text-white transition-colors duration-200 select-none">
@@ -118,16 +119,21 @@ export default function VerifyDocumentPage() {
             <div className={`p-4 rounded-xl border mb-4 ${
               verified
                 ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-100'
-                : 'bg-red-50 dark:bg-red-950/30 border-red-300 dark:border-red-800 text-red-900 dark:text-red-100'
+                : isDraft
+                  ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-100'
+                  : 'bg-red-50 dark:bg-red-950/30 border-red-300 dark:border-red-800 text-red-900 dark:text-red-100'
             }`}>
               <div className="flex items-center gap-2.5 mb-2">
                 {verified ? (
                   <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold">✓</span>
+                ) : isDraft ? (
+                  <span className="w-6 h-6 rounded-full bg-amber-600 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold">!</span>
                 ) : (
                   <span className="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center flex-shrink-0 text-xs font-bold">✕</span>
                 )}
                 <span className="font-bold text-sm">
                   {verified && 'Document Verified Authentic'}
+                  {isDraft && 'Document is Draft — Not Verified'}
                   {notFound && 'Document Not Found'}
                   {unapproved && 'Document Pending Approval'}
                   {tampered && 'Verification Failed (Tampered)'}
@@ -135,16 +141,15 @@ export default function VerifyDocumentPage() {
               </div>
               <p className="text-xs opacity-90 leading-relaxed mb-3">
                 {verified && 'This document was verified against the cryptographic ledger and has not been altered.'}
+                {isDraft && 'This document is currently in Draft status. It has not completed approval or digital signing, so it cannot be verified as authentic.'}
                 {notFound && 'No matching record exists. Check the document ID and try again.'}
                 {unapproved && 'This document was generated but has not completed the required approval workflow.'}
                 {tampered && 'The digital fingerprint does not match the issued ledger. This document may have been altered.'}
               </p>
-              {result.metadata && (
-                <div className="text-[11px] grid grid-cols-2 gap-1.5 pt-2 border-t border-current/10">
-                  <div><strong>ID:</strong> {result.metadata.documentId || docId}</div>
-                  <div><strong>Status:</strong> {result.metadata.status || 'Active'}</div>
-                </div>
-              )}
+              <div className="text-[11px] grid grid-cols-2 gap-1.5 pt-2 border-t border-current/10">
+                <div><strong>ID:</strong> {result.docId || result.metadata?.documentId || docId}</div>
+                <div><strong>Status:</strong> <span className={`font-semibold uppercase ${isDraft ? 'text-amber-700 dark:text-amber-400' : verified ? 'text-emerald-700 dark:text-emerald-400' : 'text-red-700 dark:text-red-400'}`}>{result.status ? (result.status.charAt(0).toUpperCase() + result.status.slice(1)) : (isDraft ? 'Draft' : 'Active')}</span></div>
+              </div>
             </div>
 
             <div className="flex items-center gap-3">
