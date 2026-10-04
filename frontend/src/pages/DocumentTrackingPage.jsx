@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { documentService } from '../services/templateService';
 import { deliveryService, signatureService, auditService } from '../services/workflowService';
@@ -9,27 +9,89 @@ import SecureDeliveryModal from '../components/common/SecureDeliveryModal';
 import { ROLES } from '../utils/roles';
 import './DocumentTracking.css';
 
-const API_BASE = import.meta.env?.VITE_API_URL || '/api';
 const ADMIN_ROLES = [ROLES.SUPER_ADMIN, ROLES.SYSTEM_ADMIN];
 
-const STATUS_BADGE = {
-  draft: { tone: 'slate', label: 'Draft' },
-  pending: { tone: 'amber', label: 'Pending Approval' },
-  signed: { tone: 'green', label: 'Approved' },
-  delivered: { tone: 'blue', label: 'Delivered' },
-  rejected: { tone: 'red', label: 'Rejected' },
-};
+// ── Pure SVG Icons (No Emojis) ────────────────────────────────────────────────
+function IconTotalDocs({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+      <polyline points="10 9 9 9 8 9" />
+    </svg>
+  );
+}
 
-// Same status vocabulary DocBadge already renders, plus the order groups are shown in —
-// pending work first, then drafts/rejections still needing attention, then the two
-// "done" states last.
-const STATUS_GROUP_ORDER = ['pending', 'draft', 'rejected', 'signed', 'delivered'];
+function IconClock({ size = 14, color = '#D97706' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+function IconCheck({ size = 14, color = '#10B981' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
+function IconDeliveredMail({ size = 16, color = '#2563EB' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+      <polyline points="22,6 12,13 2,6" />
+    </svg>
+  );
+}
+
+function IconTrash({ size = 15, color = '#8B1D2C' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <line x1="10" y1="11" x2="10" y2="17" />
+      <line x1="14" y1="11" x2="14" y2="17" />
+    </svg>
+  );
+}
+
+function IconSearch({ size = 14, color = '#9CA3AF' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+
+function IconChevronDown({ size = 12, color = '#64748B' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
+
+function IconSpinner({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="doc-track-spinner" aria-hidden="true">
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+    </svg>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 const STATUS_FILTER_OPTIONS = [
   { value: '', label: 'All statuses' },
-  { value: 'pending', label: 'Pending Approval' },
-  { value: 'signed', label: 'Approved' },
   { value: 'delivered', label: 'Delivered' },
+  { value: 'signed', label: 'Approved' },
+  { value: 'pending', label: 'Pending Approval' },
   { value: 'draft', label: 'Draft' },
   { value: 'rejected', label: 'Rejected' },
 ];
@@ -41,10 +103,6 @@ const DATE_FILTER_OPTIONS = [
   { value: '30d', label: 'Last 30 days' },
 ];
 
-/** A document that was reverted after rejection is still status="draft" underneath —
- * this is the same effective-status logic DocumentCard itself uses for its badge/
- * actions, reused here purely to decide which status GROUP a card is sorted into.
- */
 function effectiveStatus(doc) {
   if (doc.status === 'draft' && doc.signature_status === 'rejected') return 'rejected';
   return doc.status;
@@ -61,36 +119,13 @@ function withinDateFilter(doc, dateFilter) {
   return generated >= cutoff;
 }
 
-/**
- * Tracking / delivery view for everything the current user has generated:
- * Doc ID, Template, Record, Status, Generated, and per-document Actions
- * (View/Download, Send, Generate Secure Link, Select/Resubmit Approver, Delete —
- * and, for admins, Mark Hand Delivered).
- *
- * Split out of MyDocumentsPage so that page is generation-only; this page is
- * reachable from its own sidebar entry on every page, and is where the notification
- * bell now deep-links every non-approver notification (?doc=<id> highlights that
- * specific document below).
- *
- * Layout: a totals bar, then a search box + Template/Status/Date filters, then
- * documents grouped first by their template (mirroring the card-grid look of
- * Template Management), then by status within each template — each status group
- * rendered as its own responsive card grid, each template group collapsible.
- */
 export default function DocumentTrackingPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  // Deep link from a notification (in-app bell / one-time email link):
-  // ?doc=<id> highlights that specific document in the list below.
-  // ?action=edit_resubmit (set by ownership_rejected_notify bell notification)
-  // auto-triggers Edit & Resubmit once the matching document is loaded.
   const highlightDocId = searchParams.get('doc');
-
-  // ?action=edit_resubmit  → email link: auto-fire Edit & Resubmit
-  // ?action=view_rejection → bell notification: show rejection banner, let Generator click manually
   const pendingAction = searchParams.get('action');
 
   const [myDocs, setMyDocs] = useState([]);
@@ -100,23 +135,9 @@ export default function DocumentTrackingPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
 
-  // Approver-assignment modal is keyed to whichever document currently needs it —
-  // a freshly generated one, or a rejected one being resubmitted.
-  const [approverModalDoc, setApproverModalDoc] = useState(null); // { id, doc_uuid }
-
-  // Secure Document Delivery (link + OTP + ownership confirmation) modal — the only
-  // way to send a document to a recipient. The old direct-email-attachment and
-  // no-OTP "secure link" paths have been removed; see deliveryController.js.
+  const [approverModalDoc, setApproverModalDoc] = useState(null);
   const [secureDeliveryModalDoc, setSecureDeliveryModalDoc] = useState(null);
-
-  // When arriving via ?action=edit_resubmit (ownership-rejected bell notification),
-  // fetch and surface the latest ownership rejection reason on the highlighted card.
-  const [ownershipRejectionBanner, setOwnershipRejectionBanner] = useState(null); // { docId, reason, recipientName }
-
-  // Workflow result panel — no longer used; Generator navigates to /workflow-result directly.
-  // Keeping the state stub so ?action=view_workflow in URLs from old emails
-  // gracefully does nothing rather than crashing.
-  const [workflowPanelDoc, setWorkflowPanelDoc] = useState(null); // eslint-disable-line no-unused-vars
+  const [ownershipRejectionBanner, setOwnershipRejectionBanner] = useState(null);
 
   const loadMyDocs = () => {
     if (!user) return;
@@ -133,10 +154,6 @@ export default function DocumentTrackingPage() {
 
   useEffect(() => {
     if (loadingDocs || !highlightDocId || myDocs.some((d) => String(d.id) === String(highlightDocId))) return;
-    // Admins land here from a rejection notification even for documents someone ELSE
-    // generated (rejections notify both System Admins + the generator) — this page
-    // normally only lists the current user's own documents, so fetch that one
-    // specific document by id and merge it in rather than reporting it "not found".
     if (isAdminUser) {
       auditService.searchDocuments({ id: highlightDocId })
         .then((res) => {
@@ -170,21 +187,11 @@ export default function DocumentTrackingPage() {
     }
   };
 
-  // Note: this does NOT close the modal — SecureDeliveryModal shows its own
-  // "sent" confirmation screen (email / PDF attached / secure link checklist)
-  // first, and only closes itself once the Generator clicks "Done". This just
-  // refreshes the doc list underneath so its status flips to "Delivered".
   const handleSecureDeliverySent = (message) => {
     showToast(message || 'Secure delivery sent.', 'success');
     loadMyDocs();
   };
 
-  // "Edit & Resubmit": sends the Generator (or an Admin, for a document they didn't
-  // generate) to My Documents in a dedicated resubmit mode — pick/confirm the entry
-  // (in case the RECORD/ID was the problem), write a short note on what was fixed
-  // (covers the TEMPLATE-was-the-problem case too, since an admin who already fixed
-  // the template just leaves the ID as-is and explains the fix here), and submit —
-  // it regenerates and sends straight back to the same approver, no re-selecting one.
   const handleEditResubmit = (doc, ownershipBanner = null) => {
     navigate('/documents', {
       state: {
@@ -196,43 +203,30 @@ export default function DocumentTrackingPage() {
           record_identifier: doc.record_identifier,
           approver_id: doc.approver_id || null,
           approver_name: doc.approver_name || null,
-          // For approver-rejected docs: the approver's rejection reason.
-          // For recipient-rejected (delivered) docs: the ownership rejection reason
-          // from the delivery log, passed via ownershipBanner.
           rejection_reason: ownershipBanner?.reason || doc.rejection_reason || null,
         },
       },
     });
   };
 
-  // When the Generator arrives via an ownership_rejected_notify bell notification
-  // (?doc=<id>&action=edit_resubmit), auto-trigger Edit & Resubmit once the
-  // highlighted document has loaded — saves them having to find the card and click
-  // the button manually. Clears the action param after firing so a page refresh
-  // doesn't re-trigger the navigation.
   useEffect(() => {
     if (!pendingAction || !highlightDocId) return;
     if (pendingAction !== 'edit_resubmit' && pendingAction !== 'view_rejection' && pendingAction !== 'view_workflow') return;
     if (loadingDocs) return;
     const target = myDocs.find((d) => String(d.id) === String(highlightDocId));
-    if (!target) return; // not loaded yet — will retry when myDocs changes
+    if (!target) return;
 
-    // Clear the action param first to prevent re-triggering on re-render.
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       next.delete('action');
       return next;
     }, { replace: true });
 
-    // ── view_workflow: navigate to the full-page workflow result view ────────
     if (pendingAction === 'view_workflow') {
-      // Navigate to the dedicated WorkflowResultPage with the doc id
       navigate(`/workflow-result?doc=${encodeURIComponent(highlightDocId)}`);
       return;
     }
 
-    // For edit_resubmit and view_rejection: fetch delivery log to surface the
-    // ownership rejection reason on the highlighted card.
     deliveryService.listDeliveries(target.id)
       .then((res) => {
         const rows = res.data || [];
@@ -244,16 +238,10 @@ export default function DocumentTrackingPage() {
             recipientName: latest.recipient_name || latest.recipient_email || 'the recipient',
           };
           setOwnershipRejectionBanner(banner);
-          // edit_resubmit (from email link): auto-navigate once banner is known.
           if (pendingAction === 'edit_resubmit') {
-            const wasRejected = target.status === 'draft' && target.signature_status === 'rejected';
-            const wasDeliveredRejected = target.status === 'delivered';
-            if (wasRejected || wasDeliveredRejected) {
-              handleEditResubmit(target, banner);
-            }
+            handleEditResubmit(target, banner);
           }
         } else {
-          // If no delivery rejection found, check if it's an approver rejection
           const wasApproverRejected = target.status === 'draft' && target.signature_status === 'rejected';
           if (wasApproverRejected || target.rejection_reason) {
             const banner = {
@@ -264,16 +252,12 @@ export default function DocumentTrackingPage() {
             };
             setOwnershipRejectionBanner(banner);
           }
-          if (pendingAction === 'edit_resubmit') {
-            const wasRejected = target.status === 'draft' && target.signature_status === 'rejected';
-            if (wasRejected) {
-              handleEditResubmit(target, null);
-            }
+          if (pendingAction === 'edit_resubmit' && wasApproverRejected) {
+            handleEditResubmit(target, null);
           }
         }
       })
       .catch(() => {
-        // Non-critical — if delivery log fetch fails, still surface approver rejection if applicable
         const wasApproverRejected = target.status === 'draft' && target.signature_status === 'rejected';
         if (wasApproverRejected || target.rejection_reason) {
           const banner = {
@@ -284,18 +268,13 @@ export default function DocumentTrackingPage() {
           };
           setOwnershipRejectionBanner(banner);
         }
-        if (pendingAction === 'edit_resubmit') {
-          const wasRejected = target.status === 'draft' && target.signature_status === 'rejected';
-          if (wasRejected) handleEditResubmit(target, null);
+        if (pendingAction === 'edit_resubmit' && wasApproverRejected) {
+          handleEditResubmit(target, null);
         }
       });
-    // view_rejection (from bell): banner will be set above once the fetch completes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingAction, loadingDocs, highlightDocId, myDocs]);
 
-  // A deleted document (Delete button -> deleted_at set) has no file left to view/
-  // download/deliver — it stays in the DB (and remains verifiable by Doc ID on the
-  // Verify Document page), but it no longer belongs in this tracking grid.
   const activeDocs = useMemo(() => myDocs.filter((doc) => !doc.deleted_at), [myDocs]);
 
   const templateNames = useMemo(
@@ -303,8 +282,6 @@ export default function DocumentTrackingPage() {
     [activeDocs]
   );
 
-  // Totals bar reflects every active document, independent of the search/filter
-  // controls below, so it always reads as the account-wide picture.
   const totals = useMemo(() => {
     const t = { total: activeDocs.length, pending: 0, approved: 0, delivered: 0 };
     for (const doc of activeDocs) {
@@ -341,126 +318,226 @@ export default function DocumentTrackingPage() {
   };
 
   return (
-    <div className="doc-track">
-      <div className="doc-track-header">
-        <h1>Document Tracking</h1>
-      </div>
-      <p className="doc-track-subtitle">Track generated documents, approval, and delivery.</p>
-      {!loadingDocs && activeDocs.length > 0 && (
-        <div className="doc-track-stats">
-          <div className="doc-track-stat">
-            <span className="doc-track-stat-value">{totals.total}</span>
-            <span className="doc-track-stat-label">Total</span>
+    <div className="doc-track-page-container">
+      <div className="doc-track">
+        {/* Page Header */}
+        <div className="doc-track-header">
+          <h1>Document Tracking</h1>
+          <p className="doc-track-subtitle">Track generated documents, approval, and delivery.</p>
+        </div>
+
+        {/* 4 KPI Stat Cards */}
+        <div className="doc-track-kpi-row">
+          {/* Total Documents */}
+          <div className="doc-kpi-card">
+            <div className="doc-kpi-content">
+              <span className="doc-kpi-value">{totals.total}</span>
+              <span className="doc-kpi-label">Total Documents</span>
+            </div>
+            <div className="doc-kpi-icon-wrap" style={{ background: '#F1F5F9' }}>
+              <IconTotalDocs />
+            </div>
           </div>
-          <div className="doc-track-stat doc-track-stat-amber">
-            <span className="doc-track-stat-value">{totals.pending}</span>
-            <span className="doc-track-stat-label">Pending</span>
+
+          {/* Pending Approval */}
+          <div className="doc-kpi-card">
+            <div className="doc-kpi-content">
+              <span className="doc-kpi-value doc-kpi-value-amber">{totals.pending}</span>
+              <span className="doc-kpi-label">Pending Approval</span>
+            </div>
+            <div className="doc-kpi-icon-wrap" style={{ background: '#FEF3C7' }}>
+              <IconClock color="#D97706" />
+            </div>
           </div>
-          <div className="doc-track-stat doc-track-stat-green">
-            <span className="doc-track-stat-value">{totals.approved}</span>
-            <span className="doc-track-stat-label">Approved</span>
+
+          {/* Approved Docs */}
+          <div className="doc-kpi-card">
+            <div className="doc-kpi-content">
+              <span className="doc-kpi-value doc-kpi-value-green">{totals.approved}</span>
+              <span className="doc-kpi-label">Approved Docs</span>
+            </div>
+            <div className="doc-kpi-icon-wrap" style={{ background: '#D1FAE5' }}>
+              <IconCheck color="#10B981" />
+            </div>
           </div>
-          <div className="doc-track-stat doc-track-stat-blue">
-            <span className="doc-track-stat-value">{totals.delivered}</span>
-            <span className="doc-track-stat-label">Delivered</span>
+
+          {/* Successfully Delivered */}
+          <div className="doc-kpi-card">
+            <div className="doc-kpi-content">
+              <span className="doc-kpi-value doc-kpi-value-blue">{totals.delivered}</span>
+              <span className="doc-kpi-label">Successfully Delivered</span>
+            </div>
+            <div className="doc-kpi-icon-wrap" style={{ background: '#DBEAFE' }}>
+              <IconDeliveredMail color="#2563EB" />
+            </div>
           </div>
         </div>
-      )}
-      {!loadingDocs && activeDocs.length > 0 && (
+
+        {/* Search & Filter Toolbar */}
         <div className="doc-track-toolbar">
           <div className="doc-track-search">
+            <span className="doc-track-search-icon">
+              <IconSearch />
+            </span>
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search documents…"
+              placeholder="Search documents..."
             />
           </div>
-          <select value={templateFilter} onChange={(e) => setTemplateFilter(e.target.value)}>
-            <option value="">All templates</option>
-            {templateNames.map((name) => <option key={name} value={name}>{name}</option>)}
-          </select>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            {STATUS_FILTER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-          <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}>
-            {DATE_FILTER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
+
+          <div className="doc-track-select-wrap">
+            <select
+              value={templateFilter}
+              onChange={(e) => setTemplateFilter(e.target.value)}
+              className="doc-track-select"
+            >
+              <option value="">All templates</option>
+              {templateNames.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+            <span className="doc-track-select-chevron">
+              <IconChevronDown />
+            </span>
+          </div>
+
+          <div className="doc-track-select-wrap">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="doc-track-select"
+            >
+              {STATUS_FILTER_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <span className="doc-track-select-chevron">
+              <IconChevronDown />
+            </span>
+          </div>
+
+          <div className="doc-track-select-wrap">
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="doc-track-select"
+            >
+              {DATE_FILTER_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <span className="doc-track-select-chevron">
+              <IconChevronDown />
+            </span>
+          </div>
+
           {hasActiveFilters && (
-            <button type="button" className="doc-btn doc-btn-secondary" onClick={clearFilters}>Clear</button>
+            <button type="button" className="doc-track-clear-btn" onClick={clearFilters}>
+              Clear
+            </button>
           )}
         </div>
-      )}
-      {loadingDocs ? (
-        <p className="doc-track-loading">Loading your documents…</p>
-      ) : activeDocs.length === 0 ? (
-        <div className="doc-track-empty">You haven't generated any documents yet.</div>
-      ) : visibleDocCount === 0 ? (
-        <div className="doc-track-empty">No documents match your search/filters. <button type="button" className="doc-track-link-btn" onClick={clearFilters}>Clear filters</button></div>
-      ) : (
-        <div className="doc-track-grid">
-          {filteredDocs.map((doc) => (
-            <DocumentCard
-              key={doc.id}
-              doc={doc}
-              highlighted={String(doc.id) === String(highlightDocId)}
-              isAdmin={isAdminUser}
-              user={user}
-              onNeedsApprover={() => setApproverModalDoc({ id: doc.id, doc_uuid: doc.doc_uuid })}
-              onSecureDeliver={() => setSecureDeliveryModalDoc(doc)}
-              onChanged={loadMyDocs}
-              onEditResubmit={(banner) => handleEditResubmit(doc, banner || null)}
-              ownershipRejectionBanner={
-                ownershipRejectionBanner && ownershipRejectionBanner.docId === String(doc.id)
-                  ? ownershipRejectionBanner
-                  : null
-              }
-            />
-          ))}
-        </div>
-      )}
-      {approverModalDoc && (
-        <ApproverSelectModal
-          title="Select an Approver"
-          description={`Document ${approverModalDoc.doc_uuid} needs an approver. Choose who should review, OTP-confirm, and e-sign it — only an Approver can approve, reject, or e-sign.`}
-          submitLabel="Send Signature Request"
-          onSubmit={handleAssignApprover}
-          onSkip={() => setApproverModalDoc(null)}
-        />
-      )}
-      {secureDeliveryModalDoc && (
-        <SecureDeliveryModal
-          doc={secureDeliveryModalDoc}
-          onClose={() => setSecureDeliveryModalDoc(null)}
-          onSent={handleSecureDeliverySent}
-        />
-      )}
+
+        {/* Content Section */}
+        {loadingDocs ? (
+          <div className="doc-track-loading">
+            <IconSpinner />
+            <span>Loading documents…</span>
+          </div>
+        ) : activeDocs.length === 0 ? (
+          <div className="doc-track-empty">You haven't generated any documents yet.</div>
+        ) : visibleDocCount === 0 ? (
+          <div className="doc-track-empty">
+            No documents match your search or filters.{' '}
+            <button type="button" className="doc-track-link-btn" onClick={clearFilters}>
+              Clear filters
+            </button>
+          </div>
+        ) : (
+          /* 2-Column Document Cards Grid */
+          <div className="doc-track-grid">
+            {filteredDocs.map((doc) => (
+              <DocumentCard
+                key={doc.id}
+                doc={doc}
+                highlighted={String(doc.id) === String(highlightDocId)}
+                isAdmin={isAdminUser}
+                user={user}
+                onNeedsApprover={() => setApproverModalDoc({ id: doc.id, doc_uuid: doc.doc_uuid })}
+                onSecureDeliver={() => setSecureDeliveryModalDoc(doc)}
+                onChanged={loadMyDocs}
+                onEditResubmit={(banner) => handleEditResubmit(doc, banner || null)}
+                ownershipRejectionBanner={
+                  ownershipRejectionBanner && ownershipRejectionBanner.docId === String(doc.id)
+                    ? ownershipRejectionBanner
+                    : null
+                }
+              />
+            ))}
+          </div>
+        )}
+
+        {approverModalDoc && (
+          <ApproverSelectModal
+            title="Select an Approver"
+            description={`Document ${approverModalDoc.doc_uuid} needs an approver. Choose who should review, OTP-confirm, and e-sign it — only an Approver can approve, reject, or e-sign.`}
+            submitLabel="Send Signature Request"
+            onSubmit={handleAssignApprover}
+            onSkip={() => setApproverModalDoc(null)}
+          />
+        )}
+
+        {secureDeliveryModalDoc && (
+          <SecureDeliveryModal
+            doc={secureDeliveryModalDoc}
+            onClose={() => setSecureDeliveryModalDoc(null)}
+            onSent={handleSecureDeliverySent}
+          />
+        )}
+      </div>
     </div>
   );
 }
 
-/** Small status pill matching the badge look used elsewhere in the app. */
+/** Status pill badge with inline SVG circle dot */
 function DocBadge({ status }) {
-  const entry = STATUS_BADGE[status] || { tone: 'slate', label: status };
+  let pillClass = 'doc-pill-draft';
+  let label = 'Draft';
+
+  if (status === 'delivered') {
+    pillClass = 'doc-pill-delivered';
+    label = 'Delivered';
+  } else if (status === 'signed') {
+    pillClass = 'doc-pill-approved';
+    label = 'Approved';
+  } else if (status === 'pending') {
+    pillClass = 'doc-pill-pending';
+    label = 'Pending Approval';
+  } else if (status === 'rejected') {
+    pillClass = 'doc-pill-rejected';
+    label = 'Rejected';
+  }
+
   return (
-    <span className={`doc-badge doc-badge-${entry.tone}`}>
-      <span className="doc-badge-dot" />
-      {entry.label}
+    <span className={`doc-pill-badge ${pillClass}`}>
+      <span className="doc-pill-badge-dot" />
+      {label}
     </span>
   );
 }
 
-/**
- * One document's card, with the status-appropriate actions:
- *  - View / Download are always available (two separate actions — View opens the
- *    PDF in a new tab, Download saves it to disk).
- *  - draft, never sent: "Select Approver"
- *  - draft, reverted after a rejection: shows the reason + "Resubmit"
- *  - pending: awaiting approver — admins can delete it (cancels the in-flight request)
- *  - signed / delivered: "Send" opens the Secure Delivery modal. "Hand Delivered"
- *    records a physical handover — available to the document owner and admins.
- *  - Delete lives inline for pending/draft, and behind "⋮" for other statuses.
- */
-function DocumentCard({ doc, highlighted, isAdmin, user, onNeedsApprover, onSecureDeliver, onChanged, onEditResubmit, ownershipRejectionBanner }) {
+function DocumentCard({
+  doc,
+  highlighted,
+  isAdmin,
+  user,
+  onNeedsApprover,
+  onSecureDeliver,
+  onChanged,
+  onEditResubmit,
+  ownershipRejectionBanner,
+}) {
   const { showToast } = useToast();
   const cardRef = useRef(null);
   const [viewingDoc, setViewingDoc] = useState(false);
@@ -480,18 +557,10 @@ function DocumentCard({ doc, highlighted, isAdmin, user, onNeedsApprover, onSecu
   const wasRejected = doc.status === 'draft' && doc.signature_status === 'rejected';
   const isSignedOrDelivered = doc.status === 'signed' || doc.status === 'delivered';
 
-  // Check if document has been delivered (either secure or hand delivered)
-  // If delivered_to exists, it was sent via secure delivery
-  // If status is 'delivered' but no delivered_to, it was hand delivered
   const wasSecureDelivered = doc.status === 'delivered' && doc.delivered_to;
   const wasHandDelivered = doc.status === 'delivered' && !doc.delivered_to;
-
-  // Both buttons available for signed/delivered docs, but mutually exclusive
   const showDeliveryButtons = !isDeleted && isSignedOrDelivered;
 
-  // Delete rules:
-  // - Pending: GENERATOR (owner), assigned APPROVER, or ADMIN can delete
-  // - Other statuses: GENERATOR (owner) or ADMIN can delete
   const isOwner = doc.generated_by === user?.id;
   const isAssignedApprover = doc.status === 'pending' && doc.approver_id === user?.id;
   const canDelete = !isDeleted && (isOwner || isAdmin || isAssignedApprover);
@@ -535,8 +604,7 @@ function DocumentCard({ doc, highlighted, isAdmin, user, onNeedsApprover, onSecu
   const handleSend = () => {
     setSendingDocument(true);
     onSecureDeliver();
-    // Reset after a delay (modal will open, user will interact)
-    setTimeout(() => setSendingDocument(false), 1000);
+    setTimeout(() => setSendingDocument(false), 800);
   };
 
   const handleDelete = async () => {
@@ -553,194 +621,237 @@ function DocumentCard({ doc, highlighted, isAdmin, user, onNeedsApprover, onSecu
     }
   };
 
-  // "Edit & Resubmit": handed off to the parent, which navigates to My Documents in
-  // resubmit mode for this exact document — see DocumentTrackingPage.handleEditResubmit.
   return (
     <div
       ref={cardRef}
       className={`doc-card${highlighted ? ' doc-card-highlighted' : ''}${isDeleted ? ' doc-card-deleted' : ''}`}
     >
-      <div className="doc-card-header">
-        <h3 className="doc-card-template">{doc.template_name}</h3>
-        <div className="doc-card-id">{doc.doc_uuid}</div>
+      {/* Card Header Row */}
+      <div className="doc-card-header-row">
+        <div className="doc-card-title-group">
+          <h3 className="doc-card-template-name">{doc.template_name || 'Document'}</h3>
+          <span className="doc-card-code">{doc.doc_uuid}</span>
+        </div>
+        <DocBadge status={effectiveStatus(doc)} />
       </div>
 
-      <div className="doc-card-meta">
-        <div className="doc-card-meta-row">
-          <span className="doc-card-meta-label">Record:</span>
-          <span className="doc-card-meta-value">{doc.record_identifier}</span>
+      {/* Card Body Metadata */}
+      <div className="doc-card-body-meta">
+        <div className="doc-card-body-meta-row">
+          <span className="doc-card-body-label">Record:</span>
+          <span className="doc-card-body-value">{doc.record_identifier || '—'}</span>
         </div>
-        <div className="doc-card-meta-row">
-          <span className="doc-card-meta-label">Generated:</span>
-          <span className="doc-card-meta-value">{new Date(doc.generated_at).toLocaleString()}</span>
-        </div>
-      </div>
 
-      <div className="doc-card-status-block">
-        <div className="doc-card-badge-row">
-          {isDeleted ? (
-            <span className="doc-badge doc-badge-red"><span className="doc-badge-dot" />Deleted</span>
-          ) : (
-            <DocBadge status={doc.status} />
-          )}
+        <div className="doc-card-body-meta-row">
+          <span className="doc-card-body-label">Generated:</span>
+          <span className="doc-card-body-value">
+            {new Date(doc.generated_at).toLocaleString()}
+          </span>
         </div>
-        {doc.status === 'pending' && doc.approver_name && !isDeleted && (
-          <div className="doc-card-subline doc-card-subline-amber">Awaiting {doc.approver_name}</div>
-        )}
-        {doc.status === 'signed' && doc.approver_name && !isDeleted && (
-          <div className="doc-card-subline doc-card-subline-green">Approved by {doc.approver_name}</div>
-        )}
-        {doc.status === 'delivered' && doc.delivered_to && !isDeleted && (
-          <div className="doc-card-subline doc-card-subline-blue">
-            Sent to {doc.delivered_to}
-            {doc.delivered_at && <> · Delivered {new Date(doc.delivered_at).toLocaleString()}</>}
+
+        {doc.status === 'delivered' && (
+          <div className="doc-card-body-meta-row">
+            <span className="doc-card-body-label">Delivered Time:</span>
+            <span className="doc-card-body-value">
+              {doc.delivered_at
+                ? new Date(doc.delivered_at).toLocaleString()
+                : new Date(doc.generated_at).toLocaleString()}
+            </span>
           </div>
         )}
-        {doc.status === 'delivered' && !doc.delivered_to && !isDeleted && (
-          <div className="doc-card-subline doc-card-subline-blue">
-            Hand delivered
-            {doc.delivered_at && <> · {new Date(doc.delivered_at).toLocaleString()}</>}
+
+        {doc.status === 'signed' && (
+          <div className="doc-card-body-meta-row">
+            <span className="doc-card-body-label">Approved Time:</span>
+            <span className="doc-card-body-value">
+              {doc.approved_at
+                ? new Date(doc.approved_at).toLocaleString()
+                : new Date(doc.generated_at).toLocaleString()}
+            </span>
           </div>
         )}
-        {wasRejected && !isDeleted && (
-          <div className="doc-card-subline doc-card-subline-red">
-            Rejected{doc.rejection_reason ? `: ${doc.rejection_reason}` : ''}
+
+        {doc.status === 'pending' && (
+          <div className="doc-card-body-meta-row">
+            <span className="doc-card-body-label">Pending:</span>
+            <span className="doc-card-body-value">
+              Awaiting {doc.approver_name || 'Approver'}
+            </span>
           </div>
         )}
-        {/* Rejection banner — shown when arriving from notification (?action=view_rejection) */}
-        {ownershipRejectionBanner && !isDeleted && (
+
+        {wasRejected && (
+          <div className="doc-card-body-meta-row" style={{ color: '#DC2626' }}>
+            <span className="doc-card-body-label" style={{ color: '#DC2626' }}>Rejected:</span>
+            <span className="doc-card-body-value" style={{ color: '#DC2626' }}>
+              {doc.rejection_reason || 'Reverted to Draft'}
+            </span>
+          </div>
+        )}
+
+        {ownershipRejectionBanner && (
           <div style={{
-            marginTop: 6, padding: '6px 12px', borderRadius: 8,
-            background: '#FEF2F2', border: '1px solid #FECACA',
-            fontSize: '0.82rem', color: '#DC2626',
-            display: 'flex', alignItems: 'center', gap: 8,
+            marginTop: 6,
+            padding: '8px 12px',
+            borderRadius: 8,
+            background: '#FEF2F2',
+            border: '1px solid #FECACA',
+            fontSize: '0.82rem',
+            color: '#DC2626',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
           }}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-            <span>{ownershipRejectionBanner.isApprover ? 'Approver rejected:' : 'Recipient rejected:'} <b>{ownershipRejectionBanner.reason}</b></span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+            </svg>
+            <span>
+              {ownershipRejectionBanner.isApprover ? 'Approver rejected:' : 'Recipient rejected:'}{' '}
+              <b>{ownershipRejectionBanner.reason}</b>
+            </span>
           </div>
         )}
       </div>
 
-      {isDeleted ? (
-        <div className="doc-card-deleted-note">
-          This document was deleted — its file is no longer available to view, download, or deliver. It can still be checked for authenticity on the <b>Verify Document</b> page using its Doc ID (<span className="doc-card-id">{doc.doc_uuid}</span>).
-        </div>
-      ) : (
-        <>
-          <div className="doc-card-actions">
-            {/* Primary Action Row: View, Download, Send / Select Approver / Edit & Resubmit */}
-            <div className="doc-card-actions-row">
-              <button type="button" onClick={handleView} disabled={viewingDoc} className="doc-btn doc-btn-secondary">
-                {viewingDoc ? 'Opening…' : 'View'}
-              </button>
-              <button type="button" onClick={handleDownload} disabled={downloading} className="doc-btn doc-btn-secondary">
-                {downloading ? 'Downloading…' : 'Download'}
-              </button>
-              {doc.status === 'draft' && !wasRejected && (
-                <button type="button" onClick={onNeedsApprover} className="doc-btn doc-btn-primary">Select Approver</button>
-              )}
-              {wasRejected && (
-                <button type="button" onClick={() => onEditResubmit(null)} className="doc-btn doc-btn-primary">
-                  Edit &amp; Resubmit
-                </button>
-              )}
-              {/* Send button - disabled if hand delivered */}
-              {showDeliveryButtons && (
-                <button
-                  type="button"
-                  onClick={handleSend}
-                  className="doc-btn doc-btn-primary"
-                  disabled={wasHandDelivered || markingDelivered || sendingDocument}
-                  title={wasHandDelivered ? 'Document has been marked as hand delivered' : ''}
-                >
-                  {sendingDocument ? 'Opening...' : 'Send'}
-                </button>
-              )}
-              {/* When arriving from an ownership-rejection bell notification */}
-              {ownershipRejectionBanner && isSignedOrDelivered && (
-                <button type="button" onClick={() => onEditResubmit(ownershipRejectionBanner)} className="doc-btn doc-btn-primary" style={{ background: '#DC2626', borderColor: '#DC2626', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  Edit &amp; Resubmit
-                </button>
-              )}
-            </div>
+      {/* Card Action Buttons Bar (Side-by-side with small gap) */}
+      <div className="doc-card-actions-bar">
+        <button
+          type="button"
+          onClick={handleView}
+          disabled={viewingDoc}
+          className="btn-doc-view"
+        >
+          {viewingDoc ? 'Opening…' : 'View'}
+        </button>
 
-            {/* Secondary / Danger Action Row: Hand Delivered, Delete */}
-            {(showDeliveryButtons || canDelete) && (
-              <div className="doc-card-actions-row">
-                {showDeliveryButtons && (
-                  <button
-                    type="button"
-                    onClick={handleMarkDelivered}
-                    disabled={wasSecureDelivered || markingDelivered || sendingDocument}
-                    className="doc-btn doc-btn-secondary doc-btn-hand-delivered"
-                    title={wasSecureDelivered ? 'Document has been sent via secure delivery' : 'Record that a physical copy was handed to the recipient'}
-                  >
-                    {markingDelivered ? 'Updating…' : 'Hand Delivered'}
-                  </button>
-                )}
-                {canDelete && (
-                  <button
-                    type="button"
-                    className="doc-btn doc-btn-danger"
-                    onClick={() => setConfirmingDelete(true)}
-                    title="Delete document"
-                  >
-                    Delete
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-          {/* Compact delete confirmation dialog — preserves the document view context */}
-          {confirmingDelete && (
-            <div className="modal-overlay" onClick={() => !deleting && setConfirmingDelete(false)} style={{ zIndex: 1200 }}>
-              <div
-                className="modal-panel"
-                style={{ maxWidth: 420, padding: '20px 24px', background: 'var(--bg-surface)', borderRadius: 10, border: '1px solid var(--border)' }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                  <span style={{ color: '#DC2626', display: 'flex' }}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="12" y1="8" x2="12" y2="12" />
-                      <line x1="12" y1="16" x2="12.01" y2="16" />
-                    </svg>
-                  </span>
-                  <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                    Delete Document?
-                  </h3>
-                </div>
-                <p style={{ margin: '0 0 16px', fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  {doc.status === 'pending'
-                    ? `Delete ${doc.doc_uuid}? The pending approval request will be cancelled immediately and the approver's review link will stop working. This cannot be undone.`
-                    : `Delete ${doc.doc_uuid}? Its file will be removed and it can no longer be viewed, downloaded, or delivered. This cannot be undone.`}
-                </p>
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmingDelete(false)}
-                    disabled={deleting}
-                    className="doc-btn doc-btn-secondary doc-btn-sm"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleDelete}
-                    disabled={deleting}
-                    className="doc-btn doc-btn-danger doc-btn-sm"
-                  >
-                    {deleting ? 'Deleting…' : 'Delete'}
-                  </button>
-                </div>
-              </div>
+        <button
+          type="button"
+          onClick={handleDownload}
+          disabled={downloading}
+          className="btn-doc-download"
+        >
+          {downloading ? 'Downloading…' : 'Download'}
+        </button>
+
+        {doc.status === 'draft' && !wasRejected && (
+          <button type="button" onClick={onNeedsApprover} className="btn-doc-action">
+            Select Approver
+          </button>
+        )}
+
+        {wasRejected && (
+          <button type="button" onClick={() => onEditResubmit(null)} className="btn-doc-action">
+            Edit &amp; Resubmit
+          </button>
+        )}
+
+        {showDeliveryButtons && (
+          <>
+            <button
+              type="button"
+              onClick={handleSend}
+              className="btn-doc-send"
+              disabled={wasHandDelivered || markingDelivered || sendingDocument}
+              title={wasHandDelivered ? 'Document has been marked as hand delivered' : 'Send document'}
+            >
+              {sendingDocument ? 'Opening…' : 'Send'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleMarkDelivered}
+              disabled={wasSecureDelivered || markingDelivered || sendingDocument}
+              className="btn-doc-hand-delivered"
+              title={wasSecureDelivered ? 'Document has been sent via secure delivery' : 'Record that a physical copy was handed to recipient'}
+            >
+              {markingDelivered ? 'Updating…' : 'Hand Delivered'}
+            </button>
+          </>
+        )}
+
+        {ownershipRejectionBanner && isSignedOrDelivered && (
+          <button
+            type="button"
+            onClick={() => onEditResubmit(ownershipRejectionBanner)}
+            className="btn-doc-rejection"
+          >
+            Edit &amp; Resubmit
+          </button>
+        )}
+
+        {canDelete && (
+          <button
+            type="button"
+            className="btn-doc-trash"
+            onClick={() => setConfirmingDelete(true)}
+            title="Delete document"
+            aria-label="Delete document"
+          >
+            <IconTrash />
+          </button>
+        )}
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      {confirmingDelete && (
+        <div className="modal-overlay" onClick={() => !deleting && setConfirmingDelete(false)} style={{ zIndex: 1200 }}>
+          <div
+            className="modal-panel"
+            style={{
+              maxWidth: 420,
+              padding: '22px 24px',
+              background: '#FFFFFF',
+              borderRadius: 12,
+              border: '1px solid #E2E8F0',
+              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <span style={{ color: '#DC2626', display: 'flex' }}>
+                <IconTrash size={22} />
+              </span>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: '#111827' }}>
+                Delete Document?
+              </h3>
             </div>
-          )}
-        </>
+            <p style={{ margin: '0 0 18px', fontSize: '0.85rem', color: '#4B5563', lineHeight: 1.5 }}>
+              {doc.status === 'pending'
+                ? `Delete ${doc.doc_uuid}? The pending approval request will be cancelled immediately and the approver's review link will stop working. This cannot be undone.`
+                : `Delete ${doc.doc_uuid}? Its file will be removed and it can no longer be viewed, downloaded, or delivered. This cannot be undone.`}
+            </p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(false)}
+                disabled={deleting}
+                className="btn-doc-gray"
+                style={{ padding: '6px 14px' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                style={{
+                  background: '#DC2626',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '6px 14px',
+                  fontSize: '0.85rem',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+              >
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
 }
-
