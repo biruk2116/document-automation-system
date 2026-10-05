@@ -4,31 +4,85 @@
    small crisp typography, compact horizontal action buttons with small gaps.
    ========================================================================== */
 
+/* Ensure parent app-content has zero padding and no double scrollbar when doc-track-page-container is present */
+.app-content:has(.doc-track-page-container) {
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.app-content:has(.doc-track-page-container) .doc-track-page-container {
+  margin: 0 !important;
+}
+
 .doc-track-page-container {
   background-color: #FFFFFF;
-  min-height: calc(100vh - var(--navbar-height, 60px));
-  margin: -20px -24px;
-  padding: 20px 24px 36px;
+  height: calc(100vh - var(--navbar-height, 52px));
+  height: calc(100dvh - var(--navbar-height, 52px));
+  max-height: calc(100vh - var(--navbar-height, 52px));
+  max-height: calc(100dvh - var(--navbar-height, 52px));
+  margin: -20px -24px -20px -24px;
+  padding: 0;
   box-sizing: border-box;
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   color: #1E293B;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-@media (max-width: 768px) {
-  .doc-track-page-container {
-    margin: -14px -12px;
-    padding: 16px 14px 28px;
-  }
+/* Fallback margin compensation for browsers without :has() support */
+@media (min-width: 375px) {
+  .doc-track-page-container { margin: -16px -14px -16px -14px; }
+}
+@media (min-width: 640px) {
+  .doc-track-page-container { margin: -20px -20px -20px -20px; }
+}
+@media (min-width: 768px) {
+  .doc-track-page-container { margin: -22px -24px -22px -24px; }
+}
+@media (min-width: 1024px) {
+  .doc-track-page-container { margin: -24px -28px -24px -28px; }
+}
+@media (min-width: 1440px) {
+  .doc-track-page-container { margin: -28px -36px -28px -36px; }
+}
+@media (min-width: 1920px) {
+  .doc-track-page-container { margin: -32px -48px -32px -48px; }
 }
 
 .doc-track {
   max-width: 1400px;
+  width: 100%;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+  padding: 0 24px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .doc-track {
+    padding: 0 14px;
+  }
+}
+
+/* ── Fixed Top Section (Pinned Header, KPI Cards & Filter Toolbar - Does Not Scroll) ── */
+.doc-track-top-section {
+  flex-shrink: 0;
+  background-color: #FFFFFF;
+  z-index: 20;
+  padding-top: 18px;
+  padding-bottom: 14px;
+  position: relative;
+  box-shadow: 0 1px 0 #E2E8F0;
 }
 
 /* ── Page Header (Crisp, Small Text) ── */
 .doc-track-header {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .doc-track-header h1 {
@@ -53,7 +107,7 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 @media (max-width: 1024px) {
@@ -64,7 +118,34 @@
 
 @media (max-width: 520px) {
   .doc-track-kpi-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .doc-kpi-card {
+    padding: 10px 12px;
+  }
+  .doc-kpi-value {
+    font-size: 1.3rem;
+  }
+}
+
+@media (max-height: 640px) {
+  .doc-track-top-section {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+  .doc-track-header {
+    margin-bottom: 8px;
+  }
+  .doc-track-kpi-row {
+    margin-bottom: 8px;
+    gap: 8px;
+  }
+  .doc-kpi-card {
+    padding: 8px 12px;
+  }
+  .doc-kpi-value {
+    font-size: 1.25rem;
   }
 }
 
@@ -131,7 +212,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 0;
   flex-wrap: wrap;
 }
 
@@ -225,6 +306,37 @@
 .doc-track-clear-btn:hover {
   background: #F1F5F9;
   color: #0F172A;
+}
+
+/* ── Scrollable Document Content Area (Scrolls independently below fixed header) ── */
+.doc-track-content-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-top: 16px;
+  padding-bottom: 36px;
+  padding-right: 6px;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 transparent;
+}
+
+.doc-track-content-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.doc-track-content-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.doc-track-content-scroll::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+
+.doc-track-content-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
 }
 
 /* ── 2-Column Document Cards Grid (Decreased free space, snug fit to buttons) ── */
@@ -601,6 +713,23 @@
 .dark .doc-track-page-container {
   background-color: var(--bg-base, #0F172A);
   color: var(--text-primary, #F8FAFC);
+}
+
+.dark .doc-track-top-section {
+  background-color: var(--bg-base, #0F172A);
+  box-shadow: 0 1px 0 #1E293B;
+}
+
+.dark .doc-track-content-scroll {
+  scrollbar-color: #334155 transparent;
+}
+
+.dark .doc-track-content-scroll::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+.dark .doc-track-content-scroll::-webkit-scrollbar-thumb:hover {
+  background: #475569;
 }
 
 .dark .doc-track-header h1 {
