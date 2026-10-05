@@ -320,163 +320,168 @@ export default function DocumentTrackingPage() {
   return (
     <div className="doc-track-page-container">
       <div className="doc-track">
-        {/* Page Header */}
-        <div className="doc-track-header">
-          <h1>Document Tracking</h1>
-          <p className="doc-track-subtitle">Track generated documents, approval, and delivery.</p>
+        {/* Fixed Top Section: Header, KPI Stat Cards, and Filters (Pinned, will not scroll) */}
+        <div className="doc-track-top-section">
+          {/* Page Header */}
+          <div className="doc-track-header">
+            <h1>Document Tracking</h1>
+            <p className="doc-track-subtitle">Track generated documents, approval, and delivery.</p>
+          </div>
+
+          {/* 4 KPI Stat Cards */}
+          <div className="doc-track-kpi-row">
+            {/* Total Documents */}
+            <div className="doc-kpi-card">
+              <div className="doc-kpi-content">
+                <span className="doc-kpi-value">{totals.total}</span>
+                <span className="doc-kpi-label">Total Documents</span>
+              </div>
+              <div className="doc-kpi-icon-wrap" style={{ background: '#F1F5F9' }}>
+                <IconTotalDocs />
+              </div>
+            </div>
+
+            {/* Pending Approval */}
+            <div className="doc-kpi-card">
+              <div className="doc-kpi-content">
+                <span className="doc-kpi-value doc-kpi-value-amber">{totals.pending}</span>
+                <span className="doc-kpi-label">Pending Approval</span>
+              </div>
+              <div className="doc-kpi-icon-wrap" style={{ background: '#FEF3C7' }}>
+                <IconClock color="#D97706" />
+              </div>
+            </div>
+
+            {/* Approved Docs */}
+            <div className="doc-kpi-card">
+              <div className="doc-kpi-content">
+                <span className="doc-kpi-value doc-kpi-value-green">{totals.approved}</span>
+                <span className="doc-kpi-label">Approved Docs</span>
+              </div>
+              <div className="doc-kpi-icon-wrap" style={{ background: '#D1FAE5' }}>
+                <IconCheck color="#10B981" />
+              </div>
+            </div>
+
+            {/* Successfully Delivered */}
+            <div className="doc-kpi-card">
+              <div className="doc-kpi-content">
+                <span className="doc-kpi-value doc-kpi-value-blue">{totals.delivered}</span>
+                <span className="doc-kpi-label">Successfully Delivered</span>
+              </div>
+              <div className="doc-kpi-icon-wrap" style={{ background: '#DBEAFE' }}>
+                <IconDeliveredMail color="#2563EB" />
+              </div>
+            </div>
+          </div>
+
+          {/* Search & Filter Toolbar */}
+          <div className="doc-track-toolbar">
+            <div className="doc-track-search">
+              <span className="doc-track-search-icon">
+                <IconSearch />
+              </span>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search documents..."
+              />
+            </div>
+
+            <div className="doc-track-select-wrap">
+              <select
+                value={templateFilter}
+                onChange={(e) => setTemplateFilter(e.target.value)}
+                className="doc-track-select"
+              >
+                <option value="">All templates</option>
+                {templateNames.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+              <span className="doc-track-select-chevron">
+                <IconChevronDown />
+              </span>
+            </div>
+
+            <div className="doc-track-select-wrap">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="doc-track-select"
+              >
+                {STATUS_FILTER_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <span className="doc-track-select-chevron">
+                <IconChevronDown />
+              </span>
+            </div>
+
+            <div className="doc-track-select-wrap">
+              <select
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="doc-track-select"
+              >
+                {DATE_FILTER_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <span className="doc-track-select-chevron">
+                <IconChevronDown />
+              </span>
+            </div>
+
+            {hasActiveFilters && (
+              <button type="button" className="doc-track-clear-btn" onClick={clearFilters}>
+                Clear
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* 4 KPI Stat Cards */}
-        <div className="doc-track-kpi-row">
-          {/* Total Documents */}
-          <div className="doc-kpi-card">
-            <div className="doc-kpi-content">
-              <span className="doc-kpi-value">{totals.total}</span>
-              <span className="doc-kpi-label">Total Documents</span>
+        {/* Scrollable Content Section */}
+        <div className="doc-track-content-scroll">
+          {loadingDocs ? (
+            <div className="doc-track-loading">
+              <IconSpinner />
+              <span>Loading documents…</span>
             </div>
-            <div className="doc-kpi-icon-wrap" style={{ background: '#F1F5F9' }}>
-              <IconTotalDocs />
+          ) : activeDocs.length === 0 ? (
+            <div className="doc-track-empty">You haven't generated any documents yet.</div>
+          ) : visibleDocCount === 0 ? (
+            <div className="doc-track-empty">
+              No documents match your search or filters.{' '}
+              <button type="button" className="doc-track-link-btn" onClick={clearFilters}>
+                Clear filters
+              </button>
             </div>
-          </div>
-
-          {/* Pending Approval */}
-          <div className="doc-kpi-card">
-            <div className="doc-kpi-content">
-              <span className="doc-kpi-value doc-kpi-value-amber">{totals.pending}</span>
-              <span className="doc-kpi-label">Pending Approval</span>
-            </div>
-            <div className="doc-kpi-icon-wrap" style={{ background: '#FEF3C7' }}>
-              <IconClock color="#D97706" />
-            </div>
-          </div>
-
-          {/* Approved Docs */}
-          <div className="doc-kpi-card">
-            <div className="doc-kpi-content">
-              <span className="doc-kpi-value doc-kpi-value-green">{totals.approved}</span>
-              <span className="doc-kpi-label">Approved Docs</span>
-            </div>
-            <div className="doc-kpi-icon-wrap" style={{ background: '#D1FAE5' }}>
-              <IconCheck color="#10B981" />
-            </div>
-          </div>
-
-          {/* Successfully Delivered */}
-          <div className="doc-kpi-card">
-            <div className="doc-kpi-content">
-              <span className="doc-kpi-value doc-kpi-value-blue">{totals.delivered}</span>
-              <span className="doc-kpi-label">Successfully Delivered</span>
-            </div>
-            <div className="doc-kpi-icon-wrap" style={{ background: '#DBEAFE' }}>
-              <IconDeliveredMail color="#2563EB" />
-            </div>
-          </div>
-        </div>
-
-        {/* Search & Filter Toolbar */}
-        <div className="doc-track-toolbar">
-          <div className="doc-track-search">
-            <span className="doc-track-search-icon">
-              <IconSearch />
-            </span>
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search documents..."
-            />
-          </div>
-
-          <div className="doc-track-select-wrap">
-            <select
-              value={templateFilter}
-              onChange={(e) => setTemplateFilter(e.target.value)}
-              className="doc-track-select"
-            >
-              <option value="">All templates</option>
-              {templateNames.map((name) => (
-                <option key={name} value={name}>{name}</option>
+          ) : (
+            /* 2-Column Document Cards Grid */
+            <div className="doc-track-grid">
+              {filteredDocs.map((doc) => (
+                <DocumentCard
+                  key={doc.id}
+                  doc={doc}
+                  highlighted={String(doc.id) === String(highlightDocId)}
+                  isAdmin={isAdminUser}
+                  user={user}
+                  onNeedsApprover={() => setApproverModalDoc({ id: doc.id, doc_uuid: doc.doc_uuid })}
+                  onSecureDeliver={() => setSecureDeliveryModalDoc(doc)}
+                  onChanged={loadMyDocs}
+                  onEditResubmit={(banner) => handleEditResubmit(doc, banner || null)}
+                  ownershipRejectionBanner={
+                    ownershipRejectionBanner && ownershipRejectionBanner.docId === String(doc.id)
+                      ? ownershipRejectionBanner
+                      : null
+                  }
+                />
               ))}
-            </select>
-            <span className="doc-track-select-chevron">
-              <IconChevronDown />
-            </span>
-          </div>
-
-          <div className="doc-track-select-wrap">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="doc-track-select"
-            >
-              {STATUS_FILTER_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-            <span className="doc-track-select-chevron">
-              <IconChevronDown />
-            </span>
-          </div>
-
-          <div className="doc-track-select-wrap">
-            <select
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="doc-track-select"
-            >
-              {DATE_FILTER_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-            <span className="doc-track-select-chevron">
-              <IconChevronDown />
-            </span>
-          </div>
-
-          {hasActiveFilters && (
-            <button type="button" className="doc-track-clear-btn" onClick={clearFilters}>
-              Clear
-            </button>
+            </div>
           )}
         </div>
-
-        {/* Content Section */}
-        {loadingDocs ? (
-          <div className="doc-track-loading">
-            <IconSpinner />
-            <span>Loading documents…</span>
-          </div>
-        ) : activeDocs.length === 0 ? (
-          <div className="doc-track-empty">You haven't generated any documents yet.</div>
-        ) : visibleDocCount === 0 ? (
-          <div className="doc-track-empty">
-            No documents match your search or filters.{' '}
-            <button type="button" className="doc-track-link-btn" onClick={clearFilters}>
-              Clear filters
-            </button>
-          </div>
-        ) : (
-          /* 2-Column Document Cards Grid */
-          <div className="doc-track-grid">
-            {filteredDocs.map((doc) => (
-              <DocumentCard
-                key={doc.id}
-                doc={doc}
-                highlighted={String(doc.id) === String(highlightDocId)}
-                isAdmin={isAdminUser}
-                user={user}
-                onNeedsApprover={() => setApproverModalDoc({ id: doc.id, doc_uuid: doc.doc_uuid })}
-                onSecureDeliver={() => setSecureDeliveryModalDoc(doc)}
-                onChanged={loadMyDocs}
-                onEditResubmit={(banner) => handleEditResubmit(doc, banner || null)}
-                ownershipRejectionBanner={
-                  ownershipRejectionBanner && ownershipRejectionBanner.docId === String(doc.id)
-                    ? ownershipRejectionBanner
-                    : null
-                }
-              />
-            ))}
-          </div>
-        )}
 
         {approverModalDoc && (
           <ApproverSelectModal
