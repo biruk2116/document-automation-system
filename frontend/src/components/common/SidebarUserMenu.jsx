@@ -69,6 +69,22 @@ const IconCamera = () => (
   </svg>
 );
 
+const IconEye = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+const IconEyeOff = ({ size = 14 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+    <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+    <line x1="2" y1="2" x2="22" y2="22" />
+  </svg>
+);
+
 const emptyPw = { current: '', next: '', confirm: '' };
 
 // ── Shared input style ────────────────────────────────────────────────────────
@@ -104,6 +120,7 @@ export default function SidebarUserMenu() {
 
   // Password
   const [pw,      setPw]      = useState(emptyPw);
+  const [showPw,  setShowPw]  = useState({ current: false, next: false, confirm: false });
   const [pwBusy,  setPwBusy]  = useState(false);
   const [pwErr,   setPwErr]   = useState(null);
 
@@ -130,7 +147,9 @@ export default function SidebarUserMenu() {
     setFile(null); setPreview(null);
   };
   const resetPw = () => {
-    setPw(emptyPw); setPwErr(null);
+    setPw(emptyPw);
+    setPwErr(null);
+    setShowPw({ current: false, next: false, confirm: false });
   };
   const openProfile = () => { setView('profile'); resetPhoto(); resetPw(); };
   const closeAll    = () => { setView('closed'); resetPhoto(); resetPw(); };
@@ -440,23 +459,52 @@ export default function SidebarUserMenu() {
                 <label htmlFor={`spw-${id}`} style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 3 }}>
                   {label}
                 </label>
-                <input
-                  id={`spw-${id}`}
-                  type="password"
-                  required
-                  autoComplete={ac}
-                  value={val}
-                  onChange={(e) => setPw((p) => ({ ...p, [field]: e.target.value }))}
-                  disabled={pwBusy}
-                  style={{
-                    ...inputStyle,
-                    padding: '6px 9px',
-                    fontSize: '0.8rem',
-                    borderRadius: 6,
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = '#2563EB')}
-                  onBlur={(e)  => (e.target.style.borderColor = 'var(--border-strong)')}
-                />
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <input
+                    id={`spw-${id}`}
+                    type={showPw[field] ? 'text' : 'password'}
+                    required
+                    autoComplete={ac}
+                    value={val}
+                    onChange={(e) => setPw((p) => ({ ...p, [field]: e.target.value }))}
+                    disabled={pwBusy}
+                    style={{
+                      ...inputStyle,
+                      padding: '6px 30px 6px 9px',
+                      fontSize: '0.8rem',
+                      borderRadius: 6,
+                    }}
+                    onFocus={(e) => (e.target.style.borderColor = '#2563EB')}
+                    onBlur={(e)  => (e.target.style.borderColor = 'var(--border-strong)')}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw((prev) => ({ ...prev, [field]: !prev[field] }))}
+                    title={showPw[field] ? 'Hide password' : 'Show password'}
+                    aria-label={showPw[field] ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
+                    tabIndex={-1}
+                    style={{
+                      position: 'absolute',
+                      right: 7,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: 'var(--text-muted)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: 3,
+                      borderRadius: 4,
+                      transition: 'color 0.15s',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-primary)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
+                  >
+                    {showPw[field] ? <IconEyeOff size={14} /> : <IconEye size={14} />}
+                  </button>
+                </div>
                 {/* Dynamic 3-state password strength indicator (Weak, Medium, Strong) */}
                 {field === 'next' && pw.next.length > 0 && (() => {
                   let score = 0;
