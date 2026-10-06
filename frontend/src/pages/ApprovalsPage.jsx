@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { signatureService } from '../services/workflowService';
 import { documentService } from '../services/templateService';
@@ -6,7 +6,66 @@ import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { ROLES } from '../utils/roles';
 import RejectRecipientsPicker from '../components/common/RejectRecipientsPicker';
-import '../pages/DocumentTracking.css';
+import './DocumentTracking.css';
+
+// ── Pure SVG Icons (matching Document Tracking) ──────────────────────────────
+function IconTotalDocs({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+      <polyline points="10 9 9 9 8 9" />
+    </svg>
+  );
+}
+
+function IconClock({ size = 14, color = '#D97706' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+function IconTrash({ size = 15 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <line x1="10" y1="11" x2="10" y2="17" />
+      <line x1="14" y1="11" x2="14" y2="17" />
+    </svg>
+  );
+}
+
+function IconSearch({ size = 14, color = '#9CA3AF' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+
+function IconChevronDown({ size = 12, color = '#64748B' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  );
+}
+
+function IconSpinner({ size = 20 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="doc-track-spinner" aria-hidden="true">
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+    </svg>
+  );
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 const DATE_FILTER_OPTIONS = [
   { value: '', label: 'All time' },
@@ -27,15 +86,15 @@ function withinDateFilter(req, dateFilter) {
 }
 
 /**
- * Pending Approvals — same page structure/visual language as Document Tracking.
- * Admins (super_admin / system_admin) see a Delete button on each card so they
- * can remove a document that was sent for approval by mistake. The backend
- * automatically cancels the pending signature request before soft-deleting.
+ * Pending Approvals — adopts the exact compact design system, card structure,
+ * and button styling (colors and size) of Document Tracking.
  */
 export default function ApprovalsPage() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
+  const deepLinkCardRef = useRef(null);
+
   // Deep link: ?open=<signatureRequestId> lands on the right card directly.
   const openId = searchParams.get('open');
 
@@ -64,16 +123,13 @@ export default function ApprovalsPage() {
   const [selectedRecipientIds, setSelectedRecipientIds] = useState([]);
 
   // Approvers can delete documents they're assigned to review.
-  // Admins can delete any document.
-  // The backend enforces these rules — this just controls button visibility.
-  const isAdmin = user?.role === ROLES.SUPER_ADMIN || user?.role === ROLES.SYSTEM_ADMIN;
-  const canDeletePending = true; // All approvers can delete their assigned pending documents
+  const canDeletePending = true;
 
   const loadPending = async () => {
     setLoading(true);
     try {
       const res = await signatureService.listPending();
-      setPending(res.data);
+      setPending(res.data || []);
     } catch (err) {
       showToast(err.message || 'Failed to load pending approvals.', 'error');
     } finally {
@@ -93,6 +149,12 @@ export default function ApprovalsPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, openId, deepLinkReq]);
+
+  useEffect(() => {
+    if (openId && deepLinkCardRef.current) {
+      deepLinkCardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [openId, pending]);
 
   const templateNames = useMemo(
     () => [...new Set(pending.map((r) => r.template_name))].sort(),
@@ -114,7 +176,7 @@ export default function ApprovalsPage() {
     });
   }, [pending, search, templateFilter, dateFilter]);
 
-  const hasActiveFilters = !!(search || templateFilter || dateFilter);
+  const hasActiveFilters = Boolean(search.trim() || templateFilter || dateFilter);
   const clearFilters = () => { setSearch(''); setTemplateFilter(''); setDateFilter(''); };
 
   const openApprove = (req) => {
@@ -223,230 +285,434 @@ export default function ApprovalsPage() {
     }
   };
 
-  if (loading) return <div className="doc-track"><p className="doc-track-loading">Loading pending approvals…</p></div>;
+  if (loading) {
+    return (
+      <div className="doc-track-page-container">
+        <div className="doc-track">
+          <div className="doc-track-loading">
+            <IconSpinner />
+            <span>Loading pending approvals…</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="doc-track">
-      <div className="doc-track-header">
-        <h1>Pending Approvals</h1>
-      </div>
-      <p className="doc-track-subtitle">Documents routed to you for review, OTP-confirmed approval, or rejection.</p>
-
-      {pending.length > 0 && (
-        <div className="doc-track-stats">
-          <div className="doc-track-stat doc-track-stat-amber">
-            <span className="doc-track-stat-value">{pending.length}</span>
-            <span className="doc-track-stat-label">Awaiting You</span>
+    <div className="doc-track-page-container">
+      <div className="doc-track">
+        {/* Fixed Top Section: Header, KPI Stat Cards & Filters (Matches Document Tracking) */}
+        <div className="doc-track-top-section">
+          {/* Page Header */}
+          <div className="doc-track-header">
+            <h1>Pending Approvals</h1>
+            <p className="doc-track-subtitle">Documents routed to you for review, OTP-confirmed approval, or rejection.</p>
           </div>
-          <div className="doc-track-stat">
-            <span className="doc-track-stat-value">{templateNames.length}</span>
-            <span className="doc-track-stat-label">Templates</span>
+
+          {/* KPI Stat Cards */}
+          <div className="doc-track-kpi-row" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 260px))' }}>
+            <div className="doc-kpi-card">
+              <div className="doc-kpi-content">
+                <span className="doc-kpi-value doc-kpi-value-amber">{pending.length}</span>
+                <span className="doc-kpi-label">Awaiting You</span>
+              </div>
+              <div className="doc-kpi-icon-wrap" style={{ background: '#FEF3C7' }}>
+                <IconClock color="#D97706" />
+              </div>
+            </div>
+
+            <div className="doc-kpi-card">
+              <div className="doc-kpi-content">
+                <span className="doc-kpi-value">{templateNames.length}</span>
+                <span className="doc-kpi-label">Templates</span>
+              </div>
+              <div className="doc-kpi-icon-wrap" style={{ background: '#F1F5F9' }}>
+                <IconTotalDocs />
+              </div>
+            </div>
+          </div>
+
+          {/* Search & Filter Toolbar */}
+          <div className="doc-track-toolbar">
+            <div className="doc-track-search">
+              <span className="doc-track-search-icon">
+                <IconSearch />
+              </span>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by Doc ID, template, or generator…"
+              />
+            </div>
+
+            <div className="doc-track-select-wrap">
+              <select
+                value={templateFilter}
+                onChange={(e) => setTemplateFilter(e.target.value)}
+                className="doc-track-select"
+              >
+                <option value="">All templates</option>
+                {templateNames.map((name) => (
+                  <option key={name} value={name}>{name}</option>
+                ))}
+              </select>
+              <span className="doc-track-select-chevron">
+                <IconChevronDown />
+              </span>
+            </div>
+
+            <div className="doc-track-select-wrap">
+              <select
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="doc-track-select"
+              >
+                {DATE_FILTER_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <span className="doc-track-select-chevron">
+                <IconChevronDown />
+              </span>
+            </div>
+
+            {hasActiveFilters && (
+              <button type="button" className="doc-track-clear-btn" onClick={clearFilters}>
+                Clear
+              </button>
+            )}
           </div>
         </div>
-      )}
 
-      {pending.length > 0 && (
-        <div className="doc-track-toolbar">
-          <div className="doc-track-search">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by Doc ID, template, or generator…"
-            />
-          </div>
-          <select value={templateFilter} onChange={(e) => setTemplateFilter(e.target.value)}>
-            <option value="">All templates</option>
-            {templateNames.map((name) => <option key={name} value={name}>{name}</option>)}
-          </select>
-          <select value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}>
-            {DATE_FILTER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-          {hasActiveFilters && (
-            <button type="button" className="doc-btn doc-btn-secondary" onClick={clearFilters}>Clear</button>
+        {/* Scrollable Document Content Area */}
+        <div className="doc-track-content-scroll">
+          {deepLinkReq && (
+            <div style={{
+              marginBottom: 14,
+              padding: '8px 14px',
+              borderRadius: 8,
+              background: '#EFF6FF',
+              border: '1px solid #BFDBFE',
+              fontSize: '0.8rem',
+              color: '#1D4ED8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+              maxWidth: 696,
+            }}>
+              <span>
+                Action Required: Focused on approval request for <b>{deepLinkReq.doc_uuid}</b> ({deepLinkReq.template_name}).
+              </span>
+              <button
+                type="button"
+                onClick={dismissDeepLink}
+                className="doc-track-link-btn"
+                style={{ fontSize: '0.78rem' }}
+              >
+                Show all
+              </button>
+            </div>
+          )}
+
+          {pending.length === 0 ? (
+            <div className="doc-track-empty">Nothing awaiting your approval right now.</div>
+          ) : visibleRequests.length === 0 ? (
+            <div className="doc-track-empty">
+              No approvals match your search or filters.{' '}
+              <button type="button" className="doc-track-link-btn" onClick={clearFilters}>
+                Clear filters
+              </button>
+            </div>
+          ) : (
+            <div className="doc-track-grid">
+              {visibleRequests.map((req) => {
+                const isHighlighted = openId && String(req.id) === String(openId);
+                return (
+                  <div
+                    key={req.id}
+                    ref={isHighlighted ? deepLinkCardRef : null}
+                    className={`doc-card${isHighlighted ? ' doc-card-highlighted' : ''}`}
+                  >
+                    {/* Card Header Row */}
+                    <div className="doc-card-header-row">
+                      <div className="doc-card-title-group">
+                        <h3 className="doc-card-template-name">{req.template_name || 'Document'}</h3>
+                        <span className="doc-card-code">{req.doc_uuid}</span>
+                      </div>
+                      <span className="doc-pill-badge doc-pill-pending">
+                        <span className="doc-pill-badge-dot" />
+                        Pending Approval
+                      </span>
+                    </div>
+
+                    {/* Card Body Metadata */}
+                    <div className="doc-card-body-meta">
+                      <div className="doc-card-body-meta-row">
+                        <span className="doc-card-body-label">Record:</span>
+                        <span className="doc-card-body-value">{req.record_identifier || '—'}</span>
+                      </div>
+                      <div className="doc-card-body-meta-row">
+                        <span className="doc-card-body-label">Generated by:</span>
+                        <span className="doc-card-body-value">{req.generator_name || '—'}</span>
+                      </div>
+                      <div className="doc-card-body-meta-row">
+                        <span className="doc-card-body-label">Requested:</span>
+                        <span className="doc-card-body-value">{new Date(req.created_at).toLocaleString()}</span>
+                      </div>
+                    </div>
+
+                    {/* Card Action Buttons Bar (Matching Document Tracking size & colors) */}
+                    <div className="doc-card-actions-bar">
+                      <button
+                        type="button"
+                        onClick={() => handleViewPdf(req)}
+                        disabled={viewingPdf}
+                        className="btn-doc-view"
+                      >
+                        {viewingPdf ? 'Opening…' : 'View PDF'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => openApprove(req)}
+                        className="btn-doc-approve"
+                      >
+                        Approve
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => openReject(req)}
+                        className="btn-doc-reject"
+                      >
+                        Reject
+                      </button>
+
+                      {canDeletePending && (
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTarget(req)}
+                          className="btn-doc-trash"
+                          title="Delete document"
+                          aria-label="Delete document"
+                        >
+                          <IconTrash />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
-      )}
 
-      {deepLinkReq && (
-        <div className="doc-card doc-card-highlighted" style={{ marginBottom: 20 }}>
-          <div className="doc-card-top">
-            <div className="doc-card-id-block">
-              <span className="doc-card-template">Action Required</span>
-              <span className="doc-card-id">{deepLinkReq.doc_uuid}</span>
-              <div className="doc-card-meta">
-                <span><b>Template:</b> {deepLinkReq.template_name}</span>
-                <span><b>Generated by:</b> {deepLinkReq.generator_name}</span>
-              </div>
-            </div>
-            <span className="doc-badge doc-badge-amber"><span className="doc-badge-dot" />Pending Approval</span>
-          </div>
-          <div className="doc-card-actions">
-            <div className="doc-card-actions-row" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-              <button type="button" onClick={() => handleViewPdf(deepLinkReq)} disabled={viewingPdf} className="doc-btn doc-btn-secondary">View PDF</button>
-              <button type="button" onClick={() => openApprove(deepLinkReq)} className="doc-btn doc-btn-primary">Approve</button>
-              <button type="button" onClick={() => openReject(deepLinkReq)} className="doc-btn doc-btn-danger">Reject</button>
-              {canDeletePending && (
-                <button type="button" onClick={() => setDeleteTarget(deepLinkReq)} className="doc-btn doc-btn-danger">
-                  Delete
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {pending.length === 0 ? (
-        <div className="doc-track-empty">Nothing awaiting your approval right now.</div>
-      ) : visibleRequests.length === 0 ? (
-        <div className="doc-track-empty">No approvals match your search/filters. <button type="button" className="doc-track-link-btn" onClick={clearFilters}>Clear filters</button></div>
-      ) : (
-        <div className="doc-track-grid">
-          {visibleRequests.map((req) => (
-            <div className="doc-card" key={req.id}>
-              <div className="doc-card-top">
-                <div className="doc-card-id-block">
-                  <span className="doc-card-template">{req.template_name}</span>
-                  <span className="doc-card-id">{req.doc_uuid}</span>
-                  <div className="doc-card-meta">
-                    <span><b>Record:</b> {req.record_identifier}</span>
-                    <span><b>Requested:</b> {new Date(req.created_at).toLocaleString()}</span>
-                  </div>
-                </div>
-                <div>
-                  <span className="doc-badge doc-badge-amber"><span className="doc-badge-dot" />Pending Approval</span>
-                  <div className="doc-card-subline doc-card-subline-amber">From {req.generator_name}</div>
-                </div>
-              </div>
-
-              <div className="doc-card-actions">
-                <div className="doc-card-actions-row" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-                  <button type="button" onClick={() => handleViewPdf(req)} disabled={viewingPdf} className="doc-btn doc-btn-secondary">
-                    {viewingPdf ? 'Opening…' : 'View PDF'}
-                  </button>
-                  <button type="button" onClick={() => openApprove(req)} className="doc-btn doc-btn-primary">Approve</button>
-                  <button type="button" onClick={() => openReject(req)} className="doc-btn doc-btn-danger">Reject</button>
-                  {canDeletePending && (
-                    <button type="button" onClick={() => setDeleteTarget(req)} className="doc-btn doc-btn-danger">
-                      Delete
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Approve / Reject modal */}
-      {activeRequest && (
-        <div className="modal-overlay" onClick={closePanel}>
-          <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{mode === 'approve' ? 'Enter OTP to Approve' : 'Reject Document'}</h2>
-              <button type="button" onClick={closePanel} className="modal-close-btn" title="Close">×</button>
-            </div>
-            <div className="modal-body">
-              <p>Document: <b>{activeRequest.doc_uuid}</b></p>
-
-              {mode === 'approve' && (
-                <div className="form-field">
-                  <button type="button" onClick={() => handleViewPdf(activeRequest)} disabled={viewingPdf} className="btn-secondary" style={{ marginBottom: 12 }}>
-                    {viewingPdf ? 'Opening…' : 'View PDF in Browser'}
-                  </button>
-                  <label htmlFor="otp-input">6-digit OTP (sent to your email, expires in 5 minutes)</label>
-                  <div className="verify-input-row">
-                    <input
-                      id="otp-input"
-                      value={otpCode}
-                      onChange={(e) => setOtpCode(e.target.value)}
-                      maxLength={6}
-                      placeholder={sendingOtp ? 'Sending OTP…' : '123456'}
-                    />
-                    <button type="button" onClick={() => handleSendOtp(activeRequest.id)} disabled={sendingOtp} className="btn-secondary">
-                      {sendingOtp ? 'Sending…' : 'Resend OTP'}
-                    </button>
-                  </div>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: 12 }}>
-                    <button type="button" onClick={submitApprove} disabled={submitting || sendingOtp} className="btn-primary" style={{ margin: 0 }}>
-                      {submitting ? 'Verifying…' : 'Confirm Approval'}
-                    </button>
-                    <button type="button" onClick={closePanel} disabled={submitting} className="btn-secondary" style={{ margin: 0 }}>
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {mode === 'reject' && (
-                <div className="form-field">
-                  <label htmlFor="reject-reason">Reason for rejection (required)</label>
-                  <textarea
-                    id="reject-reason"
-                    value={rejectReason}
-                    onChange={(e) => setRejectReason(e.target.value)}
-                    rows={3}
-                  />
-                  <RejectRecipientsPicker
-                    candidates={recipients}
-                    loading={recipientsLoading}
-                    selectedIds={selectedRecipientIds}
-                    onChange={setSelectedRecipientIds}
-                  />
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: 12 }}>
-                    <button type="button" onClick={submitReject} disabled={submitting || recipientsLoading} className="btn-danger" style={{ margin: 0 }}>
-                      {submitting ? 'Submitting…' : 'Confirm Rejection'}
-                    </button>
-                    <button type="button" onClick={closePanel} disabled={submitting} className="btn-secondary" style={{ margin: 0 }}>
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete confirmation modal */}
-      {deleteTarget && (
-        <div className="modal-overlay" onClick={() => !deleting && setDeleteTarget(null)}>
-          <div className="modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
-            <div className="modal-header">
-              <h2>Delete Document?</h2>
-              <button type="button" onClick={() => setDeleteTarget(null)} className="modal-close-btn" title="Close" disabled={deleting}>×</button>
-            </div>
-            <div className="modal-body">
-              <p>
-                Delete <b>{deleteTarget.doc_uuid}</b>?
-              </p>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 8 }}>
-                The pending approval request will be cancelled and the document will be permanently removed from Document Tracking.
-                The Doc ID can still be used on the Verify Document page.
-              </p>
-              <div className="template-form-actions" style={{ marginTop: 16, display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
+        {/* Approve / Reject Modal */}
+        {activeRequest && (
+          <div className="modal-overlay" onClick={closePanel} style={{ zIndex: 1200 }}>
+            <div
+              className="modal-panel"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                maxWidth: 460,
+                padding: '22px 24px',
+                background: '#FFFFFF',
+                borderRadius: 12,
+                border: '1px solid #E2E8F0',
+                boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: '#0F172A' }}>
+                  {mode === 'approve' ? 'Enter OTP to Approve' : 'Reject Document'}
+                </h2>
                 <button
                   type="button"
-                  onClick={confirmDelete}
-                  disabled={deleting}
-                  className="btn-danger"
-                  style={{ margin: 0 }}
+                  onClick={closePanel}
+                  className="modal-close-btn"
+                  title="Close"
+                  style={{ background: 'none', border: 'none', fontSize: '1.3rem', cursor: 'pointer', color: '#64748B', lineHeight: 1 }}
                 >
-                  {deleting ? 'Deleting…' : 'Delete'}
+                  ×
                 </button>
+              </div>
+
+              <div className="modal-body" style={{ padding: 0 }}>
+                <p style={{ margin: '0 0 14px', fontSize: '0.85rem', color: '#475569' }}>
+                  Document: <b style={{ color: '#0F172A' }}>{activeRequest.doc_uuid}</b> ({activeRequest.template_name})
+                </p>
+
+                {mode === 'approve' && (
+                  <div className="form-field">
+                    <div style={{ marginBottom: 14 }}>
+                      <button
+                        type="button"
+                        onClick={() => handleViewPdf(activeRequest)}
+                        disabled={viewingPdf}
+                        className="btn-doc-view"
+                        style={{ height: '28px', fontSize: '0.8rem' }}
+                      >
+                        {viewingPdf ? 'Opening…' : 'View PDF in Browser'}
+                      </button>
+                    </div>
+
+                    <label htmlFor="otp-input" style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: '#334155', marginBottom: 6 }}>
+                      6-digit OTP (sent to your email, expires in 5 minutes)
+                    </label>
+                    <div className="verify-input-row" style={{ display: 'flex', gap: '8px', marginBottom: 16 }}>
+                      <input
+                        id="otp-input"
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value)}
+                        maxLength={6}
+                        placeholder={sendingOtp ? 'Sending OTP…' : '123456'}
+                        style={{
+                          flex: 1,
+                          padding: '8px 12px',
+                          border: '1px solid #CBD5E1',
+                          borderRadius: 6,
+                          fontSize: '0.95rem',
+                          letterSpacing: '2px',
+                          textAlign: 'center',
+                          fontWeight: 600,
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSendOtp(activeRequest.id)}
+                        disabled={sendingOtp}
+                        className="btn-secondary"
+                        style={{ margin: 0, padding: '8px 14px', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                      >
+                        {sendingOtp ? 'Sending…' : 'Resend OTP'}
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: 16 }}>
+                      <button
+                        type="button"
+                        onClick={closePanel}
+                        disabled={submitting}
+                        className="btn-secondary"
+                        style={{ margin: 0 }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={submitApprove}
+                        disabled={submitting || sendingOtp}
+                        className="btn-doc-approve"
+                        style={{ margin: 0, height: '32px', padding: '0 14px', fontSize: '0.82rem' }}
+                      >
+                        {submitting ? 'Verifying…' : 'Confirm Approval'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {mode === 'reject' && (
+                  <div className="form-field">
+                    <label htmlFor="reject-reason" style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: '#334155', marginBottom: 6 }}>
+                      Reason for rejection (required)
+                    </label>
+                    <textarea
+                      id="reject-reason"
+                      value={rejectReason}
+                      onChange={(e) => setRejectReason(e.target.value)}
+                      rows={3}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        border: '1px solid #CBD5E1',
+                        borderRadius: 6,
+                        fontSize: '0.85rem',
+                        boxSizing: 'border-box',
+                        marginBottom: 12,
+                      }}
+                    />
+                    <RejectRecipientsPicker
+                      candidates={recipients}
+                      loading={recipientsLoading}
+                      selectedIds={selectedRecipientIds}
+                      onChange={setSelectedRecipientIds}
+                    />
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: 16 }}>
+                      <button
+                        type="button"
+                        onClick={closePanel}
+                        disabled={submitting}
+                        className="btn-secondary"
+                        style={{ margin: 0 }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={submitReject}
+                        disabled={submitting || recipientsLoading}
+                        className="btn-doc-reject"
+                        style={{ margin: 0, height: '32px', padding: '0 14px', fontSize: '0.82rem' }}
+                      >
+                        {submitting ? 'Submitting…' : 'Confirm Rejection'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal (Matches Document Tracking) */}
+        {deleteTarget && (
+          <div className="modal-overlay" onClick={() => !deleting && setDeleteTarget(null)} style={{ zIndex: 1200 }}>
+            <div
+              className="modal-panel"
+              style={{
+                maxWidth: 420,
+                padding: '22px 24px',
+                background: '#FFFFFF',
+                borderRadius: 12,
+                border: '1px solid #E2E8F0',
+                boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                <span style={{ color: '#DC2626', display: 'flex' }}>
+                  <IconTrash size={22} />
+                </span>
+                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: '#111827' }}>
+                  Delete Document?
+                </h3>
+              </div>
+              <p style={{ margin: '0 0 18px', fontSize: '0.85rem', color: '#4B5563', lineHeight: 1.5 }}>
+                Delete <b>{deleteTarget.doc_uuid}</b>? The pending approval request will be cancelled immediately and the document will be permanently removed from Document Tracking. This cannot be undone.
+              </p>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
                 <button
                   type="button"
+                  className="btn-secondary"
                   onClick={() => setDeleteTarget(null)}
                   disabled={deleting}
-                  className="btn-secondary"
-                  style={{ margin: 0 }}
                 >
                   Cancel
                 </button>
+                <button
+                  type="button"
+                  className="btn-danger"
+                  onClick={confirmDelete}
+                  disabled={deleting}
+                >
+                  {deleting ? 'Deleting…' : 'Delete'}
+                </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
