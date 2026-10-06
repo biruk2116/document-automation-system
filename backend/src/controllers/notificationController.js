@@ -42,7 +42,7 @@ async function getNotifications(req, res) {
       [req.user.id]
     );
 
-    // Generator notifications: approvals and rejections
+    // Document notifications: approvals to generator, rejections strictly to chosen recipient(s)
     const [generatorEvents] = await pool.query(
       `SELECT al.id, al.timestamp, al.action, al.action_details, gd.doc_uuid, gd.id AS doc_id,
               gd.file_path, gd.generated_by, NULL AS signature_request_id,
@@ -53,8 +53,21 @@ async function getNotifications(req, res) {
        WHERE (al.action::text = 'REJECT' OR (al.action::text = 'SIGN' AND al.action_details->>'event' = 'approved'))
          AND gd.deleted_at IS NULL
          AND (
-           gd.generated_by = $1
-           OR (al.action::text = 'REJECT' AND $2 IN ('super_admin', 'system_admin') AND gen.role NOT IN ('super_admin', 'system_admin'))
+           (al.action::text = 'SIGN' AND gd.generated_by = $1)
+           OR (
+             al.action::text = 'REJECT'
+             AND (
+               (al.action_details->'recipientIds' IS NOT NULL AND (al.action_details->'recipientIds')::jsonb @> jsonb_build_array($1::int))
+               OR (gd.metadata->'rejection'->'recipientIds' IS NOT NULL AND (gd.metadata->'rejection'->'recipientIds')::jsonb @> jsonb_build_array($1::int))
+               OR (al.action_details->'recipientRoles' IS NOT NULL AND (al.action_details->'recipientRoles')::jsonb @> jsonb_build_array($2::text))
+               OR (gd.metadata->'rejection'->'recipientRoles' IS NOT NULL AND (gd.metadata->'rejection'->'recipientRoles')::jsonb @> jsonb_build_array($2::text))
+               OR (
+                 (al.action_details->'recipientIds' IS NULL OR jsonb_array_length((al.action_details->'recipientIds')::jsonb) = 0)
+                 AND (gd.metadata->'rejection' IS NULL OR gd.metadata->'rejection'->'recipientIds' IS NULL)
+                 AND gd.generated_by = $1
+               )
+             )
+           )
          )
        ORDER BY al.timestamp DESC
        LIMIT 20`,
@@ -218,7 +231,13 @@ async function getNotifications(req, res) {
       let notifyToken = null;
       let targetUrl = null;
 
-      if (n.notification_type === 'your_document_rejected' || n.notification_type === 'your_document_approved') {
+      if (n.notification_type === 'your_document_rejected') {
+        if (req.user.role === 'super_admin' || req.user.role === 'system_admin') {
+          targetUrl = `/templates/correct/${encodeURIComponent(n.doc_id)}`;
+        } else if (n.doc_id) {
+          targetUrl = `/document-tracking?doc=${encodeURIComponent(n.doc_id)}&action=view_rejection`;
+        }
+      } else if (n.notification_type === 'your_document_approved') {
         if (n.doc_id) {
           notifyToken = jwt.sign(
             { docId: n.doc_id, purpose: 'doc_notify_view', inApp: true },
@@ -240,7 +259,9 @@ async function getNotifications(req, res) {
           const details = typeof n.action_details === 'string' ? JSON.parse(n.action_details) : n.action_details;
           reviewToken = details?.reviewToken || null;
         } catch {}
-        if (reviewToken) {
+        if (req.user.role === 'super_admin' || req.user.role === 'system_admin') {
+          targetUrl = `/templates/correct/${encodeURIComponent(n.doc_id)}`;
+        } else if (reviewToken) {
           targetUrl = `/rejection-review/${encodeURIComponent(reviewToken)}`;
         } else if (n.doc_id) {
           targetUrl = `/document-tracking?doc=${encodeURIComponent(n.doc_id)}&action=view_rejection`;
