@@ -40,7 +40,7 @@ export default function ConfirmModal({
           </button>
           <button
             type="button"
-            className={tone === 'danger' ? 'btn-danger' : 'btn-primary'}
+            className={tone === 'danger' ? 'btn-danger' : tone === 'success' ? 'btn-success' : 'btn-primary'}
             onClick={onConfirm}
             disabled={busy}
             autoFocus

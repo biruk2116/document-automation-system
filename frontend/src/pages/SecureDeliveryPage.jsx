@@ -96,11 +96,13 @@ function Card({ children, style = {} }) {
 
 function ActionBtn({ onClick, disabled, loading, children, variant = 'primary', style = {} }) {
   const variants = {
-    primary:   { background: '#2563EB',               color: '#fff' },
-    green:     { background: '#16A34A',               color: '#fff' },
-    navy:      { background: '#2563EB',               color: '#fff' },
-    secondary: { background: 'var(--bg-surface)',     color: 'var(--text-primary)', border: '1px solid var(--border-strong)' },
-    indigo:    { background: '#2563EB',               color: '#fff' },
+    primary:   { background: '#2563EB', color: '#fff', border: '1px solid #2563EB' },
+    success:   { background: '#16A34A', color: '#fff', border: '1px solid #16A34A' },
+    green:     { background: '#16A34A', color: '#fff', border: '1px solid #16A34A' },
+    danger:    { background: '#DC2626', color: '#fff', border: '1px solid #DC2626' },
+    secondary: { background: 'var(--bg-surface, #fff)', color: 'var(--text-secondary, #334155)', border: '1px solid var(--border-strong, #CBD5E1)' },
+    indigo:    { background: '#2563EB', color: '#fff', border: '1px solid #2563EB' },
+    navy:      { background: '#2563EB', color: '#fff', border: '1px solid #2563EB' },
   };
   return (
     <button type="button" onClick={onClick} disabled={disabled || loading}
@@ -414,9 +416,15 @@ export default function SecureDeliveryPage() {
   };
 
   const handleRespond = async () => {
-    if (!responseText.trim()) { setRespondError('Please enter your response.'); return; }
+    if (responding || !responseText.trim() || wfResponse) {
+      if (!responseText.trim()) setRespondError('Please enter your response.');
+      return;
+    }
     setResponding(true); setRespondError(null);
-    try { await callWorkflowRespond(token, responseText.trim()); setWfResponse(responseText.trim()); }
+    try {
+      await callWorkflowRespond(token, responseText.trim());
+      setWfResponse(responseText.trim());
+    }
     catch (err) { setRespondError(err.message || 'Failed to send response.'); }
     finally { setResponding(false); }
   };
@@ -867,7 +875,7 @@ export default function SecureDeliveryPage() {
                       </div>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                         <ActionBtn onClick={handleSubmitSignature} loading={signing}
-                          disabled={signing} variant="navy">
+                          disabled={signing || Boolean(wfSignedAt)} variant="primary">
                           {signing ? 'Submitting…' : 'Submit to Generator'}
                         </ActionBtn>
                         <ActionBtn onClick={() => { setSignPreview(false); setSignError(null); }}
@@ -1220,7 +1228,7 @@ export default function SecureDeliveryPage() {
                       />
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                         <ActionBtn onClick={handleRespond} loading={responding}
-                          disabled={responding || !responseText.trim() || ownershipStatus !== 'CONFIRMED'}
+                          disabled={responding || !responseText.trim() || ownershipStatus !== 'CONFIRMED' || Boolean(wfResponse)}
                           variant="primary">
                           Send
                         </ActionBtn>

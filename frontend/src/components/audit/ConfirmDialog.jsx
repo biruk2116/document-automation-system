@@ -18,7 +18,7 @@ export default function ConfirmDialog({ title, description, confirmLabel = 'Conf
           </button>
           <button
             type="button"
-            className={`ar-btn ${tone === 'danger' ? 'ar-btn-navy' : 'ar-btn-primary'}`}
+            className={`ar-btn ${tone === 'danger' ? 'ar-btn-danger' : tone === 'success' ? 'ar-btn-success' : 'ar-btn-primary'}`}
             onClick={onConfirm}
             disabled={busy}
           >

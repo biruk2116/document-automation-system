@@ -147,7 +147,7 @@ export default function UserManagementPage() {
             {loading ? 'Loading accounts…' : `${users.length} account${users.length === 1 ? '' : 's'} · ${activeCount} active`}
           </p>
         </div>
-        <button type="button" className="btn-primary" onClick={() => setShowForm((s) => !s)}>
+        <button type="button" className={showForm ? 'btn-secondary' : 'btn-primary'} onClick={() => setShowForm((s) => !s)}>
           {showForm ? 'Cancel' : '+ Create User'}
         </button>
       </div>
@@ -243,6 +243,7 @@ export default function UserManagementPage() {
                           type="button"
                           onClick={() => handleToggleStatus(u)}
                           disabled={statusBusyId === u.id || deleteBusyId === u.id}
+                          className="btn-secondary btn-sm"
                           style={{ whiteSpace: 'nowrap' }}
                         >
                           {statusBusyId === u.id ? 'Working…' : (u.is_active ? 'Deactivate' : 'Activate')}
@@ -251,7 +252,7 @@ export default function UserManagementPage() {
                           type="button"
                           onClick={() => handleDelete(u)}
                           disabled={deleteBusyId === u.id || statusBusyId === u.id}
-                          className="btn-danger"
+                          className="btn-danger btn-sm"
                           title="Permanently delete this user"
                           style={{ whiteSpace: 'nowrap' }}
                         >

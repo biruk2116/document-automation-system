@@ -11,10 +11,17 @@ const {
   downloadDocument,
   deleteDocument,
   resubmitDocument,
+  listRejectedDocuments,
+  getRejectionContext,
+  correctAndResubmitDocument,
 } = require('../controllers/documentController');
 
 // RBAC matrix: "Generate a PDF (Single/Bulk)" — super_admin, system_admin, generator, approver
 const canGenerate = requireRole(ROLES.SUPER_ADMIN, ROLES.SYSTEM_ADMIN, ROLES.GENERATOR, ROLES.APPROVER);
+
+router.get('/rejected', requireAuth, canGenerate, listRejectedDocuments);
+router.get('/:id/rejection-context', requireAuth, canGenerate, getRejectionContext);
+router.post('/:id/correct-and-resubmit', requireAuth, canGenerate, correctAndResubmitDocument);
 
 router.post('/preview', requireAuth, canGenerate, previewDocument);
 router.post('/validate-bulk', requireAuth, canGenerate, validateBulkGeneration);

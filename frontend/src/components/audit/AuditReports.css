@@ -147,12 +147,16 @@
   gap: 5px; transition: filter 0.15s, background 0.15s; font-family: inherit; white-space: nowrap;
 }
 .ar-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-.ar-btn-primary   { background: var(--accent); color: #fff; }
-.ar-btn-primary:hover:not(:disabled) { background: var(--accent-dark); }
+.ar-btn-primary   { background: #2563EB; color: #fff; }
+.ar-btn-primary:hover:not(:disabled) { background: #1D4ED8; }
+.ar-btn-success   { background: #16A34A; color: #fff; }
+.ar-btn-success:hover:not(:disabled) { background: #15803D; }
+.ar-btn-danger    { background: #DC2626; color: #fff; }
+.ar-btn-danger:hover:not(:disabled) { background: #B91C1C; }
 .ar-btn-secondary { background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border); }
 .ar-btn-secondary:hover:not(:disabled) { background: var(--bg-subtle); }
-.ar-btn-navy { background: var(--brand); color: #fff; }
-.ar-btn-navy:hover:not(:disabled) { filter: brightness(1.12); }
+.ar-btn-navy { background: #2563EB; color: #fff; }
+.ar-btn-navy:hover:not(:disabled) { background: #1D4ED8; }
 .ar-btn-ghost { background: transparent; color: var(--text-secondary); padding: 5px 8px; }
 .ar-btn-ghost:hover:not(:disabled) { background: var(--bg-subtle); }
 .ar-btn-sm { padding: 4px 8px; font-size: 0.75rem; }

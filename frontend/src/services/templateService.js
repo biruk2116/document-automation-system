@@ -131,4 +131,19 @@ export const documentService = {
    * (shown to the approver). See documentController.resubmitDocument.
    */
   resubmit: (id, payload) => api.post(`/documents/${id}/resubmit`, payload || undefined),
+  /**
+   * Lists all rejected generated documents awaiting Super Admin / Generator review and correction.
+   */
+  listRejected: () => api.get('/documents/rejected'),
+  /**
+   * Fetches full rejection context: document metadata, approver note, and template
+   * content (Header, Body, Footer) so it can open directly in the normal TemplateForm.
+   */
+  getRejectionContext: (id) => api.get(`/documents/${id}/rejection-context`),
+  /**
+   * Saves corrected Header, Body, and Footer content specifically for the rejected document,
+   * regenerates the PDF, and resubmits to the approver without overwriting the master template.
+   */
+  correctAndResubmit: (id, payload) => api.post(`/documents/${id}/correct-and-resubmit`, payload),
 };
+

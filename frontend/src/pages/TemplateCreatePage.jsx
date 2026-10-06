@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import TemplateForm from '../components/templates/TemplateForm';
-import { templateService } from '../services/templateService';
+import { templateService, documentService } from '../services/templateService';
 import { useToast } from '../hooks/useToast';
 
 function BackArrowIcon() {
@@ -14,31 +14,52 @@ function BackArrowIcon() {
 }
 
 export default function TemplateCreatePage({ mode = 'create' }) {
-  const { id } = useParams();
+  const { id, docId } = useParams();
+  const targetId = docId || id;
   const navigate = useNavigate();
   const { showToast } = useToast();
 
   const [initialData, setInitialData] = useState(null);
-  const [loading, setLoading] = useState(mode === 'edit');
+  const [rejectionContext, setRejectionContext] = useState(null);
+  const [loading, setLoading] = useState(mode === 'edit' || mode === 'correct-rejected');
   const [submitting, setSubmitting] = useState(false);
   const [loadError, setLoadError] = useState(null);
   const [nameError, setNameError] = useState(null);
 
   useEffect(() => {
-    if (mode !== 'edit') return;
+    if (mode === 'create') {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    templateService.getById(id)
-      .then((res) => setInitialData(res.data))
-      .catch((err) => setLoadError(err.message || 'Failed to load template.'))
-      .finally(() => setLoading(false));
-  }, [mode, id]);
+    setLoadError(null);
+
+    if (mode === 'correct-rejected') {
+      documentService.getRejectionContext(targetId)
+        .then((res) => {
+          setInitialData(res.data?.template || null);
+          setRejectionContext(res.data?.doc || null);
+        })
+        .catch((err) => setLoadError(err.message || 'Failed to load rejected document context.'))
+        .finally(() => setLoading(false));
+    } else if (mode === 'edit') {
+      templateService.getById(targetId)
+        .then((res) => setInitialData(res.data))
+        .catch((err) => setLoadError(err.message || 'Failed to load template.'))
+        .finally(() => setLoading(false));
+    }
+  }, [mode, targetId]);
 
   const handleSubmit = async (payload) => {
     setSubmitting(true);
     setNameError(null);
     try {
-      if (mode === 'edit') {
-        const res = await templateService.update(id, payload);
+      if (mode === 'correct-rejected') {
+        const res = await documentService.correctAndResubmit(targetId, payload);
+        showToast(res.message || 'Document corrected and resubmitted for approval successfully.', 'success');
+      } else if (mode === 'edit') {
+        const res = await templateService.update(targetId, payload);
         showToast(res.message || `Updated — now v${res.data.version}.`, 'success');
       } else {
         const res = await templateService.create(payload);
@@ -46,20 +67,15 @@ export default function TemplateCreatePage({ mode = 'create' }) {
       }
       navigate('/templates');
     } catch (err) {
-      // BR-003: duplicate template name — keep the user on the form with the
-      // name field flagged, rather than just a toast they might miss.
       if (err.status === 409) {
         setNameError(err.message);
       }
-      showToast(err.message || 'Failed to save template.', 'error');
+      showToast(err.message || 'Failed to save document/template.', 'error');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Rendered first in every branch below (loading / error / the real form) so there's
-  // always a way back to the template list — a stuck loading or error state used to
-  // leave the user with no way out except the browser's own back button.
   const backBar = (
     <div className="template-create-page-topbar">
       <button type="button" className="template-view-back-btn" onClick={() => navigate('/templates')}>
@@ -68,15 +84,18 @@ export default function TemplateCreatePage({ mode = 'create' }) {
     </div>
   );
 
-  if (mode === 'edit' && loading) {
+  if ((mode === 'edit' || mode === 'correct-rejected') && loading) {
     return (
       <div className="template-create-page">
         {backBar}
-        Loading template…
+        <div style={{ padding: '24px 0', color: 'var(--text-secondary)' }}>
+          {mode === 'correct-rejected' ? 'Loading rejected document context…' : 'Loading template…'}
+        </div>
       </div>
     );
   }
-  if (mode === 'edit' && loadError) {
+
+  if ((mode === 'edit' || mode === 'correct-rejected') && loadError) {
     return (
       <div className="template-create-page">
         {backBar}
@@ -85,13 +104,20 @@ export default function TemplateCreatePage({ mode = 'create' }) {
     );
   }
 
+  const pageTitle = mode === 'correct-rejected'
+    ? `Correct Rejected Document — ${initialData?.name || 'Document'}`
+    : mode === 'edit'
+      ? `Edit Template — ${initialData?.name || ''}`
+      : 'Create Template';
+
   return (
     <div className="template-create-page">
       {backBar}
-      <h1>{mode === 'edit' ? `Edit Template — ${initialData?.name}` : 'Create Template'}</h1>
+      <h1>{pageTitle}</h1>
       <TemplateForm
         mode={mode}
         initialData={initialData}
+        rejectionContext={rejectionContext}
         onSubmit={handleSubmit}
         submitting={submitting}
         nameError={nameError}

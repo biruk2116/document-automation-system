@@ -153,18 +153,20 @@ async function sendWorkflowNotificationToGenerator({ delivery, doc, triggerStep,
     const { rawToken: trackRaw, tokenHash: trackHash } = generateSecureToken();
     const trackExpiry = tokenExpiryDate();
 
-    try {
-      await pool.query(
-        `UPDATE document_deliveries
-            SET workflow_tracking_token_hash    = ?,
-                workflow_tracking_token_expiry  = ?,
-                workflow_tracking_token_used_at = NULL,
-                workflow_notify_sent_at         = NOW()
-          WHERE id = ?`,
-        [trackHash, trackExpiry, delivery.id]
-      );
-    } catch (tokenErr) {
-      console.warn('[workflowNotify] Could not save workflow_tracking_token (non-fatal):', tokenErr.message);
+    // Atomic idempotency lock: exactly ONE notification email can ever be sent for this delivery
+    const [stampResult] = await pool.query(
+      `UPDATE document_deliveries
+          SET workflow_tracking_token_hash    = ?,
+              workflow_tracking_token_expiry  = ?,
+              workflow_tracking_token_used_at = NULL,
+              workflow_notify_sent_at         = NOW()
+        WHERE id = ? AND workflow_notify_sent_at IS NULL`,
+      [trackHash, trackExpiry, delivery.id]
+    );
+
+    if (stampResult.affectedRows === 0) {
+      console.log('[workflowNotify] Generator notification email already sent — skipping duplicate email');
+      return;
     }
 
     const trackingUrl = `${CLIENT_URL}/workflow-track/${encodeURIComponent(trackRaw)}`;
@@ -183,9 +185,18 @@ async function sendWorkflowNotificationToGenerator({ delivery, doc, triggerStep,
           <p>
             The recipient <b>${recipientLabel}</b> has submitted a response for document <b>${doc.doc_uuid}</b> (${docTitle}).
           </p>
+          ${responseText ? `
+          <div style="margin: 16px 0; padding: 14px 18px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; border-left: 3px solid #2563EB;">
+            <p style="margin: 0 0 6px; font-size: 11px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;">
+              Recipient Response
+            </p>
+            <p style="margin: 0; font-size: 0.95rem; color: #1E293B; font-style: italic; line-height: 1.5;">
+              "${responseText}"
+            </p>
+          </div>` : ''}
           <p style="margin: 20px 0;">
             <a href="${trackingUrl}"
-               style="display: inline-block; padding: 12px 24px; background: #0F2747; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 0.95rem;">
+               style="display: inline-block; padding: 12px 24px; background: #2563EB; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 0.95rem;">
               View Submitted Document
             </a>
           </p>
@@ -1711,36 +1722,22 @@ async function _sendWorkflowCompleteNotification({ delivery, doc, triggerStep, s
     const { rawToken: trackRaw, tokenHash: trackHash } = generateSecureToken();
     const trackExpiry = tokenExpiryDate();
 
-    // ── Update tracking token and notification stamp ─────────────────────────
-    // For 'sign' or 'respond', we ALWAYS generate a fresh tracking token and send the email
-    // so the generator receives the final signed document / response link even if an earlier
-    // acknowledge step was already recorded.
-    if (triggerStep === 'sign' || triggerStep === 'respond') {
-      await pool.query(
-        `UPDATE document_deliveries
-            SET workflow_notify_sent_at          = NOW(),
-                workflow_tracking_token_hash     = ?,
-                workflow_tracking_token_expiry   = ?,
-                workflow_tracking_token_used_at  = NULL
-          WHERE id = ?`,
-        [trackHash, trackExpiry, delivery.id]
-      );
-    } else {
-      const [stampResult] = await pool.query(
-        `UPDATE document_deliveries
-            SET workflow_notify_sent_at          = NOW(),
-                workflow_tracking_token_hash     = ?,
-                workflow_tracking_token_expiry   = ?,
-                workflow_tracking_token_used_at  = NULL
-          WHERE id = ? AND workflow_notify_sent_at IS NULL`,
-        [trackHash, trackExpiry, delivery.id]
-      );
+    // ── Update tracking token and notification stamp atomically ──────────────
+    // Exactly ONE notification email can ever be sent for this delivery regardless
+    // of which workflow step triggers it.
+    const [stampResult] = await pool.query(
+      `UPDATE document_deliveries
+          SET workflow_notify_sent_at          = NOW(),
+              workflow_tracking_token_hash     = ?,
+              workflow_tracking_token_expiry   = ?,
+              workflow_tracking_token_used_at  = NULL
+        WHERE id = ? AND workflow_notify_sent_at IS NULL`,
+      [trackHash, trackExpiry, delivery.id]
+    );
 
-      if (stampResult.affectedRows === 0) {
-        // Another step already sent the notification — nothing to do.
-        console.log('[_sendWorkflowCompleteNotification] Email already sent - skipping duplicate');
-        return false;
-      }
+    if (stampResult.affectedRows === 0) {
+      console.log('[_sendWorkflowCompleteNotification] Email already sent - skipping duplicate');
+      return false;
     }
 
     console.log('[_sendWorkflowCompleteNotification] Sending notification email to generator:', {
@@ -1798,6 +1795,7 @@ async function _sendWorkflowCompleteNotification({ delivery, doc, triggerStep, s
          FROM document_deliveries WHERE id = ?`,
       [delivery.id]
     );
+
     const latestResponse = freshDelivery?.workflow_response || null;
     const recipientLabel = freshDelivery?.recipient_name || freshDelivery?.recipient_email
       || delivery.recipient_name || delivery.recipient_email || 'The recipient';
@@ -1821,8 +1819,7 @@ async function _sendWorkflowCompleteNotification({ delivery, doc, triggerStep, s
         actionDescription = `completed the workflow for document <b>${doc.doc_uuid}</b>.`;
     }
 
-    // Show a brief status indicator if signature was captured, but NOT the actual
-    // signature/name details — those are embedded in the PDF only for security.
+    // Show a brief status indicator if signature was captured
     let sigHtml = '';
     if (signatureData && (signatureData.signatureText || signatureData.signaturePhoto)) {
       sigHtml = `
@@ -1833,76 +1830,42 @@ async function _sendWorkflowCompleteNotification({ delivery, doc, triggerStep, s
             ✓ Document has been digitally signed by the recipient
           </p>
           <p style="margin:4px 0 0;font-size:0.8rem;color:#166534;">
-            The signature is embedded directly in the document PDF.
+            The signature is embedded directly in the document.
           </p>
         </div>`;
-    }
-
-    // Attach the signed PDF to the email when the recipient has signed it,
-    // so the generator immediately receives the document with the embedded signature.
-    let emailAttachments = [];
-    if (triggerStep === 'sign') {
-      try {
-        const resolvedFilePath = await resolveDocFilePath(doc);
-        if (resolvedFilePath && fs.existsSync(resolvedFilePath)) {
-          const pdfContent = fs.readFileSync(resolvedFilePath);
-          const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
-          const fileName = meta.fileName || `${doc.doc_uuid || 'document'}.pdf`;
-          emailAttachments = [{
-            filename: fileName,
-            content: pdfContent,
-            contentType: 'application/pdf',
-          }];
-          console.log('[_sendWorkflowCompleteNotification] Attaching signed PDF to generator email:', fileName, `(${pdfContent.length} bytes)`);
-        } else {
-          console.warn('[_sendWorkflowCompleteNotification] Signed PDF not found on disk — sending email without attachment');
-        }
-      } catch (attachErr) {
-        console.warn('[_sendWorkflowCompleteNotification] Could not attach PDF (non-fatal):', attachErr.message);
-      }
     }
 
     await sendMail({
       to: generator.email,
       subject: `Document ${doc.doc_uuid} — action completed by recipient`,
-      html: `<p>Hi ${generator.full_name || 'there'},</p>
+      html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b;">
+        <p>Hi ${generator.full_name || 'there'},</p>
         <p>The recipient <b>${recipientLabel}</b> has ${actionDescription}</p>
         ${sigHtml}
-        ${triggerStep === 'sign' && emailAttachments.length > 0 ? `
-        <div style="margin:12px 0;padding:14px 18px;background:#EFF6FF;
-                    border:1px solid #BFDBFE;border-radius:8px;
-                    border-left:3px solid #2563EB;">
-          <p style="margin:0;font-size:0.9rem;color:#1D4ED8;font-weight:600;">
-            📎 The signed document is attached to this email
-          </p>
-          <p style="margin:4px 0 0;font-size:0.8rem;color:#1E40AF;">
-            The recipient's name and signature have been embedded in the document at the designated signature field.
-          </p>
-        </div>` : ''}
         ${latestResponse ? `
-        <div style="margin:12px 0;padding:14px 18px;background:#F8FAFC;
+        <div style="margin:16px 0;padding:14px 18px;background:#F8FAFC;
                     border:1px solid #E2E8F0;border-radius:8px;
-                    border-left:3px solid #159A9C;">
+                    border-left:3px solid #2563EB;">
           <p style="margin:0 0 6px;font-size:11px;color:#94A3B8;
-                    text-transform:uppercase;letter-spacing:0.06em;">
+                    text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">
             Recipient Response
           </p>
           <p style="margin:0;font-size:0.95rem;color:#1E293B;font-style:italic;line-height:1.5;">
             "${latestResponse}"
           </p>
         </div>` : ''}
-        <p style="margin:18px 0;">
+        <p style="margin:20px 0;">
           <a href="${trackingUrl}"
-             style="display:inline-block;padding:11px 22px;background:#0F2747;color:#fff;
+             style="display:inline-block;padding:12px 24px;background:#2563EB;color:#fff;
                     border-radius:6px;text-decoration:none;font-weight:600;font-size:0.95rem;">
             View Submitted Document
           </a>
         </p>
-        <p style="font-size:0.82em;color:#64748B;">
+        <p style="font-size:0.82em;color:#64748B;margin-top:24px;">
           This link is valid for 7 days and opens the submitted document and full
           workflow result directly — no sign-in required.
-        </p>`,
-      ...(emailAttachments.length > 0 ? { attachments: emailAttachments } : {}),
+        </p>
+      </div>`,
     });
 
     return true;
@@ -1997,15 +1960,29 @@ async function workflowAcknowledge(req, res) {
       req,
     });
 
-    // Always attempt notification — the atomic lock inside the helper guarantees
-    // only one email is ever sent regardless of which step wins.
-    await _sendWorkflowCompleteNotification({
-      delivery,
-      doc,
-      triggerStep: 'acknowledge',
-      signatureData: null,
-      req,
-    });
+    // Check if subsequent steps (sign or respond) are enabled in the template
+    const [tplRowsForAck] = await pool.query(
+      'SELECT workflow_config FROM templates WHERE id = ?',
+      [doc.template_id]
+    ).catch(() => [[]]);
+    const tplWfConfigAck = tplRowsForAck?.[0]?.workflow_config;
+    let parsedWfConfigAck = null;
+    try {
+      parsedWfConfigAck = typeof tplWfConfigAck === 'string' ? JSON.parse(tplWfConfigAck) : tplWfConfigAck;
+    } catch { /* non-fatal */ }
+
+    const hasLaterSteps = parsedWfConfigAck?.enabled && (parsedWfConfigAck?.userSignature || parsedWfConfigAck?.requireResponse || parsedWfConfigAck?.sendResponseToGenerator);
+    if (!hasLaterSteps) {
+      await _sendWorkflowCompleteNotification({
+        delivery,
+        doc,
+        triggerStep: 'acknowledge',
+        signatureData: null,
+        req,
+      });
+    } else {
+      console.log('[workflowAcknowledge] Acknowledged; deferring generator notification to subsequent steps.');
+    }
 
     return res.status(200).json({
       success: true,
@@ -2372,21 +2349,37 @@ async function workflowSign(req, res) {
       parsedSigData = JSON.parse(signatureData);
     } catch { /* non-fatal */ }
 
-    // _sendWorkflowCompleteNotification is idempotent — the atomic lock inside
-    // ensures only ONE email is ever sent even if acknowledge/respond steps also
-    // try to trigger it. Re-fetch fresh delivery row so the function sees the
-    // latest workflow_signed_at / workflow_signature_data timestamps.
-    const [[freshDeliveryForNotify]] = await pool.query(
-      'SELECT * FROM document_deliveries WHERE id = ?', [delivery.id]
-    ).catch(() => [[delivery]]);
+    // Check template workflow config: if a subsequent response step is enabled,
+    // defer notification so the generator receives ONLY ONE email when the response is submitted.
+    let wfConfigForSign = null;
+    try {
+      const [tplRowsForSign] = await pool.query(
+        'SELECT workflow_config FROM templates WHERE id = ?',
+        [doc.template_id]
+      );
+      const rawWf = tplRowsForSign?.[0]?.workflow_config;
+      if (rawWf) {
+        wfConfigForSign = typeof rawWf === 'string' ? JSON.parse(rawWf) : rawWf;
+      }
+    } catch { /* non-fatal */ }
 
-    await _sendWorkflowCompleteNotification({
-      delivery: freshDeliveryForNotify || delivery,
-      doc,
-      triggerStep: 'sign',
-      signatureData: parsedSigData,
-      req,
-    });
+    const hasLaterResponseStep = wfConfigForSign?.enabled && (wfConfigForSign?.requireResponse || wfConfigForSign?.sendResponseToGenerator !== false);
+
+    if (!hasLaterResponseStep) {
+      const [[freshDeliveryForNotify]] = await pool.query(
+        'SELECT * FROM document_deliveries WHERE id = ?', [delivery.id]
+      ).catch(() => [[delivery]]);
+
+      await _sendWorkflowCompleteNotification({
+        delivery: freshDeliveryForNotify || delivery,
+        doc,
+        triggerStep: 'sign',
+        signatureData: parsedSigData,
+        req,
+      });
+    } else {
+      console.log('[workflowSign] Signature recorded; deferring generator notification to the user response step.');
+    }
 
     return res.status(200).json({
       success: true,
@@ -2423,6 +2416,20 @@ async function workflowRespond(req, res) {
     return res.status(resolved.status).json({ success: false, message: resolved.message, code: resolved.code });
   }
   const { delivery, doc } = resolved;
+
+  // Idempotency check: if already responded, return success immediately without sending duplicate email
+  if (delivery.workflow_responded_at || delivery.workflow_response) {
+    console.log('[workflowRespond] Delivery already responded — returning existing response');
+    return res.status(200).json({
+      success: true,
+      message: 'Your response has already been recorded.',
+      data: {
+        response: delivery.workflow_response,
+        respondedAt: delivery.workflow_responded_at,
+        notificationSent: false,
+      },
+    });
+  }
 
   try {
     const responseText = String(response).trim();
@@ -2848,7 +2855,9 @@ module.exports = {
   workflowAcknowledge,
   workflowSign,
   workflowRespond,
+  sendWorkflowNotificationToGenerator,
   getWorkflowTrackingPage,
   getWorkflowTrackingPreview,
   workflowTrackingAutoLogin,
 };
+

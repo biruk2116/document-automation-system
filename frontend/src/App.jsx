@@ -107,6 +107,15 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            {/* Correct rejected document — Super Admin / Admin fixes content in original template editor */}
+            <Route
+              path="/templates/correct/:docId"
+              element={
+                <ProtectedRoute allowedRoles={CAN_MANAGE_TEMPLATES}>
+                  <TemplateCreatePage mode="correct-rejected" />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Document generation — restricted to the 4 roles allowed to generate PDFs:
                 super_admin, system_admin, generator, approver. */}

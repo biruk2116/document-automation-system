@@ -13,20 +13,27 @@ const HEADING_OPTIONS = [
 ];
 
 const FONT_FAMILY_OPTIONS = [
-  { label: 'Default', value: '' },
-  { label: 'Arial', value: 'Arial, sans-serif' },
+  { label: 'Default Font', value: '' },
+  // Universal / Latin
+  { label: 'Noto Sans (Universal)', value: "'Noto Sans', Arial, sans-serif" },
+  { label: 'Arial', value: 'Arial, Helvetica, sans-serif' },
   { label: 'Helvetica', value: 'Helvetica, Arial, sans-serif' },
   { label: 'Times New Roman', value: "'Times New Roman', serif" },
   { label: 'Georgia', value: 'Georgia, serif' },
   { label: 'Garamond', value: 'Garamond, serif' },
-  { label: 'Cambria', value: 'Cambria, Georgia, serif' },
-  { label: 'Courier New', value: "'Courier New', monospace" },
-  { label: 'Consolas', value: "Consolas, 'Courier New', monospace" },
+  { label: 'Calibri', value: 'Calibri, Candara, sans-serif' },
   { label: 'Verdana', value: 'Verdana, Geneva, sans-serif' },
   { label: 'Tahoma', value: 'Tahoma, Geneva, sans-serif' },
-  { label: 'Trebuchet MS', value: "'Trebuchet MS', sans-serif" },
-  { label: 'Calibri', value: 'Calibri, Candara, sans-serif' },
-  { label: 'Noto Sans (Unicode)', value: "'Noto Sans', sans-serif" },
+  { label: 'Courier New', value: "'Courier New', monospace" },
+  // Amharic / Ethiopic
+  { label: 'Amharic — Noto Sans Ethiopic', value: "'Noto Sans Ethiopic', 'Nyala', 'Abyssinica SIL', sans-serif" },
+  { label: 'Amharic — Noto Serif Ethiopic', value: "'Noto Serif Ethiopic', 'Abyssinica SIL', serif" },
+  // Arabic
+  { label: 'Arabic — Noto Sans Arabic', value: "'Noto Sans Arabic', 'Segoe UI', Tahoma, sans-serif" },
+  { label: 'Arabic — Amiri (Traditional)', value: "'Amiri', 'Traditional Arabic', serif" },
+  // Chinese
+  { label: 'Chinese — Noto Sans SC (Simplified)', value: "'Noto Sans SC', 'Microsoft YaHei', 'PingFang SC', sans-serif" },
+  { label: 'Chinese — Noto Sans TC (Traditional)', value: "'Noto Sans TC', 'Microsoft JhengHei', 'PingFang TC', sans-serif" },
 ];
 
 // document.execCommand('fontSize') only accepts legacy sizes 1-7; map to real pixel values via CSS override after insert.
@@ -93,6 +100,20 @@ const IconTable = () => (
   <Icon>
     <rect x="2" y="3" width="14" height="12" rx="1.5" />
     <path d="M2 7.5h14M2 11.5h14M7 7.5v7.5M11.5 7.5v7.5" />
+  </Icon>
+);
+
+const IconLtr = () => (
+  <Icon>
+    <path d="M4 5h7M4 9h7M4 13h10M4 17h6" />
+    <path d="M12 5l3 4-3 4" />
+  </Icon>
+);
+
+const IconRtl = () => (
+  <Icon>
+    <path d="M14 5H7M14 9H7M14 13H4M14 17H8" />
+    <path d="M6 5L3 9l3 4" />
   </Icon>
 );
 
@@ -198,8 +219,41 @@ export default function RichTextEditor({ value, onChange, availableFields = [], 
   };
 
   const handleFontFamilyChange = (e) => {
-    if (!e.target.value) return;
-    exec('fontName', e.target.value);
+    const fontVal = e.target.value;
+    if (!fontVal) return;
+    editorRef.current?.focus();
+    const primaryName = fontVal.split(',')[0].replace(/['"]/g, '').trim();
+    document.execCommand('fontName', false, primaryName);
+    editorRef.current?.querySelectorAll(`font[face="${primaryName}"]`).forEach((el) => {
+      el.style.fontFamily = fontVal;
+    });
+    emitChange();
+  };
+
+  const handleSetDirection = (dir) => {
+    editorRef.current?.focus();
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    let node = sel.anchorNode;
+    if (node && node.nodeType === 3) node = node.parentNode;
+    const block = node?.closest('p, h1, h2, h3, h4, h5, h6, li, blockquote, div, td, th');
+    if (block && editorRef.current.contains(block)) {
+      block.setAttribute('dir', dir);
+      block.style.direction = dir;
+      block.style.textAlign = dir === 'rtl' ? 'right' : 'left';
+    } else {
+      exec('formatBlock', 'p');
+      const updatedSel = window.getSelection();
+      let updatedNode = updatedSel?.anchorNode;
+      if (updatedNode?.nodeType === 3) updatedNode = updatedNode.parentNode;
+      const updatedBlock = updatedNode?.closest('p, div');
+      if (updatedBlock && editorRef.current.contains(updatedBlock)) {
+        updatedBlock.setAttribute('dir', dir);
+        updatedBlock.style.direction = dir;
+        updatedBlock.style.textAlign = dir === 'rtl' ? 'right' : 'left';
+      }
+    }
+    emitChange();
   };
 
   const handleFontSizeChange = (e) => {
@@ -610,6 +664,13 @@ const handleImageFileSelected = (e) => {
           <ToolBtn onClick={() => exec('justifyCenter')} title="Align center"><IconAlignCenter /></ToolBtn>
           <ToolBtn onClick={() => exec('justifyRight')} title="Align right"><IconAlignRight /></ToolBtn>
           <ToolBtn onClick={() => exec('justifyFull')} title="Justify"><IconAlignJustify /></ToolBtn>
+        </div>
+
+        <span className="rte-divider" />
+
+        <div className="rte-group">
+          <ToolBtn onClick={() => handleSetDirection('ltr')} title="Left-to-Right text direction (LTR)"><IconLtr /></ToolBtn>
+          <ToolBtn onClick={() => handleSetDirection('rtl')} title="Right-to-Left text direction (RTL — Arabic)"><IconRtl /></ToolBtn>
         </div>
 
         <span className="rte-divider" />

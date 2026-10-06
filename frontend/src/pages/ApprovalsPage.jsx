@@ -196,7 +196,7 @@ export default function ApprovalsPage() {
       .then((res) => {
         const data = res.data || [];
         setRecipients(data);
-        setSelectedRecipientIds(data.map((c) => c.id));
+        setSelectedRecipientIds([]);
       })
       .catch((err) => showToast(err.message || 'Failed to load recipients.', 'error'))
       .finally(() => setRecipientsLoading(false));
@@ -603,8 +603,7 @@ export default function ApprovalsPage() {
                         type="button"
                         onClick={submitApprove}
                         disabled={submitting || sendingOtp}
-                        className="btn-doc-approve"
-                        style={{ margin: 0, height: '32px', padding: '0 14px', fontSize: '0.82rem' }}
+                        className="btn-success"
                       >
                         {submitting ? 'Verifying…' : 'Confirm Approval'}
                       </button>
@@ -652,8 +651,7 @@ export default function ApprovalsPage() {
                         type="button"
                         onClick={submitReject}
                         disabled={submitting || recipientsLoading}
-                        className="btn-doc-reject"
-                        style={{ margin: 0, height: '32px', padding: '0 14px', fontSize: '0.82rem' }}
+                        className="btn-danger"
                       >
                         {submitting ? 'Submitting…' : 'Confirm Rejection'}
                       </button>

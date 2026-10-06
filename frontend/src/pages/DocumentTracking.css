@@ -571,41 +571,41 @@
   border-color: #64748B;
 }
 
-/* 2. Download Button: Cool Slate-Gray / Steel Blue */
+/* 2. Download Button: Neutral Secondary style */
 .btn-doc-download {
-  background: #5B7083;
-  color: #FFFFFF;
-  border: 1px solid #5B7083;
+  background: #FFFFFF;
+  color: #475569;
+  border: 1px solid #CBD5E1;
 }
 .btn-doc-download:hover:not(:disabled) {
-  background: #475A6C;
-  border-color: #475A6C;
-  color: #FFFFFF;
-  box-shadow: 0 1px 3px rgba(91, 112, 131, 0.35);
+  background: #F8FAFC;
+  color: #0F172A;
+  border-color: #94A3B8;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 .btn-doc-download:active:not(:disabled) {
-  background: #394A59;
-  border-color: #394A59;
+  background: #F1F5F9;
+  border-color: #64748B;
 }
 
-/* 3. Send Button: Vibrant Leaf / Emerald Green */
+/* 3. Send Button: Standard Primary Blue */
 .btn-doc-send {
-  background: #2E9D58;
+  background: #2563EB;
   color: #FFFFFF;
-  border: 1px solid #2E9D58;
+  border: 1px solid #2563EB;
 }
 .btn-doc-send:hover:not(:disabled) {
-  background: #248247;
-  border-color: #248247;
+  background: #1D4ED8;
+  border-color: #1D4ED8;
   color: #FFFFFF;
-  box-shadow: 0 1px 3px rgba(46, 157, 88, 0.35);
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.35);
 }
 .btn-doc-send:active:not(:disabled) {
-  background: #1B6A38;
-  border-color: #1B6A38;
+  background: #1E40AF;
+  border-color: #1E40AF;
 }
 
-/* 4. Hand Delivered Button: Royal / Vibrant Blue */
+/* 4. Hand Delivered Button: Standard Primary Blue */
 .btn-doc-hand-delivered {
   background: #2563EB;
   color: #FFFFFF;
@@ -622,11 +622,11 @@
   border-color: #1E40AF;
 }
 
-/* 5. Delete Icon Button: Crimson/maroon trash icon with visible gap before & after */
+/* 5. Delete Icon Button: Crimson trash icon with visible gap before & after */
 .btn-doc-trash {
   background: transparent;
   border: none;
-  color: #8B1D2C;
+  color: #DC2626;
   cursor: pointer;
   padding: 2px 4px;
   border-radius: 4px;
@@ -642,11 +642,11 @@
 }
 .btn-doc-trash:hover:not(:disabled) {
   background: #FEE2E2;
-  color: #6F121E;
+  color: #B91C1C;
 }
 .btn-doc-trash:active:not(:disabled) {
   background: #FECACA;
-  color: #550D17;
+  color: #991B1B;
 }
 .btn-doc-trash:disabled {
   opacity: 0.45;
@@ -679,24 +679,24 @@
   border-color: #B91C1C;
 }
 
-/* 6. Approve Button: Vibrant Emerald Green (matches Document Tracking send button) */
+/* 6. Approve Button: Consistent Success Green (#16A34A) */
 .btn-doc-approve {
-  background: #2E9D58;
+  background: #16A34A;
   color: #FFFFFF;
-  border: 1px solid #2E9D58;
+  border: 1px solid #16A34A;
 }
 .btn-doc-approve:hover:not(:disabled) {
-  background: #248247;
-  border-color: #248247;
+  background: #15803D;
+  border-color: #15803D;
   color: #FFFFFF;
-  box-shadow: 0 1px 3px rgba(46, 157, 88, 0.35);
+  box-shadow: 0 1px 3px rgba(22, 163, 74, 0.35);
 }
 .btn-doc-approve:active:not(:disabled) {
-  background: #1B6A38;
-  border-color: #1B6A38;
+  background: #166534;
+  border-color: #166534;
 }
 
-/* 7. Reject Button: Crimson Alert Red (matches Document Tracking rejection button) */
+/* 7. Reject Button: Consistent Danger Red (#DC2626) */
 .btn-doc-reject {
   background: #DC2626;
   color: #FFFFFF;
@@ -734,15 +734,37 @@
   color: #475569;
   border: 1px solid #CBD5E1;
 }
+.doc-btn-secondary:hover:not(:disabled) {
+  background: #F1F5F9;
+  color: #0F172A;
+  border-color: #94A3B8;
+}
 .doc-btn-primary {
-  background: #2E9D58;
+  background: #2563EB;
   color: #FFFFFF;
-  border: 1px solid #2E9D58;
+  border: 1px solid #2563EB;
+}
+.doc-btn-primary:hover:not(:disabled) {
+  background: #1D4ED8;
+  border-color: #1D4ED8;
+}
+.doc-btn-success {
+  background: #16A34A;
+  color: #FFFFFF;
+  border: 1px solid #16A34A;
+}
+.doc-btn-success:hover:not(:disabled) {
+  background: #15803D;
+  border-color: #15803D;
 }
 .doc-btn-danger {
   background: #DC2626;
   color: #FFFFFF;
   border: 1px solid #DC2626;
+}
+.doc-btn-danger:hover:not(:disabled) {
+  background: #B91C1C;
+  border-color: #B91C1C;
 }
 
 /* ── Empty & Loading States ── */
@@ -862,23 +884,25 @@
 }
 
 .dark .btn-doc-download {
-  background: #475569;
+  background: #1E293B;
   border-color: #475569;
-  color: #FFFFFF;
+  color: #F8FAFC;
 }
 .dark .btn-doc-download:hover:not(:disabled) {
   background: #334155;
-  border-color: #334155;
+  border-color: #64748B;
+  color: #FFFFFF;
 }
 
 .dark .btn-doc-send {
-  background: #16A34A;
-  border-color: #16A34A;
+  background: #2563EB;
+  border-color: #2563EB;
   color: #FFFFFF;
 }
 .dark .btn-doc-send:hover:not(:disabled) {
-  background: #15803D;
-  border-color: #15803D;
+  background: #1D4ED8;
+  border-color: #1D4ED8;
+  color: #FFFFFF;
 }
 
 .dark .btn-doc-hand-delivered {
@@ -893,10 +917,13 @@
 
 .dark .btn-doc-trash {
   color: #F87171;
+  background: transparent;
+  border-color: transparent;
 }
 .dark .btn-doc-trash:hover:not(:disabled) {
   background: rgba(239, 68, 68, 0.2);
   color: #FECACA;
+  border-color: rgba(239, 68, 68, 0.3);
 }
 
 .dark .btn-doc-action {
@@ -918,6 +945,7 @@
 .dark .btn-doc-approve:hover:not(:disabled) {
   background: #15803D;
   border-color: #15803D;
+  color: #FFFFFF;
 }
 
 .dark .btn-doc-reject {
@@ -928,5 +956,48 @@
 .dark .btn-doc-reject:hover:not(:disabled) {
   background: #B91C1C;
   border-color: #B91C1C;
+  color: #FFFFFF;
 }
+
+.dark .doc-btn-secondary {
+  background: #1E293B;
+  color: #F8FAFC;
+  border-color: #475569;
+}
+.dark .doc-btn-secondary:hover:not(:disabled) {
+  background: #334155;
+  color: #FFFFFF;
+  border-color: #64748B;
+}
+
+.dark .doc-btn-primary {
+  background: #2563EB;
+  color: #FFFFFF;
+  border-color: #2563EB;
+}
+.dark .doc-btn-primary:hover:not(:disabled) {
+  background: #1D4ED8;
+  border-color: #1D4ED8;
+}
+
+.dark .doc-btn-success {
+  background: #16A34A;
+  color: #FFFFFF;
+  border-color: #16A34A;
+}
+.dark .doc-btn-success:hover:not(:disabled) {
+  background: #15803D;
+  border-color: #15803D;
+}
+
+.dark .doc-btn-danger {
+  background: #DC2626;
+  color: #FFFFFF;
+  border-color: #DC2626;
+}
+.dark .doc-btn-danger:hover:not(:disabled) {
+  background: #B91C1C;
+  border-color: #B91C1C;
+}
+
 

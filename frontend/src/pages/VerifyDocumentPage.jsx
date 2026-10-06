@@ -91,7 +91,7 @@ export default function VerifyDocumentPage() {
                 type="submit"
                 disabled={loading || !docId.trim()}
                 aria-busy={loading}
-                className="w-full py-3 px-4 rounded-lg bg-[#1D72D8] hover:bg-[#155AB6] active:bg-[#104386] text-white font-semibold text-sm shadow-sm transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-3 px-4 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] active:bg-[#1E40AF] text-white font-semibold text-sm shadow-sm transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -156,7 +156,7 @@ export default function VerifyDocumentPage() {
               <button
                 type="button"
                 onClick={reset}
-                className="flex-1 py-2.5 px-4 rounded-lg bg-[#1D72D8] hover:bg-[#155AB6] text-white font-semibold text-xs transition-colors"
+                className="flex-1 py-2.5 px-4 rounded-lg bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold text-xs transition-colors"
               >
                 Verify Another
               </button>

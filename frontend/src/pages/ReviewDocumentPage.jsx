@@ -165,7 +165,7 @@ export default function ReviewDocumentPage() {
       .then((res) => {
         const data = res.data || [];
         setRecipients(data);
-        setSelectedRecipientIds(data.map((c) => c.id)); // pre-select everyone eligible
+        setSelectedRecipientIds([]);
       })
       .catch((err) => setFeedback({ type: 'error', message: err.message || 'Failed to load recipients.' }))
       .finally(() => setRecipientsLoading(false));
@@ -246,7 +246,7 @@ export default function ReviewDocumentPage() {
 
                 {!mode && (
                   <div className="template-form-actions" style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
-                    <button type="button" onClick={() => { setMode('approve'); setFeedback(null); }} className="btn-primary" style={{ margin: 0 }}>
+                    <button type="button" onClick={() => { setMode('approve'); setFeedback(null); }} className="btn-success" style={{ margin: 0 }}>
                       Approve
                     </button>
                     <button type="button" onClick={openRejectMode} className="btn-danger" style={{ margin: 0 }}>
@@ -261,7 +261,7 @@ export default function ReviewDocumentPage() {
                       Your identity was confirmed by the OTP you entered to open this document.
                     </p>
                     <div className="template-form-actions" style={{ display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center' }}>
-                      <button type="button" onClick={submitApprove} disabled={submitting} className="btn-primary" style={{ margin: 0 }}>
+                      <button type="button" onClick={submitApprove} disabled={submitting} className="btn-success" style={{ margin: 0 }}>
                         {submitting ? 'Approving…' : 'Confirm Approval'}
                       </button>
                       <button type="button" onClick={() => { setMode(null); setFeedback(null); }} disabled={submitting} className="btn-secondary" style={{ margin: 0 }}>

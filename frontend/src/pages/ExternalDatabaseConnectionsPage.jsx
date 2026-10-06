@@ -245,14 +245,18 @@ export default function ExternalDatabaseConnectionsPage() {
                 <td>{c.last_tested_at ? new Date(c.last_tested_at).toLocaleString() : '—'}</td>
                 <td className="template-table-actions">
                   {confirmingDeleteId === c.id ? (
-                    <div className="delete-confirm">
-                      <button type="button" className="btn-danger" disabled={deletingId === c.id} onClick={() => handleDelete(c.id)}>
+                    <div className="delete-confirm" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <button type="button" className="btn-danger btn-sm" disabled={deletingId === c.id} onClick={() => handleDelete(c.id)}>
                         {deletingId === c.id ? 'Deleting…' : 'Confirm'}
                       </button>
-                      <button type="button" onClick={() => setConfirmingDeleteId(null)} disabled={deletingId === c.id}>Cancel</button>
+                      <button type="button" className="btn-secondary btn-sm" onClick={() => setConfirmingDeleteId(null)} disabled={deletingId === c.id}>
+                        Cancel
+                      </button>
                     </div>
                   ) : (
-                    <button type="button" className="btn-danger-text" onClick={() => setConfirmingDeleteId(c.id)}>Delete</button>
+                    <button type="button" className="btn-danger btn-sm" onClick={() => setConfirmingDeleteId(c.id)}>
+                      Delete
+                    </button>
                   )}
                 </td>
               </tr>

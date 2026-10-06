@@ -150,7 +150,7 @@ async function findDuplicateTemplateName(connection, name, excludeIds = []) {
   const trimmed = (name || '').trim();
   if (!trimmed) return null;
 
-  let sql = 'SELECT id, name, version, status FROM templates WHERE LOWER(TRIM(name)) = LOWER(TRIM($1))';
+  let sql = 'SELECT id, name, version, status FROM templates WHERE LOWER(TRIM(name)) = LOWER(TRIM($1)) AND deleted_at IS NULL';
   const params = [trimmed];
   if (excludeIds.length > 0) {
     const placeholders = excludeIds.map((_, i) => `$${i + 2}`).join(',');
@@ -160,7 +160,7 @@ async function findDuplicateTemplateName(connection, name, excludeIds = []) {
   sql += ' LIMIT 1';
 
   const [rows] = await connection.query(sql, params);
-  return rows[0] || null;
+  return (rows && rows[0]) || null;
 }
 
 /**
@@ -176,10 +176,11 @@ async function getLineageIds(connection, startId) {
   // Walk upward through parents.
   let current = startId;
   for (let i = 0; i < 100; i++) {
-    const [[row]] = await connection.query(
-      'SELECT parent_template_id FROM templates WHERE id = ?',
+    const [rows] = await connection.query(
+      'SELECT parent_template_id FROM templates WHERE id = $1',
       [current]
     );
+    const row = rows && rows[0];
     if (!row || !row.parent_template_id || ids.has(row.parent_template_id)) break;
     ids.add(row.parent_template_id);
     current = row.parent_template_id;
@@ -190,11 +191,12 @@ async function getLineageIds(connection, startId) {
   while (grew) {
     grew = false;
     const idList = Array.from(ids);
+    const placeholders = idList.map((_, idx) => `$${idx + 1}`).join(',');
     const [children] = await connection.query(
-      `SELECT id FROM templates WHERE parent_template_id IN (${idList.map(() => '?').join(',')})`,
+      `SELECT id FROM templates WHERE parent_template_id IN (${placeholders})`,
       idList
     );
-    for (const child of children) {
+    for (const child of children || []) {
       if (!ids.has(child.id)) {
         ids.add(child.id);
         grew = true;
@@ -288,8 +290,16 @@ async function createTemplate(req, res) {
   }
 
   try {
-    // Fast path: Single INSERT without transaction for better performance
-    // Unique constraint on name will handle duplicates
+    // Check if a template with this name already exists (case-insensitive, whitespace-trimmed)
+    const duplicate = await findDuplicateTemplateName(pool, name);
+    if (duplicate) {
+      return res.status(409).json({
+        success: false,
+        message: 'This template name already exists. Please choose another name.',
+      });
+    }
+
+    // Single INSERT without transaction for better performance
     // Note: pool.query wrapper returns MySQL-style [rows, fields] format
     const [rows] = await pool.query(
       `INSERT INTO templates
@@ -335,7 +345,7 @@ async function createTemplate(req, res) {
     if (err.code === '23505') { // PostgreSQL unique violation
       return res.status(409).json({
         success: false,
-        message: `A template named "${name}" already exists. Choose a different name.`,
+        message: 'This template name already exists. Please choose another name.',
       });
     }
     
@@ -376,8 +386,17 @@ async function updateTemplate(req, res) {
     }
     const existing = existingRows[0];
 
-    // Fast path: Single INSERT for new version without transaction overhead
-    // The unique constraint will handle name collisions if needed
+    // Check if the name conflicts with another template (exempts current template's entire lineage)
+    const lineageIds = await getLineageIds(pool, existing.id);
+    const duplicate = await findDuplicateTemplateName(pool, name, lineageIds);
+    if (duplicate) {
+      return res.status(409).json({
+        success: false,
+        message: 'This template name already exists. Please choose another name.',
+      });
+    }
+
+    // Single INSERT for new version without mutating past versions
     const [rows] = await pool.query(
       `INSERT INTO templates
         (name, category, description, version, parent_template_id, header_html, body_html, footer_html,
@@ -426,7 +445,7 @@ async function updateTemplate(req, res) {
     if (err.code === '23505') {
       return res.status(409).json({
         success: false,
-        message: `A template with this name already exists. Choose a different name.`,
+        message: 'This template name already exists. Please choose another name.',
       });
     }
     
@@ -517,4 +536,7 @@ module.exports = {
   updateTemplate,
   deleteTemplate,
   updateTemplateStatus,
+  findDuplicateTemplateName,
+  getLineageIds,
 };
+
