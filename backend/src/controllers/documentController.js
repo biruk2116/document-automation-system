@@ -1337,8 +1337,41 @@ async function deleteDocument(req, res) {
  * correcting and re-sending, not seeking a new approval), then initiateResubmitDelivery
  * is called to send it via secure-link + OTP to the same recipient.
  *
- * The old document is soft-deleted (superseded) once the corrected one is generated.
+/**
+ * Strict Rejection Recipient Enforcement:
+ * A rejected document is only visible/actionable for the recipient(s) explicitly
+ * selected when the Approver rejected it.
+ *
+ * Checks if req.user is an authorized rejection recipient:
+ * - If rejection metadata contains recipientIds (array of user IDs) or recipientRoles (array of roles),
+ *   req.user MUST be in recipientIds or req.user.role MUST be in recipientRoles.
+ * - If no explicit recipientIds/recipientRoles exist (legacy documents), falls back to generator or admin.
  */
+function isAuthorizedRejectionRecipient(user, docMeta, docGeneratedBy) {
+  if (!user) return false;
+  const rejection = docMeta?.rejection;
+  if (!rejection) {
+    // Legacy fallback: generator or admins
+    return user.id === docGeneratedBy || user.role === 'super_admin' || user.role === 'system_admin';
+  }
+
+  const recipientIds = Array.isArray(rejection.recipientIds)
+    ? rejection.recipientIds.map(Number)
+    : [];
+  const recipientRoles = Array.isArray(rejection.recipientRoles)
+    ? rejection.recipientRoles
+    : [];
+
+  if (recipientIds.length > 0 || recipientRoles.length > 0) {
+    const matchesId = recipientIds.includes(Number(user.id));
+    const matchesRole = recipientRoles.includes(user.role);
+    return matchesId || matchesRole;
+  }
+
+  // Fallback for legacy documents
+  return user.id === docGeneratedBy || user.role === 'super_admin' || user.role === 'system_admin';
+}
+
 async function resubmitDocument(req, res) {
   const { id } = req.params;
   const { record_identifier, note } = req.body || {};
@@ -1367,18 +1400,19 @@ async function resubmitDocument(req, res) {
     }
 
     // ------------------------------------------------------------
-    // 2. Check ownership / admin permission
+    // 2. Check rejection recipient authorization
+    // Only the designated recipient who received the rejection
+    // can resubmit this document.
     // ------------------------------------------------------------
-    const isOwner = doc.generated_by === req.user.id;
+    let docMeta = {};
+    try {
+      docMeta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
+    } catch (e) {}
 
-    const isAdmin =
-      req.user.role === 'super_admin' ||
-      req.user.role === 'system_admin';
-
-    if (!isOwner && !isAdmin) {
+    if (!isAuthorizedRejectionRecipient(req.user, docMeta, doc.generated_by)) {
       return res.status(403).json({
         success: false,
-        message: 'You can only resubmit documents you generated.',
+        message: 'Only the selected rejection recipient can resubmit this document.',
       });
     }
 
@@ -1470,40 +1504,49 @@ async function resubmitDocument(req, res) {
       `Regenerating new document for approver ${previousApproverId}...`
     );
 
+    const previousMetadata = typeof doc.metadata === 'string'
+      ? JSON.parse(doc.metadata)
+      : (doc.metadata || {});
+
+    const originalGeneratorId = previousMetadata.original_generator_id || doc.generated_by;
+
     const newDoc = await generateSingleDocument({
       template,
       recordId,
-      userId: req.user.id,
+      userId: originalGeneratorId,
     });
 
     console.log(
-      `[documents] New resubmitted document generated: ${newDoc.docUuid}`
+      `[documents] New resubmitted document generated: ${newDoc.docUuid} for original creator ${originalGeneratorId}`
     );
 
     // ------------------------------------------------------------
     // 8. Store resubmission metadata on the NEW document
     // ------------------------------------------------------------
 
-const [[newDocRow]] = await pool.query(
-  'SELECT metadata FROM generated_docs WHERE id = ?',
-  [newDoc.id]
-);
+    const [[newDocRow]] = await pool.query(
+      'SELECT metadata FROM generated_docs WHERE id = ?',
+      [newDoc.id]
+    );
 
-const newMetadata = typeof newDocRow?.metadata === 'string' 
-  ? JSON.parse(newDocRow.metadata)
-  : (newDocRow?.metadata || {});
+    const newMetadata = typeof newDocRow?.metadata === 'string' 
+      ? JSON.parse(newDocRow.metadata)
+      : (newDocRow?.metadata || {});
 
-const previousMetadata = typeof doc.metadata === 'string'
-  ? JSON.parse(doc.metadata)
-  : (doc.metadata || {});
+    const previousRound = Number(
+      previousMetadata.resubmissionRound || 0
+    );
 
-const previousRound = Number(
-  previousMetadata.resubmissionRound || 0
-);
-
-newMetadata.resubmitNote = resubmitNote;
-newMetadata.resubmittedFromDocUuid = doc.doc_uuid;
-newMetadata.resubmissionRound = previousRound + 1;
+    newMetadata.original_generator_id = originalGeneratorId;
+    newMetadata.resubmitNote = resubmitNote;
+    newMetadata.resubmittedFromDocUuid = doc.doc_uuid;
+    newMetadata.resubmissionRound = previousRound + 1;
+    newMetadata.resubmitted_by = {
+      id: req.user.id,
+      name: req.user.full_name,
+      role: req.user.role,
+      at: new Date().toISOString(),
+    };
 
 await pool.query(
   'UPDATE generated_docs SET metadata = ? WHERE id = ?',
@@ -1621,11 +1664,384 @@ await pool.query(
     });
   } catch (err) {
     console.error('[documents] resubmit error:', err);
-
     return res.status(err.status || 500).json({
       success: false,
-      message:
-        err.message || 'Failed to resubmit document.',
+      message: err.message || 'Failed to resubmit document.',
+    });
+  }
+}
+
+/**
+ * GET /api/documents/rejected
+ * Lists rejected generated documents requiring review/correction.
+ * Strictly filtered so each user only sees documents where they were the selected rejection recipient.
+ */
+async function listRejectedDocuments(req, res) {
+  try {
+    const [rows] = await pool.query(
+      `SELECT gd.id, gd.doc_uuid, gd.template_id, gd.record_identifier, gd.generated_by,
+              gd.status, gd.metadata, gd.generated_at,
+              t.name AS template_name, t.category AS template_category, t.version AS template_version,
+              u.full_name AS generator_name,
+              sr.rejection_reason AS approver_rejection_reason,
+              sr.status AS signature_status,
+              sr.created_at AS signature_requested_at,
+              app_u.full_name AS approver_name,
+              dd.rejection_reason AS delivery_rejection_reason,
+              dd.ownership_status AS delivery_ownership_status
+       FROM generated_docs gd
+       JOIN templates t ON t.id = gd.template_id
+       JOIN users u ON u.id = gd.generated_by
+       LEFT JOIN (
+         SELECT sr1.doc_id, sr1.approver_id, sr1.rejection_reason, sr1.status, sr1.created_at
+         FROM signature_requests sr1
+         WHERE sr1.id = (
+           SELECT MAX(sr2.id) FROM signature_requests sr2 WHERE sr2.doc_id = sr1.doc_id
+         )
+       ) sr ON sr.doc_id = gd.id
+       LEFT JOIN users app_u ON app_u.id = sr.approver_id
+       LEFT JOIN (
+         SELECT dd1.doc_id, dd1.rejection_reason, dd1.ownership_status
+         FROM document_deliveries dd1
+         WHERE dd1.id = (
+           SELECT MAX(dd2.id) FROM document_deliveries dd2 WHERE dd2.doc_id = dd1.doc_id
+         )
+       ) dd ON dd.doc_id = gd.id
+       WHERE gd.deleted_at IS NULL
+         AND (
+           (gd.status = 'draft' AND sr.status = 'rejected')
+           OR (gd.status = 'rejected')
+           OR (dd.ownership_status = 'REJECTED')
+         )
+       ORDER BY gd.id DESC`
+    );
+
+    const formatted = (rows || [])
+      .filter((r) => {
+        let meta = {};
+        try {
+          meta = typeof r.metadata === 'string' ? JSON.parse(r.metadata) : (r.metadata || {});
+        } catch (e) {}
+        return isAuthorizedRejectionRecipient(req.user, meta, r.generated_by);
+      })
+      .map((r) => {
+        let meta = {};
+        try {
+          meta = typeof r.metadata === 'string' ? JSON.parse(r.metadata) : (r.metadata || {});
+        } catch (e) {}
+
+        const reason = r.approver_rejection_reason || r.delivery_rejection_reason || meta.resubmitNote || '(No reason specified)';
+        const rejectionSource = r.delivery_ownership_status === 'REJECTED' ? 'recipient' : 'approver';
+
+        return {
+          id: r.id,
+          doc_uuid: r.doc_uuid,
+          template_id: r.template_id,
+          template_name: r.template_name,
+          template_category: r.template_category,
+          template_version: r.template_version,
+          record_identifier: r.record_identifier,
+          generated_by: r.generated_by,
+          generator_name: r.generator_name,
+          approver_name: r.approver_name || 'Approver',
+          rejection_reason: reason,
+          rejection_source: rejectionSource,
+          generated_at: r.generated_at,
+          metadata: meta,
+        };
+      });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Rejected documents fetched.',
+      data: formatted,
+    });
+  } catch (err) {
+    console.error('[documents] listRejectedDocuments error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to fetch rejected documents.' });
+  }
+}
+
+/**
+ * GET /api/documents/:id/rejection-context
+ * Returns the rejected document along with its template data loaded into
+ * header_html, body_html, footer_html, so it can open directly in the normal TemplateForm.
+ */
+async function getRejectionContext(req, res) {
+  const { id } = req.params;
+  try {
+    const [[doc]] = await pool.query('SELECT * FROM generated_docs WHERE id = ?', [id]);
+    if (!doc) {
+      return res.status(404).json({ success: false, message: 'Document not found.' });
+    }
+    if (doc.deleted_at) {
+      return res.status(410).json({ success: false, message: 'This document has already been deleted.' });
+    }
+
+    let docMeta = {};
+    try {
+      docMeta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
+    } catch (e) {}
+
+    if (!isAuthorizedRejectionRecipient(req.user, docMeta, doc.generated_by)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You are not the designated recipient for this rejected document.',
+      });
+    }
+
+    const template = await loadTemplate(doc.template_id);
+    if (!template) {
+      return res.status(404).json({ success: false, message: 'Associated template not found.' });
+    }
+
+    // Find the latest rejection reason and approver info
+    const [[sigReq]] = await pool.query(
+      `SELECT sr.id, sr.approver_id, sr.status, sr.rejection_reason, sr.created_at, u.full_name AS approver_name
+       FROM signature_requests sr
+       LEFT JOIN users u ON u.id = sr.approver_id
+       WHERE sr.doc_id = ?
+       ORDER BY sr.id DESC LIMIT 1`,
+      [doc.id]
+    );
+
+    const [[delivery]] = await pool.query(
+      `SELECT dd.rejection_reason, dd.ownership_status, dd.ownership_rejected_at
+       FROM document_deliveries dd
+       WHERE dd.doc_id = ?
+       ORDER BY dd.id DESC LIMIT 1`,
+      [doc.id]
+    );
+
+
+    const rejectionReason = (sigReq && sigReq.status === 'rejected' && sigReq.rejection_reason)
+      ? sigReq.rejection_reason
+      : (delivery && delivery.ownership_status === 'REJECTED' && delivery.rejection_reason)
+        ? delivery.rejection_reason
+        : docMeta.resubmitNote || '(No reason specified)';
+
+    const approverName = sigReq?.approver_name || 'Approver';
+
+    // If this document previously had customized/corrected template content saved, prefer that;
+    // otherwise load the original template's structure (with all placeholders, tables, variables intact)
+    const corrected = docMeta.correctedTemplate || {};
+    const headerHtml = corrected.header_html !== undefined ? corrected.header_html : template.header_html;
+    const bodyHtml = corrected.body_html !== undefined ? corrected.body_html : template.body_html;
+    const footerHtml = corrected.footer_html !== undefined ? corrected.footer_html : template.footer_html;
+
+    return res.status(200).json({
+      success: true,
+      message: 'Rejection context fetched.',
+      data: {
+        doc: {
+          id: doc.id,
+          doc_uuid: doc.doc_uuid,
+          template_id: doc.template_id,
+          record_identifier: doc.record_identifier,
+          status: doc.status,
+          generated_by: doc.generated_by,
+          rejection_reason: rejectionReason,
+          approver_name: approverName,
+          approver_id: sigReq?.approver_id || null,
+          rejected_at: sigReq?.created_at || delivery?.ownership_rejected_at || doc.generated_at,
+          metadata: docMeta,
+        },
+        template: {
+          id: template.id,
+          name: template.name,
+          category: template.category,
+          description: template.description,
+          version: template.version,
+          header_html: headerHtml,
+          body_html: bodyHtml,
+          footer_html: footerHtml,
+          watermark_text: template.watermark_text,
+          data_source_table: template.data_source_table,
+          data_source_connection_id: template.data_source_connection_id,
+          workflow_config: template.workflow_config,
+        },
+      },
+    });
+  } catch (err) {
+    console.error('[documents] getRejectionContext error:', err);
+    return res.status(500).json({ success: false, message: 'Failed to load rejection context.' });
+  }
+}
+
+/**
+ * POST /api/documents/:id/correct-and-resubmit
+ * Allows SUPER_ADMIN to save corrected Header, Body, and Footer content specifically
+ * for the rejected document, regenerates the PDF, and automatically resubmits it for approval.
+ * Does NOT overwrite the master template version unless update_master_template === true.
+ */
+async function correctAndResubmitDocument(req, res) {
+  const { id } = req.params;
+  const {
+    header_html,
+    body_html,
+    footer_html,
+    record_identifier,
+    resubmit_note,
+    update_master_template = false,
+  } = req.body || {};
+
+  try {
+    const [[doc]] = await pool.query('SELECT * FROM generated_docs WHERE id = ?', [id]);
+    if (!doc) {
+      return res.status(404).json({ success: false, message: 'Document not found.' });
+    }
+    if (doc.deleted_at) {
+      return res.status(410).json({ success: false, message: 'This document has already been deleted.' });
+    }
+
+    let docMeta = {};
+    try {
+      docMeta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
+    } catch (e) {}
+
+    if (!isAuthorizedRejectionRecipient(req.user, docMeta, doc.generated_by)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only the selected rejection recipient can correct and resubmit this document.',
+      });
+    }
+
+    const template = await loadTemplate(doc.template_id);
+    if (!template) {
+      return res.status(404).json({ success: false, message: 'Associated template not found.' });
+    }
+
+    // Find previous signature request to identify the approver
+    const [[previousSignatureRequest]] = await pool.query(
+      `SELECT id, approver_id, status, rejection_reason
+       FROM signature_requests
+       WHERE doc_id = ?
+       ORDER BY id DESC LIMIT 1`,
+      [doc.id]
+    );
+
+    if (!previousSignatureRequest || !previousSignatureRequest.approver_id) {
+      return res.status(409).json({
+        success: false,
+        message: 'No previous approver was found for this document to resubmit to.',
+      });
+    }
+
+    const previousApproverId = previousSignatureRequest.approver_id;
+    const recordId = (record_identifier && String(record_identifier).trim()) || doc.record_identifier;
+    const note = resubmit_note && String(resubmit_note).trim() ? String(resubmit_note).trim() : null;
+
+    // Build effective template incorporating corrected sections
+    const effectiveTemplate = {
+      ...template,
+      header_html: header_html !== undefined ? header_html : template.header_html,
+      body_html: body_html !== undefined ? body_html : template.body_html,
+      footer_html: footer_html !== undefined ? footer_html : template.footer_html,
+    };
+
+    // If requested by Super Admin, update master template as well
+    if (update_master_template && isAdmin) {
+      await pool.query(
+        `UPDATE templates
+         SET header_html = ?, body_html = ?, footer_html = ?, version = version + 1, updated_at = NOW()
+         WHERE id = ?`,
+        [effectiveTemplate.header_html, effectiveTemplate.body_html, effectiveTemplate.footer_html, template.id]
+      );
+    }
+
+    // Always preserve the original document creator/owner throughout all workflows
+    const originalGeneratorId = docMeta.original_generator_id || doc.generated_by;
+
+    // Generate the corrected document with the effective template preserving original creator
+    const newDoc = await generateSingleDocument({
+      template: effectiveTemplate,
+      recordId,
+      userId: originalGeneratorId,
+    });
+
+    // Attach correction metadata to the new document
+    const [[newDocRow]] = await pool.query('SELECT metadata FROM generated_docs WHERE id = ?', [newDoc.id]);
+    const newMetadata = typeof newDocRow?.metadata === 'string'
+      ? JSON.parse(newDocRow.metadata)
+      : (newDocRow?.metadata || {});
+
+    newMetadata.original_generator_id = originalGeneratorId;
+    newMetadata.resubmitNote = note;
+    newMetadata.resubmittedFromDocUuid = doc.doc_uuid;
+    newMetadata.correctedTemplate = {
+      header_html: effectiveTemplate.header_html,
+      body_html: effectiveTemplate.body_html,
+      footer_html: effectiveTemplate.footer_html,
+    };
+    newMetadata.correctedBy = {
+      id: req.user.id,
+      name: req.user.full_name,
+      role: req.user.role,
+      at: new Date().toISOString(),
+    };
+    newMetadata.resubmitted_by = {
+      id: req.user.id,
+      name: req.user.full_name,
+      role: req.user.role,
+      at: new Date().toISOString(),
+    };
+
+    await pool.query('UPDATE generated_docs SET metadata = ? WHERE id = ?', [JSON.stringify(newMetadata), newDoc.id]);
+
+    // Send the new document back into the approval workflow
+    const signatureResult = await runInitiateSignature({
+      docId: newDoc.id,
+      approverId: previousApproverId,
+      userId: req.user.id,
+      req,
+      note,
+    });
+
+    if (!signatureResult.ok) {
+      return res.status(signatureResult.status || 500).json({
+        success: false,
+        message: `Corrected document was generated, but approval request could not be created: ${signatureResult.message}`,
+        data: { id: newDoc.id, docUuid: newDoc.docUuid },
+      });
+    }
+
+    // Supersede the old rejected document
+    await pool.query('UPDATE generated_docs SET deleted_at = NOW() WHERE id = ?', [doc.id]);
+
+    // Record audit log
+    await recordAudit({
+      userId: req.user.id,
+      docId: newDoc.id,
+      action: 'CORRECT_REJECTED_DOCUMENT',
+      details: {
+        originalDocId: doc.id,
+        originalDocUuid: doc.doc_uuid,
+        newDocId: newDoc.id,
+        newDocUuid: newDoc.docUuid,
+        approverId: previousApproverId,
+        note,
+      },
+      req,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: `Document ${doc.doc_uuid} corrected and resubmitted as ${newDoc.docUuid} to ${signatureResult.approverName} for approval.`,
+      data: {
+        id: newDoc.id,
+        docId: newDoc.id,
+        docUuid: newDoc.docUuid,
+        status: 'pending',
+        signatureRequestId: signatureResult.signatureRequestId,
+        approverId: previousApproverId,
+        approverName: signatureResult.approverName,
+      },
+    });
+  } catch (err) {
+    console.error('[documents] correctAndResubmitDocument error:', err);
+    return res.status(err.status || 500).json({
+      success: false,
+      message: err.message || 'Failed to correct and resubmit document.',
     });
   }
 }
@@ -1639,6 +2055,9 @@ module.exports = {
   downloadDocument,
   deleteDocument,
   resubmitDocument,
+  listRejectedDocuments,
+  getRejectionContext,
+  correctAndResubmitDocument,
   viewDocumentByNotifyToken,
   getNotifyTokenMeta,
   notifyViewAutoLogin,
