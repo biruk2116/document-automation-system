@@ -521,7 +521,9 @@
 .btn-doc-send,
 .btn-doc-hand-delivered,
 .btn-doc-action,
-.btn-doc-rejection {
+.btn-doc-rejection,
+.btn-doc-approve,
+.btn-doc-reject {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -544,7 +546,9 @@
 .btn-doc-send:disabled,
 .btn-doc-hand-delivered:disabled,
 .btn-doc-action:disabled,
-.btn-doc-rejection:disabled {
+.btn-doc-rejection:disabled,
+.btn-doc-approve:disabled,
+.btn-doc-reject:disabled {
   opacity: 0.45;
   cursor: not-allowed;
   box-shadow: none !important;
@@ -673,6 +677,72 @@
 .btn-doc-rejection:hover:not(:disabled) {
   background: #B91C1C;
   border-color: #B91C1C;
+}
+
+/* 6. Approve Button: Vibrant Emerald Green (matches Document Tracking send button) */
+.btn-doc-approve {
+  background: #2E9D58;
+  color: #FFFFFF;
+  border: 1px solid #2E9D58;
+}
+.btn-doc-approve:hover:not(:disabled) {
+  background: #248247;
+  border-color: #248247;
+  color: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(46, 157, 88, 0.35);
+}
+.btn-doc-approve:active:not(:disabled) {
+  background: #1B6A38;
+  border-color: #1B6A38;
+}
+
+/* 7. Reject Button: Crimson Alert Red (matches Document Tracking rejection button) */
+.btn-doc-reject {
+  background: #DC2626;
+  color: #FFFFFF;
+  border: 1px solid #DC2626;
+}
+.btn-doc-reject:hover:not(:disabled) {
+  background: #B91C1C;
+  border-color: #B91C1C;
+  color: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(220, 38, 38, 0.35);
+}
+.btn-doc-reject:active:not(:disabled) {
+  background: #991B1B;
+  border-color: #991B1B;
+}
+
+/* Compatibility aliases for older doc-btn classes */
+.doc-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  min-height: 25px;
+  height: 25px;
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+.doc-btn-secondary {
+  background: #FFFFFF;
+  color: #475569;
+  border: 1px solid #CBD5E1;
+}
+.doc-btn-primary {
+  background: #2E9D58;
+  color: #FFFFFF;
+  border: 1px solid #2E9D58;
+}
+.doc-btn-danger {
+  background: #DC2626;
+  color: #FFFFFF;
+  border: 1px solid #DC2626;
 }
 
 /* ── Empty & Loading States ── */
@@ -839,3 +909,24 @@
   border-color: #60A5FA;
   color: #FFFFFF;
 }
+
+.dark .btn-doc-approve {
+  background: #16A34A;
+  border-color: #16A34A;
+  color: #FFFFFF;
+}
+.dark .btn-doc-approve:hover:not(:disabled) {
+  background: #15803D;
+  border-color: #15803D;
+}
+
+.dark .btn-doc-reject {
+  background: #DC2626;
+  border-color: #DC2626;
+  color: #FFFFFF;
+}
+.dark .btn-doc-reject:hover:not(:disabled) {
+  background: #B91C1C;
+  border-color: #B91C1C;
+}
+
