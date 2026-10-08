@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { templateService, dataSourceService, externalDbService, documentService } from '../services/templateService';
-import { useToast } from '../hooks/useToast';
 import TemplateViewer from '../components/templates/TemplateViewer';
-import ConfirmModal from '../components/common/ConfirmModal';
 
 function BackArrowIcon() {
   return (
@@ -22,7 +20,6 @@ function BackArrowIcon() {
 export default function TemplateViewPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { showToast } = useToast();
 
   const [structuralData, setStructuralData] = useState(null);
   const [sampleData, setSampleData] = useState(null);
@@ -31,8 +28,6 @@ export default function TemplateViewPage() {
   const [loadingSample, setLoadingSample] = useState(false);
   const [error, setError] = useState(null);
   const [sampleError, setSampleError] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,10 +49,7 @@ export default function TemplateViewPage() {
     try {
       // A template's data source is either this app's internal table, or a table on a
       // saved external connection (MongoDB/PostgreSQL/MySQL/SQLite) — see
-      // TemplateForm.jsx's same branch for getFields. Previously this always called the
-      // internal-only endpoint, so any externally-mapped template (e.g. "students" on an
-      // external connection) failed here with "table not found" before preview ever ran,
-      // even though documentService.preview itself already routes correctly.
+      // TemplateForm.jsx's same branch for getFields.
       const recordsRes = structuralData.data_source_connection_id
         ? await externalDbService.getRecords(structuralData.data_source_connection_id, structuralData.data_source_table)
         : await dataSourceService.getRecords(structuralData.data_source_table);
@@ -76,62 +68,12 @@ export default function TemplateViewPage() {
     }
   };
 
-  const handleToggleStatus = async () => {
-    if (!structuralData) return;
-    const nextStatus = structuralData.status === 'active' ? 'archived' : 'active';
-    setBusy(true);
-    try {
-      await templateService.updateStatus(id, nextStatus);
-      setStructuralData((prev) => ({ ...prev, status: nextStatus }));
-      showToast(`Template marked as ${nextStatus}.`, 'success');
-    } catch (err) {
-      showToast(err.message || 'Failed to update status.', 'error');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleDelete = () => {
-    if (!structuralData) return;
-    setConfirmingDelete(true);
-  };
-
-  const confirmDelete = async () => {
-    setBusy(true);
-    try {
-      await templateService.remove(id);
-      showToast('Template deleted successfully.', 'success');
-      navigate('/templates');
-    } catch (err) {
-      showToast(err.message || 'Failed to delete template.', 'error');
-      setBusy(false);
-      setConfirmingDelete(false);
-    }
-  };
-
   return (
     <div className="template-view-page">
       <div className="template-view-page-topbar">
         <button type="button" className="template-view-back-btn" onClick={() => navigate('/templates')}>
           <BackArrowIcon /> Back to Templates
         </button>
-
-        {structuralData && (
-          <div className="template-view-actions">
-            <Link to={`/templates/edit/${id}`} className="tpl-action-btn tpl-action-edit">Edit</Link>
-            <button
-              type="button"
-              className={`tpl-action-btn ${structuralData.status === 'active' ? 'tpl-action-archive' : 'tpl-action-activate'}`}
-              onClick={handleToggleStatus}
-              disabled={busy}
-            >
-              {structuralData.status === 'active' ? 'Archive' : 'Activate'}
-            </button>
-            <button type="button" className="tpl-action-btn tpl-action-delete" onClick={handleDelete} disabled={busy}>
-              Delete
-            </button>
-          </div>
-        )}
       </div>
 
       {loading && <div className="template-list-loading">Loading template…</div>}
@@ -175,17 +117,6 @@ export default function TemplateViewPage() {
             <TemplateViewer data={viewMode === 'sample' && sampleData ? sampleData : structuralData} />
           </div>
         </>
-      )}
-
-      {confirmingDelete && (
-        <ConfirmModal
-          title="Delete template?"
-          itemName={structuralData?.name}
-          confirmLabel="Delete"
-          busy={busy}
-          onConfirm={confirmDelete}
-          onCancel={() => setConfirmingDelete(false)}
-        />
       )}
     </div>
   );
