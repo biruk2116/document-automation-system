@@ -543,7 +543,7 @@ function injectSignatureIntoHtml(html, name, photoDataUrl, signedAt, fallbackApp
   const sigImgHtml = effectivePhotoUrl
     ? `<img src="${effectivePhotoUrl}" alt="Signature"
             style="display:block;max-height:48px;max-width:180px;object-fit:contain;" />`
-    : `<div style="font-family:'Brush Script MT','Dancing Script','Segoe Script',cursive;font-size:22px;color:#0F2747;font-style:italic;text-align:center;">${name ? escapeHtml(name) : 'Digitally Approved'}</div>`;
+    : `<div style="font-family:'Edu QLD Beginner','Edu AU VIC WA NT Hand','Brush Script MT','Dancing Script','Segoe Script',cursive;font-size:22px;color:#0F2747;font-style:italic;text-align:center;">${name ? escapeHtml(name) : 'Digitally Approved'}</div>`;
 
   const signedBlock = `<!-- SIGNATURE_EMBEDDED -->
 <div class="signature-block" style="page-break-inside:avoid !important;break-inside:avoid !important;margin-top:12px;display:block;">
