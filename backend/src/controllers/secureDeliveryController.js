@@ -75,7 +75,7 @@ async function resolveDocFilePath(doc) {
         }
         if (approverName) {
           const timeStr = ts ? new Date(ts).toISOString() : new Date().toISOString();
-          signatureHtml = `<p class="visual-signature" style="margin-top:10px;font-style:italic;">document is digitally signed by ${approverName} Digitally Approved by ${approverName} on ${timeStr}</p>`;
+          signatureHtml = `<p class="visual-signature" style="margin-top:10px;font-style:italic;"><em>Digitally Approved by ${approverName} on ${timeStr}</em></p>`;
         }
       }
 
@@ -2282,7 +2282,7 @@ async function workflowSign(req, res) {
               }
               if (approverName) {
                 const timeStr = ts ? new Date(ts).toISOString() : new Date().toISOString();
-                approverSigHtml = `<p class="visual-signature" style="margin-top:10px;font-style:italic;">document is digitally signed by ${approverName} Digitally Approved by ${approverName} on ${timeStr}</p>`;
+                approverSigHtml = `<p class="visual-signature" style="margin-top:10px;font-style:italic;"><em>Digitally Approved by ${approverName} on ${timeStr}</em></p>`;
               }
             } catch (sigErr) {
               console.warn('[workflowSign] signature lookup warning:', sigErr.message);
