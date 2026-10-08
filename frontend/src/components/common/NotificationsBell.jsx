@@ -278,7 +278,7 @@ export default function NotificationsBell() {
                   } catch { return null; }
                 })()}
                 {n.notification_type === 'ownership_rejected_notify' && (
-                  <div style={{ color: '#2563EB', fontSize: '0.78rem', marginTop: 2, fontWeight: 500 }}>
+                  <div style={{ color: 'var(--brand, #0856C3)', fontSize: '0.78rem', marginTop: 2, fontWeight: 500 }}>
                     → Edit &amp; Resubmit
                   </div>
                 )}
@@ -298,7 +298,7 @@ export default function NotificationsBell() {
                   </div>
                 )}
                 {n.notification_type === 'document_delivered_notify' && (
-                  <div style={{ color: '#2563EB', fontSize: '0.78rem', marginTop: 2, fontWeight: 500 }}>
+                  <div style={{ color: 'var(--brand, #0856C3)', fontSize: '0.78rem', marginTop: 2, fontWeight: 500 }}>
                     → Document ready for your review
                   </div>
                 )}
