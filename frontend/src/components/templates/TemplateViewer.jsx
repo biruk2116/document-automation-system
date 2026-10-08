@@ -94,14 +94,14 @@ export default function TemplateViewer({ data }) {
   const contentCSS = `
     .a4-content {
       font-size: 11pt;
-      line-height: 1.6;
+      line-height: 1.5;
       color: #1a1a2e;
       font-family: 'Noto Sans',
         'Noto Sans Arabic', 'Noto Naskh Arabic', 'Amiri', 'Segoe UI', 'Tahoma', 'Traditional Arabic',
         'Noto Sans Ethiopic', 'Nyala', 'Ebrima', 'Abyssinica SIL', 'Kefa',
         'Noto Sans SC', 'Noto Sans TC', 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'Hiragino Sans GB', 'SimSun', '宋体', 'SimHei', 'WenQuanYi Zen Hei',
         'Noto Sans Hebrew', 'Noto Sans Devanagari', 'Noto Sans JP', 'Noto Sans KR',
-        Arial, sans-serif;
+        'Times New Roman', Calibri, Arial, sans-serif;
       unicode-bidi: plaintext;
       text-rendering: optimizeLegibility;
       -webkit-font-smoothing: antialiased;
@@ -118,17 +118,39 @@ export default function TemplateViewer({ data }) {
       direction: rtl;
       text-align: right;
     }
-    .a4-content h1 { font-size: 16pt; margin: 0.4em 0 0.3em; }
-    .a4-content h2 { font-size: 14pt; margin: 0.4em 0 0.3em; }
-    .a4-content h3 { font-size: 12pt; margin: 0.4em 0 0.3em; }
-    .a4-content p  { margin: 0.3em 0; }
-    .a4-content img        { max-width: 100%; height: auto; display: block; }
-    .a4-content table      { width: 100%; border-collapse: collapse; table-layout: fixed; }
-    .a4-content td,
-    .a4-content th         { word-break: break-word; overflow-wrap: break-word; padding: 4px 6px; text-align: start; }
+    .a4-content h1 { font-size: 18pt; font-weight: 700; line-height: 1.25; margin: 14pt 0 6pt 0; color: #0f172a; }
+    .a4-content h2 { font-size: 14pt; font-weight: 700; line-height: 1.3; margin: 12pt 0 5pt 0; color: #1e293b; }
+    .a4-content h3 { font-size: 12pt; font-weight: 600; line-height: 1.35; margin: 10pt 0 4pt 0; color: #334155; }
+    .a4-content h4, .a4-content h5, .a4-content h6 { font-size: 11pt; font-weight: 600; margin: 8pt 0 4pt 0; color: #1e293b; }
+    .a4-content p  { margin: 0 0 8pt 0; line-height: 1.5; }
+    .a4-content ul, .a4-content ol { margin: 0 0 8pt 0; padding-left: 24pt; }
+    .a4-content li { margin-bottom: 3pt; line-height: 1.5; }
+    .a4-content blockquote { margin: 8pt 0; padding: 4pt 14pt; border-left: 3pt solid #2563eb; color: #475569; background: #f8fafc; }
+    .a4-content hr { border: none; border-top: 1px solid #cbd5e1; margin: 12pt 0; }
+    .a4-content img { max-width: 100%; height: auto; display: block; }
+    .a4-content table:not(.signature-table) { width: 100%; max-width: 100%; border-collapse: collapse; margin: 10pt 0; table-layout: auto; }
+    .a4-content table:not(.signature-table) th,
+    .a4-content table:not(.signature-table) td { border: 1px solid #cbd5e1; padding: 6pt 8pt; word-break: break-word; vertical-align: top; }
+    .a4-content table:not(.signature-table) th { background-color: #f8fafc; font-weight: 600; text-align: start; color: #0f172a; }
     .a4-content pre,
-    .a4-content code       { white-space: pre-wrap; word-break: break-all; }
-    .a4-content *          { max-width: 100%; box-sizing: border-box; }
+    .a4-content code { white-space: pre-wrap; word-break: break-all; }
+    .a4-content .doc-generated-date,
+    .a4-content .document-dates {
+      font-size: 8.5pt;
+      font-style: italic !important;
+      color: #475569;
+      margin: 8pt 0 4pt 0;
+      line-height: 1.4;
+      text-align: left;
+      direction: ltr !important;
+    }
+    .a4-content .doc-generated-date em,
+    .a4-content .doc-generated-date strong,
+    .a4-content .document-dates em,
+    .a4-content .document-dates strong {
+      font-style: italic !important;
+    }
+    .a4-content * { max-width: 100%; box-sizing: border-box; }
   `;
 
   return (
@@ -180,7 +202,7 @@ export default function TemplateViewer({ data }) {
         width: CONTENT_W,
         top: 0, left: '-9999px',
         background: '#ffffff', color: '#1a1a2e',
-        fontSize: '11pt', lineHeight: '1.6',
+        fontSize: '11pt', lineHeight: '1.5',
         fontFamily: "'Noto Sans', 'Noto Sans Arabic', 'Noto Sans Ethiopic', 'Noto Sans SC', Arial, sans-serif",
         boxSizing: 'border-box',
       }}>
@@ -248,17 +270,22 @@ export default function TemplateViewer({ data }) {
                     </div>
                   )}
 
-                  {/* ── Page number (top-right, inside margin) ── */}
-                  {pageCount > 1 && (
-                    <div style={{
-                      position: 'absolute', top: Math.round(PAGE_PAD * 0.4), right: PAGE_PAD,
-                      fontSize: 9, color: 'rgba(0,0,0,0.3)',
-                      fontFamily: 'system-ui, sans-serif',
-                      zIndex: 10, userSelect: 'none', pointerEvents: 'none',
-                    }}>
-                      {pageIdx + 1} / {pageCount}
-                    </div>
-                  )}
+                  {/* ── Automatic Page Number (bottom printable footer area: 1, 2, 3...) ── */}
+                  <div style={{
+                    position: 'absolute',
+                    bottom: Math.round(PAGE_PAD * 0.28),
+                    left: 0,
+                    width: '100%',
+                    textAlign: 'center',
+                    fontSize: '9.5pt',
+                    color: '#64748b',
+                    fontFamily: "'Noto Sans', Arial, sans-serif",
+                    zIndex: 10,
+                    userSelect: 'none',
+                    pointerEvents: 'none',
+                  }}>
+                    {pageIdx + 1}
+                  </div>
 
                   {/*
                     ── Content layer ──
