@@ -835,7 +835,7 @@ const handleImageFileSelected = (e) => {
                     padding: '5px 14px',
                     borderRadius: 6,
                     border: 'none',
-                    background: 'var(--brand, #2563eb)',
+                    background: 'var(--brand, #0856C3)',
                     color: '#ffffff',
                     fontWeight: 500,
                     cursor: 'pointer',
