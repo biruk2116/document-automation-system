@@ -3,48 +3,49 @@
 @tailwind utilities;
 
 /* ============================================================
-   DESIGN TOKENS — LIGHT MODE
-   Clean, bright, pure-white surface with Tailwind Blue 600 accent.
+   DESIGN TOKENS — LIGHT MODE (ENTERPRISE TEAL PALETTE)
+   Clean, institutional, compact enterprise surface.
    ============================================================ */
 :root {
-  /* Surfaces */
+  /* Surfaces — Full White Light Mode */
   --bg-base:          #FFFFFF;
   --bg-surface:       #FFFFFF;
-  --bg-raised:        #F8FAFC;
-  --bg-subtle:        #F1F5F9;
-  --bg-muted:         #E2E8F0;
+  --bg-raised:        #FFFFFF;
+  --bg-subtle:        #F8FAFC;
+  --bg-muted:         #F1F5F9;
 
-  /* Text — Tailwind Slate */
-  --text-primary:     #0F172A; /* slate-900 */
-  --text-secondary:   #475569; /* slate-600 */
-  --text-muted:       #94A3B8; /* slate-400 */
+  /* Text — Slate */
+  --text-primary:     #0F172A;
+  --text-secondary:   #64748B;
+  --text-muted:       #94A3B8;
   --text-inverse:     #FFFFFF;
 
   /* Borders */
-  --border:           #E2E8F0; /* slate-200 */
-  --border-strong:    #CBD5E1; /* slate-300 */
+  --border:           #E2E8F0;
+  --border-strong:    #CBD5E1;
 
-  /* Brand — Tailwind Blue 600 */
-  --brand:            #2563EB;
-  --brand-dark:       #1D4ED8;
+  /* Brand / Primary Action — Royal Blue */
+  --brand:            #0856C3;
+  --brand-dark:       #06449E;
   --brand-light:      #EFF6FF;
-  --brand-text:       #2563EB;
-  --accent:           #2563EB;
-  --accent-dark:      #1D4ED8;
+  --brand-text:       #0856C3;
+  --accent:           #0856C3;
+  --accent-dark:      #06449E;
   --accent-light:     #EFF6FF;
-  --accent-text:      #2563EB;
+  --accent-text:      #0856C3;
 
-  /* Sidebar — Pure white in light mode */
+  /* Sidebar — Full White in Light Mode */
   --sidebar-bg:       #FFFFFF;
   --sidebar-text:     #475569;
-  --sidebar-hover:    #F1F5F9;
-  --sidebar-active:   #2563EB;
-  --sidebar-active-text: #FFFFFF;
+  --sidebar-hover:    #F8FAFC;
+  --sidebar-active:   #EFF6FF;
+  --sidebar-active-text: #0856C3;
+  --sidebar-border:   transparent;
 
-  /* Feedback (Semantic only) */
+  /* Feedback */
   --success-bg:       #F0FDF4;
-  --success-border:   #86EFAC;
-  --success-text:     #16A34A;
+  --success-border:   #BBF7D0;
+  --success-text:     #15803D;
   --error-bg:         #FEF2F2;
   --error-border:     #FECACA;
   --error-text:       #DC2626;
@@ -52,76 +53,77 @@
   --warn-border:      #FDE68A;
   --warn-text:        #D97706;
 
-  /* Shadows — subtle, crisp */
+  /* Shadows — Minimal enterprise shadows */
   --shadow-sm:        none;
   --shadow-md:        none;
   --shadow-lg:        none;
-  --shadow-overlay:   0 10px 25px rgba(0,0,0,0.08);
+  --shadow-overlay:   0 4px 16px rgba(0, 0, 0, 0.08);
 
   /* Layout */
-  --sidebar-width:    220px;
+  --sidebar-width:    232px;
   --navbar-height:    52px;
-  --radius-sm:        5px;
+  --radius-sm:        4px;
   --radius-md:        6px;
   --radius-lg:        8px;
   --radius-xl:        10px;
 }
 
 /* ============================================================
-   DESIGN TOKENS — DARK MODE  (<html class="dark">)
-   Tailwind Slate-950 base, Slate-900 surfaces, Blue-600 accents.
+   DESIGN TOKENS — DARK MODE (<html class="dark">)
+   Matching the second reference image (Meditech Dark Dashboard)
    ============================================================ */
 .dark {
-  /* Surfaces — Midnight Navy Palette (Adminator Theme) */
-  --bg-base:          #0b1121;
-  --bg-surface:       #141b2d;
-  --bg-raised:        #182238;
-  --bg-subtle:        #101728;
-  --bg-muted:         #1a233a;
+  /* Surfaces — Second Image Dark Dashboard Palette */
+  --bg-base:          #0B1118;
+  --bg-surface:       #151E2B;
+  --bg-raised:        #1A2536;
+  --bg-subtle:        #1A2536;
+  --bg-muted:         #1F2B3E;
 
   /* Text — Clean Neutral & High Contrast */
-  --text-primary:     #FFFFFF;
+  --text-primary:     #F1F5F9;
   --text-secondary:   #94A3B8;
   --text-muted:       #64748B;
-  --text-inverse:     #0b1121;
+  --text-inverse:     #0B1118;
 
-  /* Borders — Midnight Navy Borders */
-  --border:           #1e293b;
-  --border-strong:    #2a3754;
+  /* Borders */
+  --border:           #1E293B;
+  --border-strong:    #223044;
 
-  /* Brand — Tailwind Blue 600 / Blue 400 */
+  /* Brand / Primary Action — Dark Mode Royal Blue */
   --brand:            #2563EB;
   --brand-dark:       #1D4ED8;
-  --brand-light:      #141b2d;
+  --brand-light:      #172A46;
   --brand-text:       #60A5FA;
   --accent:           #2563EB;
   --accent-dark:      #1D4ED8;
-  --accent-light:     rgba(37, 99, 235, 0.18);
+  --accent-light:     #172A46;
   --accent-text:      #60A5FA;
 
-  /* Sidebar dark mode — Unified seamless color with page canvas (#0b1121) */
-  --sidebar-bg:       #0b1121;
+  /* Sidebar dark mode — Seamless #0B1118 matching body with zero separation */
+  --sidebar-bg:       #0B1118;
   --sidebar-text:     #94A3B8;
-  --sidebar-hover:    #141b2d;
-  --sidebar-active:   #2563EB;
-  --sidebar-active-text: #FFFFFF;
+  --sidebar-hover:    #162232;
+  --sidebar-active:   #172A46;
+  --sidebar-active-text: #60A5FA;
+  --sidebar-border:   transparent;
 
   /* Feedback */
-  --success-bg:       #06281e;
-  --success-border:   #0d5c3f;
-  --success-text:     #4ADE80;
-  --error-bg:         #2d1115;
-  --error-border:     #7f1d2b;
-  --error-text:       #F87171;
-  --warn-bg:          #2c1e08;
-  --warn-border:      #78450f;
-  --warn-text:        #FBBF24;
+  --success-bg:       rgba(34, 197, 94, 0.15);
+  --success-border:   rgba(34, 197, 94, 0.3);
+  --success-text:     #22C55E;
+  --error-bg:         rgba(239, 68, 68, 0.15);
+  --error-border:     rgba(239, 68, 68, 0.3);
+  --error-text:       #EF4444;
+  --warn-bg:          rgba(245, 158, 11, 0.15);
+  --warn-border:      rgba(245, 158, 11, 0.3);
+  --warn-text:        #F59E0B;
 
   /* Shadows */
   --shadow-sm:        none;
-  --shadow-md:        0 4px 12px rgba(0, 0, 0, 0.35);
-  --shadow-lg:        0 10px 25px rgba(0, 0, 0, 0.45);
-  --shadow-overlay:   0 12px 32px rgba(0, 0, 0, 0.6);
+  --shadow-md:        none;
+  --shadow-lg:        none;
+  --shadow-overlay:   0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
 /* ============================================================
@@ -130,63 +132,133 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 html {
-  font-size: 15px;
+  font-size: 14px;
   scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
   background: var(--bg-base);
   color: var(--text-primary);
-  line-height: 1.45;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   scroll-behavior: smooth;
   transition: background 0.18s ease, color 0.18s ease;
 }
 
-h1, .page-title {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  font-size: 1.35rem;
-  font-weight: 700;
-  color: #0F2856;
-  margin-top: 0;
-  letter-spacing: -0.02em;
+.font-handwriting,
+.font-handwriting input,
+.font-handwriting select,
+.font-handwriting textarea,
+.font-handwriting button,
+.font-handwriting a,
+.font-handwriting p,
+.font-handwriting h1,
+.font-handwriting h2,
+.font-handwriting h3,
+.font-handwriting span,
+.font-handwriting label {
+  font-family: 'Edu QLD Beginner', 'Edu AU VIC WA NT Hand', cursive, sans-serif !important;
 }
 
-.dark h1, .dark .page-title {
-  color: #FFFFFF;
+/* Page title: Plus Jakarta Sans, 24px, Weight 700 */
+h1, .page-title, .page-header h1, .tpl-page-title, .doc-tracking-header-title {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  color: var(--text-primary);
+  margin-top: 0;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+
+.dark h1, .dark .page-title, .dark .page-header h1 {
+  color: #F1F5F9;
 }
 
 .app-brand-title {
-  color: #0F2856;
+  color: var(--text-primary);
 }
 .dark .app-brand-title {
-  color: #FFFFFF;
+  color: #F1F5F9;
 }
 
-h2, .section-title {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  font-size: 1.15rem;
-  font-weight: 600;
-  color: #2563EB;
-  margin-top: 0;
-}
-
-h3 {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  font-size: 0.95rem;
-  font-weight: 600;
+/* Section heading: Plus Jakarta Sans, 18px, Weight 600 */
+h2, .section-title, .section-heading, .card-header h2, .panel-header h2 {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 18px !important;
+  font-weight: 600 !important;
   color: var(--text-primary);
   margin-top: 0;
+  line-height: 1.35;
+}
+
+/* Card title: Plus Jakarta Sans, 15-16px, Weight 600 */
+h3, .card-title, .card-header h3, .panel-title, .tpl-card-title, .doc-card-title {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: var(--text-primary);
+  margin-top: 0;
+  line-height: 1.4;
 }
 
 h4 {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  font-size: 0.85rem;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
   margin-top: 0;
+}
+
+/* Card/body text: Plus Jakarta Sans, 14px, Weight 400 */
+p, .card, .card-body, .panel, .panel-body, .template-table td, .template-list-table td {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+/* Form labels: Plus Jakarta Sans, 13px, Weight 500 */
+label, .form-field label, .form-label, .login-form label, .template-form label, .filter-label {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* Input text: Plus Jakarta Sans, 14px, Weight 400 */
+input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
+select,
+textarea,
+.form-field input,
+.form-field select,
+.form-field textarea,
+.login-form input,
+.search-input {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  line-height: 1.4;
+}
+
+/* Small/helper text: Plus Jakarta Sans, 12px, Weight 400 */
+.text-xs,
+.field-hint,
+.field-error,
+.text-muted,
+.helper-text,
+.subtext,
+small,
+.caption {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  line-height: 1.4;
 }
 
 img { max-width: 100%; display: block; }
@@ -203,7 +275,7 @@ input::-ms-clear {
 
 /* ============================================================
    APP SHELL — sidebar + main content
-   Clean surfaces with spacing instead of harsh divider lines.
+   Dark teal sidebar in both light and dark mode.
    ============================================================ */
 .app-shell { display: block; min-height: 100vh; }
 
@@ -220,20 +292,26 @@ input::-ms-clear {
 .sidebar-brand {
   font-weight: 700; font-size: 0.88rem; margin-bottom: 12px;
   display: flex; align-items: center; justify-content: space-between;
-  color: #2563EB; flex-shrink: 0;
+  color: var(--text-primary); flex-shrink: 0;
+  padding-bottom: 10px;
+  border-bottom: none;
 }
-.sidebar-brand-text { display: flex; align-items: center; gap: 7px; }
+.sidebar-brand-text {
+  display: flex; align-items: center; gap: 8px; color: var(--text-primary);
+  font-family: 'Edu QLD Beginner', 'Edu AU VIC WA NT Hand', cursive, sans-serif !important;
+  font-size: 14px; font-weight: 700; line-height: 1.25;
+}
 .sidebar-brand-logo { width: 24px; height: 24px; object-fit: contain; flex-shrink: 0; }
 .sidebar-close-btn {
   display: inline-flex; background: none; border: none;
   color: var(--text-secondary); font-size: 1rem; cursor: pointer;
-  opacity: 0.7; transition: opacity 0.15s; padding: 3px 5px;
+  opacity: 0.8; transition: opacity 0.15s; padding: 3px 5px;
   align-items: center; justify-content: center;
   border-radius: 4px;
 }
-.sidebar-close-btn:hover { opacity: 1; background: var(--sidebar-hover); }
+.sidebar-close-btn:hover { opacity: 1; background: var(--bg-subtle); color: var(--text-primary); }
 
-.sidebar-nav { display: flex; flex-direction: column; gap: 3px; }
+.sidebar-nav { display: flex; flex-direction: column; gap: 2px; }
 .sidebar-nav-scroll {
   flex: 1; overflow-y: auto; overflow-x: hidden; min-height: 0;
   scrollbar-width: thin; scrollbar-color: var(--border) transparent;
@@ -243,26 +321,29 @@ input::-ms-clear {
 
 .sidebar-link {
   color: var(--sidebar-text); text-decoration: none;
-  padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 500;
+  padding: 8px 10px; border-radius: 6px;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 14px !important; font-weight: 500 !important;
   transition: background 0.15s, color 0.15s;
-  display: flex; align-items: center; gap: 8px; line-height: 1.2;
+  display: flex; align-items: center; gap: 8px; line-height: 1.25;
 }
 .sidebar-link svg { flex-shrink: 0; opacity: 0.85; width: 16px; height: 16px; }
 .sidebar-link:hover {
-  background: var(--sidebar-hover); color: #2563EB;
+  background: var(--sidebar-hover); color: var(--text-primary);
 }
 .sidebar-link.active {
-  background: #2563EB !important;
-  color: #FFFFFF !important;
-  font-weight: 600;
+  background: var(--sidebar-active) !important;
+  color: var(--sidebar-active-text) !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
 }
 .sidebar-link.active svg {
-  color: #FFFFFF !important;
-  stroke: #FFFFFF !important;
+  color: var(--sidebar-active-text) !important;
+  stroke: var(--sidebar-active-text) !important;
 }
 .sidebar-section-label {
-  margin: 10px 0 4px; font-size: 0.65rem; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.06em;
+  margin: 12px 0 4px; font-size: 0.65rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
   color: var(--text-muted); padding: 0 10px;
 }
 
@@ -278,15 +359,19 @@ input::-ms-clear {
 
 /* ============================================================
    NAVBAR
-   Clean, modern, borderless surface with subtle spacing.
+   Clean, institutional surface with thin subtle border.
    ============================================================ */
 .navbar {
   position: fixed; top: 0; right: 0; left: 0;
   height: var(--navbar-height);
   display: flex; align-items: center; gap: 10px; padding: 0 20px;
-  background: var(--bg-surface); border-bottom: none;
+  background: var(--bg-surface);
+  border-bottom: none;
   z-index: 1100; transition: left 0.25s ease, background 0.2s ease;
   box-sizing: border-box;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
 }
 /* On desktop with sidebar open, shift navbar right */
 @media (min-width: 1024px) {
@@ -298,18 +383,20 @@ input::-ms-clear {
   background: none; border: none; font-size: 1.15rem; cursor: pointer;
   padding: 5px 8px; border-radius: var(--radius-sm); color: var(--text-secondary);
 }
-.hamburger-btn:hover { background: var(--bg-subtle); }
+.hamburger-btn:hover { background: var(--bg-subtle); color: var(--text-primary); }
 
 .navbar-spacer { flex: 1; }
 .navbar-user { display: flex; align-items: center; gap: 8px; }
 .navbar-user-role {
-  font-size: 0.72rem; font-weight: 600; color: #2563EB;
-  background: #EFF6FF; padding: 2px 8px; border-radius: 8px;
+  font-size: 0.72rem; font-weight: 600; color: #0856C3;
+  background: #EFF6FF; padding: 2px 8px; border-radius: 6px;
+  border: 1px solid #DBEAFE;
   text-transform: capitalize;
 }
 .dark .navbar-user-role {
   color: #60A5FA;
-  background: #1E293B;
+  background: #172A46;
+  border: 1px solid #2563EB;
 }
 
 /* Dark mode toggle — borderless SVG-only icon button */
@@ -325,11 +412,8 @@ input::-ms-clear {
 .app-content { padding: 20px 24px; margin-top: var(--navbar-height); }
 
 /* ============================================================
-   COMMON BUTTONS — Compact, consistent, professional
-   All variants share the same height (30px), font size (0.8rem),
-/* ============================================================
-   BUTTONS DESIGN SYSTEM (STANDARDIZED & COMPACT)
-   Consistent variants: Primary, Secondary, Success, Danger, Neutral/Outline.
+   BUTTONS DESIGN SYSTEM (ENTERPRISE PROPORTIONS)
+   Compact, natural width, height: 32px-36px, radius: 6px.
    ============================================================ */
 
 /* ── Base shared button properties ── */
@@ -347,31 +431,31 @@ input::-ms-clear {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 4px 12px;
-  min-height: 28px;
-  height: 28px;
+  padding: 0 12px;
+  min-height: 32px;
+  height: 34px;
   border-radius: 6px;
-  font-family: inherit;
-  font-size: 0.78rem;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
   box-sizing: border-box;
   cursor: pointer;
   text-decoration: none;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
   width: fit-content;
   user-select: none;
   border: 1px solid transparent;
 }
 
-/* Compact sizing for cards and tables */
+/* Compact sizing for small table actions */
 .btn-sm,
 .tpl-action-btn {
-  min-height: 25px;
-  height: 25px;
-  padding: 2px 8px;
-  font-size: 0.75rem;
+  min-height: 28px;
+  height: 28px;
+  padding: 0 9px;
+  font-size: 12px;
   font-weight: 500;
   border-radius: 5px;
   gap: 4px;
@@ -381,39 +465,39 @@ input::-ms-clear {
 .btn-primary,
 .btn-accent,
 .tpl-action-edit {
-  background: #2563EB;
+  background: #0856C3;
   color: #FFFFFF;
-  border: 1px solid #2563EB;
+  border: 1px solid #0856C3;
 }
 .btn-primary:hover:not(:disabled),
 .btn-accent:hover:not(:disabled),
 .tpl-action-edit:hover:not(:disabled) {
-  background: #1D4ED8;
-  border-color: #1D4ED8;
+  background: #06449E;
+  border-color: #06449E;
   color: #FFFFFF;
 }
 
-/* 2. Secondary: Non-primary actions (Cancel, Back, Preview) */
+/* 2. Secondary: Non-primary actions (Cancel, Back, Preview, View Details) */
 .btn-secondary {
-  background: #FFFFFF;
+  background: #F1F5F9;
   color: #334155;
-  border: 1px solid #CBD5E1;
+  border: 1px solid #E2E8F0;
 }
 .btn-secondary:hover:not(:disabled) {
-  background: #F1F5F9;
-  border-color: #94A3B8;
-  color: #0F172A;
+  background: #E2E8F0;
+  border-color: #CBD5E1;
+  color: #1E293B;
 }
 
-/* 3. Success: Positive actions (Approve, Confirm, Accept) */
+/* 3. Success: Positive confirmation actions (Approve, Confirm, Accept) */
 .btn-success {
-  background: #16A34A;
+  background: #15803D;
   color: #FFFFFF;
-  border: 1px solid #16A34A;
+  border: 1px solid #15803D;
 }
 .btn-success:hover:not(:disabled) {
-  background: #15803D;
-  border-color: #15803D;
+  background: #166534;
+  border-color: #166534;
   color: #FFFFFF;
 }
 
@@ -431,24 +515,24 @@ input::-ms-clear {
   color: #FFFFFF;
 }
 
-/* 5. Neutral / Outline: Low-priority / inspection actions (View, Details, Download, Edit) */
+/* 5. Outlined / Neutral: Low-priority / inspection actions (View, Details, Download, Export PDF) */
 .btn-outline,
 .btn-neutral,
 .tpl-action-view,
 .tpl-action-archive,
 .tpl-action-activate {
-  background: #FFFFFF;
-  color: #475569;
-  border: 1px solid #CBD5E1;
+  background: transparent;
+  color: #0856C3;
+  border: 1px solid #0856C3;
 }
 .btn-outline:hover:not(:disabled),
 .btn-neutral:hover:not(:disabled),
 .tpl-action-view:hover:not(:disabled),
 .tpl-action-archive:hover:not(:disabled),
 .tpl-action-activate:hover:not(:disabled) {
-  background: #F8FAFC;
-  border-color: #94A3B8;
-  color: #0F172A;
+  background: #EFF6FF;
+  border-color: #0856C3;
+  color: #0856C3;
 }
 
 /* Disabled state */
@@ -467,14 +551,30 @@ input::-ms-clear {
 }
 
 /* Dark mode button overrides */
+.dark .btn-primary,
+.dark .btn-accent,
+.dark .tpl-action-edit {
+  background: #2563EB;
+  border-color: #2563EB;
+  color: #FFFFFF;
+}
+.dark .btn-primary:hover:not(:disabled),
+.dark .btn-accent:hover:not(:disabled),
+.dark .tpl-action-edit:hover:not(:disabled) {
+  background: #1D4ED8;
+  border-color: #1D4ED8;
+  color: #FFFFFF;
+}
+
 .dark .btn-secondary {
-  background: #1E293B;
-  color: #F8FAFC;
-  border-color: #475569;
+  background: #334155;
+  color: #E2E8F0;
+  border: 1px solid #475569;
 }
 .dark .btn-secondary:hover:not(:disabled) {
-  background: #334155;
+  background: #475569;
   border-color: #64748B;
+  color: #FFFFFF;
 }
 
 .dark .btn-outline,
@@ -482,25 +582,25 @@ input::-ms-clear {
 .dark .tpl-action-view,
 .dark .tpl-action-archive,
 .dark .tpl-action-activate {
-  background: #1E293B;
-  color: #CBD5E1;
-  border-color: #475569;
+  background: transparent;
+  color: #60A5FA;
+  border: 1px solid #2563EB;
 }
 .dark .btn-outline:hover:not(:disabled),
 .dark .btn-neutral:hover:not(:disabled),
 .dark .tpl-action-view:hover:not(:disabled),
 .dark .tpl-action-archive:hover:not(:disabled),
 .dark .tpl-action-activate:hover:not(:disabled) {
-  background: #334155;
-  color: #FFFFFF;
-  border-color: #64748B;
+  background: #172A46;
+  color: #60A5FA;
+  border-color: #2563EB;
 }
 
 .dark .btn-danger,
 .dark .tpl-action-delete {
-  background: #DC2626;
-  border-color: #DC2626;
-  color: #FFFFFF;
+  background: #991B1B;
+  color: #FEE2E2;
+  border: 1px solid #991B1B;
 }
 .dark .btn-danger:hover:not(:disabled),
 .dark .tpl-action-delete:hover:not(:disabled) {
@@ -509,9 +609,9 @@ input::-ms-clear {
 }
 
 .dark .btn-success {
-  background: #16A34A;
-  border-color: #16A34A;
-  color: #FFFFFF;
+  background: #166534;
+  color: #DCFCE7;
+  border: 1px solid #166534;
 }
 .dark .btn-success:hover:not(:disabled) {
   background: #15803D;
@@ -520,18 +620,24 @@ input::-ms-clear {
 
 .btn-danger-text {
   background: none; border: none; color: var(--error-text);
-  cursor: pointer; font-weight: 600; text-decoration: underline;
+  cursor: pointer; font-weight: 500; text-decoration: underline;
   text-underline-offset: 2px; font-size: 0.78rem;
 }
 
 /* Button Groups & Action Pair Spacing (e.g. Approve | Reject) */
 .btn-group,
 .btn-pair,
-.template-card-actions,
+.template-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
 .template-form-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 8px;
 }
 
 /* ============================================================
@@ -545,36 +651,69 @@ input::-ms-clear {
 /* ============================================================
    TABLES
    ============================================================ */
+/* ============================================================
+   TABLES
+   Clean enterprise table with crisp borders & compact row height.
+   ============================================================ */
 .template-table, .template-list-table {
   width: 100%; border-collapse: collapse;
   background: var(--bg-surface); border-radius: var(--radius-md); overflow: hidden;
   border: 1px solid var(--border);
 }
 .template-table th, .template-list-table th {
-  text-align: left; background: var(--bg-subtle); padding: 8px 10px;
-  font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.02em; color: var(--text-secondary);
+  text-align: left; background: var(--bg-subtle); padding: 8px 12px;
+  font-size: 13px; font-weight: 600; text-transform: capitalize;
+  letter-spacing: 0.01em; color: var(--text-secondary);
   border-bottom: 1px solid var(--border);
 }
 .template-table td, .template-list-table td {
-  padding: 8px 10px; border-top: 1px solid var(--border);
+  padding: 9px 12px; border-top: 1px solid var(--border);
   color: var(--text-primary); background: var(--bg-surface);
-  font-size: 0.8rem;
+  font-size: 13px;
 }
+.template-table tr:hover td, .template-list-table tr:hover td {
+  background: var(--bg-base);
+}
+
+/* User Management — borderless, clean styling with centered action buttons */
+.user-management-card {
+  border: none !important;
+  box-shadow: none !important;
+  background: var(--bg-surface);
+}
+.user-management-toolbar {
+  border-bottom: none !important;
+  padding: 8px 0 16px;
+}
+.user-management-table {
+  border: none !important;
+}
+.user-management-table th:last-child,
+.user-management-table td:last-child {
+  text-align: center;
+}
+.user-management-table .template-actions {
+  justify-content: center;
+}
+
 .template-table-actions, .template-actions {
   display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
 }
 .template-table-actions button, .template-table-actions a,
 .template-actions button {
-  background: var(--bg-subtle); border: none; padding: 4px 8px;
+  background: var(--bg-subtle); border: 1px solid var(--border); padding: 3px 9px;
   border-radius: var(--radius-sm); cursor: pointer; text-decoration: none;
-  color: var(--text-primary); font-size: 0.75rem;
-  transition: background 0.12s;
+  color: var(--text-primary); font-size: 12px; font-weight: 500;
+  transition: background 0.12s, border-color 0.12s;
+  height: 28px; display: inline-flex; align-items: center; justify-content: center;
 }
-.template-table-actions button:hover, .template-actions button:hover { background: var(--bg-muted); }
+.template-table-actions button:hover, .template-actions button:hover {
+  background: var(--bg-muted);
+  border-color: var(--border-strong);
+}
 .template-table-actions button.btn-danger, .template-actions button.btn-danger {
   background: var(--bg-surface); color: var(--error-text);
-  border: 1px solid var(--error-border); font-weight: 600;
+  border: 1px solid var(--error-border); font-weight: 500;
 }
 .template-table-actions button.btn-danger:hover:not(:disabled),
 .template-actions button.btn-danger:hover:not(:disabled) {
@@ -586,28 +725,64 @@ input::-ms-clear {
 .template-list-empty, .template-list-loading {
   padding: 32px; text-align: center;
   background: var(--bg-surface); border-radius: var(--radius-md);
-  color: var(--text-secondary); font-size: 0.82rem;
+  color: var(--text-secondary); font-size: 0.85rem;
 }
 
 /* ============================================================
    STATUS & ROLE BADGES
+   Only status badges are pill-shaped.
    ============================================================ */
 .status-badge {
-  padding: 2px 8px; border-radius: 6px;
-  font-size: 0.72rem; font-weight: 600; text-transform: capitalize;
+  padding: 2px 10px; border-radius: 9999px;
+  font-size: 12px; font-weight: 500; text-transform: capitalize;
+  display: inline-flex; align-items: center; gap: 4px; line-height: 1.4;
+  border: 1px solid transparent;
 }
-.status-active  { background: var(--brand-light); color: var(--brand-text); }
-.status-archived { background: var(--bg-subtle); color: var(--text-secondary); }
+.status-active, .status-approved, .status-signed, .status-delivered {
+  background: #F0FDF4; color: #15803D; border-color: #BBF7D0;
+}
+.status-pending {
+  background: #FFFBEB; color: #D97706; border-color: #FDE68A;
+}
+.status-rejected, .status-revoked, .status-failed {
+  background: #FEF2F2; color: #DC2626; border-color: #FECACA;
+}
+.status-archived, .status-draft, .status-inactive {
+  background: #F1F5F9; color: #64748B; border-color: #E2E8F0;
+}
 
-.role-pill { padding: 2px 8px; border-radius: 6px; font-size: 0.72rem; font-weight: 600; display: inline-block; }
-.role-pill-super_admin  { background: #EDE9FE; color: #5B21B6; }
-.role-pill-system_admin { background: var(--brand-light); color: var(--brand-text); }
-.role-pill-generator    { background: var(--success-bg); color: var(--success-text); }
-.role-pill-approver     { background: var(--warn-bg); color: var(--warn-text); }
-.role-pill-recipient    { background: var(--bg-subtle); color: var(--text-secondary); }
+.role-pill {
+  padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 500;
+  display: inline-block; border: 1px solid transparent;
+}
+.role-pill-super_admin  { background: #EFF6FF; color: #0856C3; border-color: #DBEAFE; }
+.role-pill-system_admin { background: #EFF6FF; color: #0856C3; border-color: #DBEAFE; }
+.role-pill-generator    { background: #F0FDF4; color: #15803D; border-color: #BBF7D0; }
+.role-pill-approver     { background: #FFFBEB; color: #D97706; border-color: #FDE68A; }
+.role-pill-recipient    { background: #F1F5F9; color: #64748B; border-color: #E2E8F0; }
+
+.dark .status-active, .dark .status-approved, .dark .status-signed, .dark .status-delivered {
+  background: rgba(34, 197, 94, 0.15); color: #22C55E; border-color: rgba(34, 197, 94, 0.3);
+}
+.dark .status-pending {
+  background: rgba(245, 158, 11, 0.15); color: #F59E0B; border-color: rgba(245, 158, 11, 0.3);
+}
+.dark .status-rejected, .dark .status-revoked, .dark .status-failed {
+  background: rgba(239, 68, 68, 0.15); color: #EF4444; border-color: rgba(239, 68, 68, 0.3);
+}
+.dark .status-archived, .dark .status-draft, .dark .status-inactive {
+  background: rgba(100, 116, 139, 0.15); color: #94A3B8; border-color: rgba(100, 116, 139, 0.3);
+}
+
+.dark .role-pill-super_admin  { background: #172A46; color: #60A5FA; border-color: #0856C3; }
+.dark .role-pill-system_admin { background: #172A46; color: #60A5FA; border-color: #0856C3; }
+.dark .role-pill-generator    { background: rgba(34, 197, 94, 0.15); color: #22C55E; border-color: rgba(34, 197, 94, 0.3); }
+.dark .role-pill-approver     { background: rgba(245, 158, 11, 0.15); color: #F59E0B; border-color: rgba(245, 158, 11, 0.3); }
+.dark .role-pill-recipient    { background: rgba(100, 116, 139, 0.15); color: #94A3B8; border-color: rgba(100, 116, 139, 0.3); }
 
 /* ============================================================
    FORMS & FIELDS
+   Compact, professional, height: 36-38px, radius: 6px.
    ============================================================ */
 .template-form {
   background: var(--bg-surface); padding: 18px 20px; border-radius: var(--radius-md);
@@ -618,17 +793,20 @@ input::-ms-clear {
 }
 .form-field { display: flex; flex-direction: column; gap: 4px; }
 .form-field-wide { grid-column: 1 / -1; }
-.form-field label { font-weight: 600; font-size: 0.78rem; color: var(--text-secondary); }
+.form-field label { font-weight: 500; font-size: 13px; color: var(--text-secondary); }
 .form-field input, .form-field select, .form-field textarea {
-  padding: 7px 9px; border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm); font-family: inherit; font-size: 0.82rem;
+  padding: 8px 10px; border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md); font-family: inherit; font-size: 14px;
+  font-weight: 400;
   color: var(--text-primary); background: var(--bg-surface);
-  transition: border-color 0.15s, background 0.2s;
+  min-height: 36px;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 .form-field input:focus, .form-field select:focus, .form-field textarea:focus {
-  outline: none; border-color: #2563EB;
+  outline: none; border-color: var(--brand);
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.15);
 }
-.field-hint { margin: 0; font-size: 0.72rem; color: var(--text-muted); }
+.field-hint { margin: 0; font-size: 12px; color: var(--text-muted); }
 .template-form-actions {
   display: flex;
   gap: 8px;
@@ -640,11 +818,11 @@ input::-ms-clear {
 
 /* Create Template Submit Button — inherits global .btn-primary sizing */
 .template-create-submit-btn {
-  padding: 5px 16px;
-  min-height: 30px;
-  width: auto;
+  padding: 0 14px;
+  min-height: 34px;
+  height: 34px;
+  width: fit-content;
   max-width: fit-content;
-  margin: 0 auto;
 }
 
 .template-form-actions button,
@@ -652,9 +830,10 @@ input::-ms-clear {
 .template-form-actions .btn-primary,
 .template-form-actions .btn-secondary,
 .template-form-actions .btn-danger {
-  padding: 5px 16px;
-  min-height: 30px;
-  width: auto;
+  padding: 0 14px;
+  min-height: 34px;
+  height: 34px;
+  width: fit-content;
   max-width: fit-content;
   margin: 0;
 }
@@ -674,10 +853,10 @@ input::-ms-clear {
   padding: 60px; gap: 16px;
 }
 .login-side-panel h2 {
-  font-size: 1.9rem; margin: 0; line-height: 1.3; max-width: 420px;
-  color: var(--text-primary);
+  font-size: 1.8rem; margin: 0; line-height: 1.3; max-width: 420px;
+  color: #FFFFFF; font-weight: 600;
 }
-.login-side-panel p { color: var(--text-secondary); max-width: 420px; line-height: 1.6; }
+.login-side-panel p { color: #CBD5E1; max-width: 420px; line-height: 1.6; font-size: 14px; }
 
 .login-panel {
   flex: 1; max-width: 460px; background: var(--bg-surface);
@@ -690,39 +869,41 @@ input::-ms-clear {
   font-weight: 700; font-size: 1.15rem; color: var(--text-primary);
 }
 .login-form { display: flex; flex-direction: column; gap: 10px; }
-.login-form h1 { margin: 0 0 4px; font-size: 1.7rem; color: var(--text-primary); }
-.login-subtitle { color: var(--text-secondary); margin-top: -6px; margin-bottom: 4px; font-size: 0.9rem; }
+.login-form h1 { margin: 0 0 4px; font-size: 1.5rem; color: var(--text-primary); font-weight: 600; }
+.login-subtitle { color: var(--text-secondary); margin-top: -6px; margin-bottom: 4px; font-size: 0.88rem; }
 
 .login-form input {
-  padding: 11px 13px; border: 1.5px solid var(--border-strong);
-  border-radius: var(--radius-md); font-family: inherit; font-size: 0.95rem;
+  padding: 9px 12px; border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md); font-family: inherit; font-size: 14px;
   color: var(--text-primary); background: var(--bg-surface);
-  transition: border-color 0.15s, background 0.2s;
+  min-height: 38px;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 .login-form input:focus {
-  outline: none; border-color: #2563EB;
+  outline: none; border-color: var(--brand);
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.15);
 }
 .login-form label {
-  font-weight: 600; font-size: 0.85rem; color: var(--text-secondary);
+  font-weight: 500; font-size: 13px; color: var(--text-secondary);
 }
 .login-error {
   background: var(--error-bg); color: var(--error-text);
   border: 1px solid var(--error-border);
-  padding: 10px 12px; border-radius: var(--radius-sm); font-size: 0.88rem;
+  padding: 10px 12px; border-radius: var(--radius-sm); font-size: 13px;
 }
 .login-submit-btn {
-  margin-top: 8px; padding: 11px; border: none;
-  border-radius: var(--radius-md); background: #2563EB; color: #fff;
-  font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: background 0.15s;
-  width: 100%;
+  margin-top: 8px; padding: 0 16px; border: 1px solid var(--brand);
+  border-radius: var(--radius-md); background: var(--brand); color: #fff;
+  font-weight: 600; font-size: 14px; cursor: pointer; transition: background 0.15s;
+  height: 36px; min-height: 36px; width: fit-content;
 }
-.login-submit-btn:hover:not(:disabled) { background: #1D4ED8; }
+.login-submit-btn:hover:not(:disabled) { background: var(--brand-dark); border-color: var(--brand-dark); }
 .login-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .login-verify-link {
-  color: #2563EB; text-decoration: none; font-size: 0.85rem;
-  margin-top: 4px; font-weight: 600;
+  color: var(--brand); text-decoration: none; font-size: 13px;
+  margin-top: 4px; font-weight: 500;
 }
-.login-verify-link:hover { text-decoration: underline; color: #1D4ED8; }
+.login-verify-link:hover { text-decoration: underline; color: var(--brand-dark); }
 
 /* Auth page success state */
 .login-success-box {
@@ -945,41 +1126,42 @@ input::-ms-clear {
   display: flex; align-items: flex-start; gap: 8px;
 }
 .toast-icon { flex-shrink: 0; font-weight: 700; line-height: 1.5; }
-.toast-success { background: #16A34A; border: 1px solid #15803D; }
+.toast-success { background: #15803D; border: 1px solid #166534; }
 .toast-error   { background: #DC2626; border: 1px solid #B91C1C; }
-.toast-info    { background: #2563EB; border: 1px solid #1D4ED8; }
+.toast-info    { background: #0856C3; border: 1px solid #06449E; }
 
 /* Dark mode: add explicit border + slightly lighter backgrounds so toasts
    don't disappear against the very dark app background */
 .dark .toast-success {
   background: #166534;
-  border: 1.5px solid #4ADE80;
-  color: #F0FDF4;
+  border: 1px solid #22C55E;
+  color: #DCFCE7;
 }
 .dark .toast-error {
-  background: #7F1D1D;
-  border: 1.5px solid #F87171;
-  color: #FFF1F2;
+  background: #991B1B;
+  border: 1px solid #EF4444;
+  color: #FEE2E2;
 }
 .dark .toast-info {
-  background: #1E3A8A;
-  border: 1.5px solid #3B82F6;
-  color: #EFF6FF;
+  background: #172A46;
+  border: 1px solid #2563EB;
+  color: #60A5FA;
 }
 
 /* ============================================================
    KPI / DASHBOARD
+   Compact cards, 20-24px numbers, restrained teal accents.
    ============================================================ */
-.kpi-row { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+.kpi-row { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
 .kpi-card {
   background: var(--bg-surface); border-radius: var(--radius-lg);
-  padding: 20px; min-width: 140px; text-align: center;
-  border: 1px solid var(--border); box-shadow: var(--shadow-sm); flex: 1;
+  padding: 14px 16px; min-width: 140px; text-align: left;
+  border: 1px solid var(--border); box-shadow: none; flex: 1;
 }
-.kpi-card-wide { flex: 2; min-width: 260px; text-align: left; }
-.kpi-value { font-size: 2rem; font-weight: 700; color: var(--accent); }
-.kpi-label { font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px; }
-.kpi-top-list { margin: 8px 0 0; padding-left: 20px; font-size: 0.9rem; }
+.kpi-card-wide { flex: 2; min-width: 240px; text-align: left; }
+.kpi-value { font-size: 22px; font-weight: 700; color: var(--accent); line-height: 1.2; }
+.kpi-label { font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-top: 4px; }
+.kpi-top-list { margin: 8px 0 0; padding-left: 20px; font-size: 0.88rem; }
 .audit-details {
   font-family: monospace; font-size: 0.78rem; color: var(--text-secondary);
   max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -1015,7 +1197,7 @@ input::-ms-clear {
 }
 .rte-btn:hover { background: var(--bg-surface); border-color: var(--border); color: var(--brand); }
 .rte-btn:active { background: var(--brand-light); }
-.rte-btn-active { background: var(--brand-light); border-color: #BFDBFE; color: var(--brand); }
+.rte-btn-active { background: var(--brand-light); border-color: var(--brand); color: var(--brand); }
 .rte-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .rte-select {
   padding: 5px 6px; border-radius: var(--radius-sm); border: 1px solid var(--border);
@@ -1048,7 +1230,7 @@ input::-ms-clear {
   border: 1px solid var(--border);
   color: #1a1a2e !important;
   background: #ffffff !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: none;
   font-family: 'Noto Sans', 'Noto Sans Arabic', 'Noto Naskh Arabic', 'Amiri', 'Segoe UI', 'Tahoma',
     'Noto Sans Ethiopic', 'Nyala', 'Ebrima', 'Abyssinica SIL',
     'Noto Sans SC', 'Noto Sans TC', 'Microsoft YaHei', 'PingFang SC', 'SimSun',
@@ -1061,8 +1243,8 @@ input::-ms-clear {
 .rte-content [dir="rtl"], .rte-content :dir(rtl) { direction: rtl; text-align: right; }
 .rte-content:focus {
   background: #ffffff !important;
-  border-color: var(--brand, #2563eb);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.15);
 }
 .dark .rte-content {
   background: #ffffff !important;
@@ -1128,7 +1310,7 @@ input::-ms-clear {
   padding: 1px 4px; border-radius: 4px; font-family: monospace;
 }
 .rte-image-wrap { min-width: 40px; min-height: 40px; }
-.rte-image-wrap:hover { border-color: #BFDBFE !important; }
+.rte-image-wrap:hover { border-color: var(--brand) !important; }
 
 /* RTE font-size mapping */
 .rte-content font[size="1"] { font-size: 10px; }
@@ -1254,7 +1436,7 @@ input::-ms-clear {
   white-space: nowrap; z-index: 0; pointer-events: none;
 }
 .a4-watermark-draft { color: rgba(15,23,42,0.15); }
-.a4-watermark-final { color: rgba(37,99,235,0.22); }
+.a4-watermark-final { color: rgba(15, 118, 110, 0.22); }
 .a4-content {
   position: relative; z-index: 1;
   font-family: 'Noto Sans', 'Noto Sans Arabic', 'Noto Naskh Arabic', 'Noto Sans Ethiopic',
@@ -1406,6 +1588,10 @@ input::-ms-clear {
   transition: border-color 0.15s;
 }
 .doc-template-card:hover { border-color: var(--border-strong); }
+.doc-template-card.doc-template-card-selected {
+  border-color: var(--brand) !important;
+  background: var(--brand-light);
+}
 /* Standardized .tpl-action-btn rules are managed in the global button system above */
 
 /* ============================================================
@@ -1437,7 +1623,7 @@ input::-ms-clear {
    ============================================================ */
 .sidebar-user-menu {
   position: relative; z-index: 100; flex-shrink: 0; margin-top: 8px; padding-top: 8px;
-  border-top: 1px solid var(--border);
+  border-top: none;
 }
 .sidebar-user-trigger {
   width: 100%; display: flex; align-items: center; gap: 8px;
@@ -1489,8 +1675,58 @@ input::-ms-clear {
 .sidebar-user-dropdown-item:disabled { opacity: 0.6; cursor: not-allowed; }
 .sidebar-user-dropdown-item-icon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--text-secondary); }
 .sidebar-user-dropdown-item-danger { color: var(--error-text); border-top: 1px solid var(--border); margin-top: 4px; }
-.sidebar-user-dropdown-item-danger:hover { background: var(--error-bg) !important; }
 .sidebar-user-dropdown-item-danger .sidebar-user-dropdown-item-icon { color: var(--error-text); }
+
+.sidebar-user-logout-btn {
+  font-family: 'Edu QLD Beginner', 'Edu AU VIC WA NT Hand', cursive, sans-serif !important;
+}
+.dark .sidebar-user-logout-btn {
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: #F87171 !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+.dark .sidebar-user-logout-btn:hover {
+  background: rgba(239, 68, 68, 0.22) !important;
+  border-color: rgba(239, 68, 68, 0.5) !important;
+}
+
+/* Sidebar profile panel — remove scroll bar */
+.sidebar-profile-panel {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+.sidebar-profile-panel::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Navbar logout button at far corner beside notification icon */
+.navbar-logout-btn {
+  color: #DC2626 !important;
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 50% !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  transition: background-color 0.15s, color 0.15s !important;
+}
+.navbar-logout-btn:hover {
+  background-color: rgba(239, 68, 68, 0.08) !important;
+  color: #B91C1C !important;
+}
+.dark .navbar-logout-btn {
+  color: #EF4444 !important;
+}
+.dark .navbar-logout-btn:hover {
+  background-color: rgba(239, 68, 68, 0.16) !important;
+  color: #F87171 !important;
+}
 
 /* ============================================================
    PROFILE MODAL (photo / password flyout)
@@ -1605,29 +1841,29 @@ input::-ms-clear {
 .notif-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-right: 6px; flex-shrink: 0; }
 .notif-empty { padding: 24px 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
 
-/* Dark mode notification dropdown — sharp, high-contrast midnight navy */
+/* Dark mode notification dropdown — sharp enterprise dark surfaces */
 .dark .notif-dropdown {
-  background: #141b2d;
-  border: 1px solid #1e293b;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  background: #151E2B;
+  border: 1px solid #223044;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
 }
 .dark .notif-item {
-  color: #f1f5f9;
-  border-bottom-color: #1e293b;
+  color: #F1F5F9;
+  border-bottom-color: #223044;
   background: transparent;
 }
-.dark .notif-item:hover { background: #1a233a; }
+.dark .notif-item:hover { background: #1A2536; }
 .dark .notif-item-read {
   opacity: 0.65;
-  color: #94a3b8;
+  color: #94A3B8;
 }
-.dark .notif-item-read:hover { background: #141b2d; opacity: 0.85; }
-.dark .notif-empty { color: #64748b; }
-.dark .notif-dot { background: #2563eb; }
-.dark .notif-badge { border-color: #0b1121; }
+.dark .notif-item-read:hover { background: #1A2536; opacity: 0.85; }
+.dark .notif-empty { color: #64748B; }
+.dark .notif-dot { background: #2563EB; }
+.dark .notif-badge { border-color: #151E2B; }
 /* Notification header row if present */
 .dark .notif-dropdown h4, .dark .notif-dropdown h3 {
-  color: #f1f5f9;
+  color: #F1F5F9;
   font-weight: 700;
 }
 .notif-doc-frame { width: 100%; height: 78vh; border: none; display: block; }
@@ -1728,9 +1964,7 @@ input::-ms-clear {
 .dark input::placeholder,
 .dark textarea::placeholder { color: var(--text-muted); }
 
-/* RTE content is always white-background regardless of theme — never override
-   heading or text color inside it since that breaks the "author sees exactly
-   what the PDF will look like" guarantee */
+/* RTE content is always white-background regardless of theme */
 .dark .rte-content { background: #ffffff !important; color: #1a1a2e !important; }
 .dark .rte-content h1,
 .dark .rte-content h2,
@@ -1738,10 +1972,8 @@ input::-ms-clear {
 .dark .rte-content h4,
 .dark .rte-content h5,
 .dark .rte-content h6 {
-  /* Inside the editor these headings are document content on white paper —
-     keep the dark, document-appropriate color, not the app's light --text-primary */
   color: #1a1a2e;
-  font-weight: 700;   /* ensure bold is never visually faded */
+  font-weight: 700;
 }
 .dark .rte-content b,
 .dark .rte-content strong {
@@ -1750,46 +1982,75 @@ input::-ms-clear {
 }
 /* Toolbar in dark mode */
 .dark .rte-toolbar {
-  background: #0F172A;
-  border-bottom-color: #1E293B;
+  background: #151E2B;
+  border-bottom-color: #223044;
 }
 .dark .rte-btn { color: #94A3B8; }
-.dark .rte-btn:hover { background: #1E293B; border-color: #334155; color: #FFFFFF; }
-.dark .rte-btn-active { background: #1E293B; border-color: #2563EB; color: #60A5FA; }
+.dark .rte-btn:hover { background: #1A2536; border-color: #334155; color: #FFFFFF; }
+.dark .rte-btn-active { background: #172A46; border-color: #2563EB; color: #60A5FA; }
 .dark .rte-select {
-  background: #1E293B;
-  border-color: #334155;
+  background: #1A2536;
+  border-color: #223044;
   color: #FFFFFF;
 }
-.dark .rte-divider { background: #334155; }
-.dark .rte-color-swatch { border-color: #334155; }
+.dark .rte-divider { background: #223044; }
+.dark .rte-color-swatch { border-color: #223044; }
 .dark .rte-color-swatch-icon { color: #FFFFFF; }
 
 /* ── Workflow section (TemplateForm) — dark mode visibility ── */
-/* The workflow section uses inline styles via React, but the toggle and
-   descriptive text need the container's var() tokens to resolve correctly */
 .dark [role="switch"] {
-  /* Ensure the toggle track background variable resolves correctly in dark */
   outline-offset: 2px;
 }
-/* Ensure workflow section borders use the dark border token */
 .dark .workflow-section-border {
   border-color: var(--border) !important;
 }
 
-/* Dark sidebar & navbar: unified seamless color with the page (#0b1121), borderless */
+/* Dark sidebar & navbar: completely unified #0B1118 surfaces, zero lines or borders */
 .dark .sidebar {
-  background: #0b1121;
+  background: #0B1118 !important;
+  border: none !important;
   border-right: none !important;
+  box-shadow: none !important;
+}
+.dark .sidebar-brand {
+  border-bottom: none !important;
+  color: #F1F5F9;
+}
+.dark .sidebar-brand-text {
+  color: #F1F5F9;
+}
+.dark .sidebar-link {
+  color: var(--sidebar-text);
+}
+.dark .sidebar-link:hover {
+  background: var(--sidebar-hover);
+  color: #FFFFFF;
+}
+.dark .sidebar-link.active {
+  background: var(--sidebar-active) !important;
+  color: var(--sidebar-active-text) !important;
+}
+.dark .sidebar-link.active svg {
+  color: var(--sidebar-active-text) !important;
+  stroke: var(--sidebar-active-text) !important;
+}
+.dark .sidebar-section-label {
+  color: var(--text-muted);
 }
 .dark .sidebar-user-menu {
   border-top: none !important;
 }
 .dark .navbar {
-  background: #0b1121;
+  background: #0B1118 !important;
+  border: none !important;
   border-bottom: none !important;
+  box-shadow: none !important;
 }
-/* Cards, sections, panels in dark mode — borderless clean surfaces */
+.dark .app-main {
+  background: #0B1118 !important;
+  border: none !important;
+}
+/* Cards, sections, panels in dark mode — matching Meditech dark surfaces with thin borders */
 .dark .doc-card,
 .dark .template-card,
 .dark .user-management-card,
@@ -1801,12 +2062,12 @@ input::-ms-clear {
 .dark .wf-section,
 .dark .modal-panel,
 .dark .confirm-modal-panel {
-  background: #141b2d;
-  border: none !important;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong, var(--border)) !important;
+  box-shadow: none;
 }
 .dark .doc-track-template-header {
-  border-bottom: none !important;
+  border-bottom: 1px solid var(--border) !important;
 }
 .dark .doc-track-stats {
   background: transparent !important;
@@ -1817,46 +2078,57 @@ input::-ms-clear {
   border: none !important;
 }
 .dark .doc-delivery {
-  border-top: none !important;
+  border-top: 1px solid var(--border) !important;
 }
 .dark .template-table,
 .dark .template-list-table,
 .dark .user-management-table,
 .dark .bulk-validation-table {
-  border: none !important;
+  border: 1px solid var(--border) !important;
 }
 .dark .template-table th,
 .dark .template-list-table th,
 .dark .user-management-table th,
 .dark .bulk-validation-table th {
-  background: #101728;
-  border-bottom: none !important;
-  color: #94A3B8;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border) !important;
+  color: var(--text-secondary);
 }
 .dark .template-table td,
 .dark .template-list-table td,
 .dark .user-management-table td,
 .dark .bulk-validation-table td {
-  border-top: 1px solid rgba(255,255,255,0.03) !important;
-  background: #141b2d;
+  border-top: 1px solid var(--border) !important;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+.dark .user-management-card {
+  background: var(--bg-surface);
+  border: none !important;
+  box-shadow: none;
+}
+.dark .user-management-table {
+  border: none !important;
 }
 .dark .user-management-toolbar {
   border-bottom: none !important;
+  background: transparent;
 }
 .dark .user-management-search {
-  border: 1px solid #1e293b;
-  background: #0b1121;
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
 }
 .dark .modal-header {
-  border-bottom: none !important;
+  border-bottom: 1px solid var(--border) !important;
+  background: var(--bg-surface);
 }
 .dark .btn-secondary {
-  border-color: var(--border) !important;
-  background: #182238;
-  color: #FFFFFF;
+  border-color: #475569 !important;
+  background: #334155;
+  color: #E2E8F0;
 }
 .dark .btn-secondary:hover:not(:disabled) {
-  background: #1e293b;
+  background: #475569;
 }
 
 /* ── Dark mode: surface transition for smooth theme switching ── */
