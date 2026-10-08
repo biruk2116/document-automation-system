@@ -600,13 +600,13 @@ async function applyApproval(sigReq) {
   const approver = approverRows[0];
 
   const { timestamp } = await getSyncedTime(); // FR-026
-  const visualSignatureText = `document is digitally signed by ${approver.full_name} Digitally Approved by ${approver.full_name} on ${timestamp.toISOString()}`;
+  const visualSignatureText = `Digitally Approved by ${approver.full_name} on ${timestamp.toISOString()}`;
 
   const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
   let pieces = meta.renderPieces || {};
 
   // 1. Keep the visual digital approval banner in doc metadata / footer
-  const signatureHtml = `<p class="visual-signature" style="margin-top:10px;font-style:italic;">${visualSignatureText}</p>`;
+  const signatureHtml = `<p class="visual-signature" style="margin-top:10px;font-style:italic;"><em>${visualSignatureText}</em></p>`;
   pieces.signatureHtml = signatureHtml;
   pieces.visualSignatureText = visualSignatureText;
   pieces.approverName = approver.full_name;
