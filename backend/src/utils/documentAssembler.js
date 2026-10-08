@@ -5,6 +5,7 @@
 const pageSpec = require('../../../frontend/src/shared/documentPageSpec.json');
 const path = require('path');
 const fs = require('fs');
+const { formatGregorianDate, formatEthiopianDate } = require('./ethiopianCalendar');
 
 /**
  * Inlines /uploads/logos/... and /uploads/avatars/... images as base64 data URLs
@@ -44,11 +45,52 @@ function ensureAutoBidi(html) {
  * FR-017: watermark (DRAFT/CONFIDENTIAL/FINAL) rendered as a diagonal overlay.
  * FR-014: Full multilingual support for Amharic, Arabic, Chinese, and Latin scripts.
  */
-function assembleDocumentHtml({ headerHtml, bodyHtml, footerHtml, tamperProofFooterHtml, deliveryVerificationQrHtml, watermarkText, signatureHtml }) {
+function assembleDocumentHtml({
+  headerHtml,
+  bodyHtml,
+  footerHtml,
+  tamperProofFooterHtml,
+  deliveryVerificationQrHtml,
+  watermarkText,
+  signatureHtml,
+  generatedDateHtml,
+  generationDateGc,
+  generationDateEc,
+}) {
   // Strip editor-only elements (remove buttons, etc.) before assembling the final PDF,
   // inline storage images as base64 data URLs, and ensure auto-bidi on block tags.
+  let cleanBodyRaw = stripEditorOnlyElements(bodyHtml || '');
+
+  // Extract and remove any embedded date block from bodyHtml (handles legacy templates/concatenations)
+  let extractedDateHtml = '';
+  const dateDivRegex = /<div\s+class=["'](?:document-dates|doc-generated-date)["'][^>]*>([\s\S]*?)<\/div>/gi;
+  const dateMatch = dateDivRegex.exec(cleanBodyRaw);
+  if (dateMatch) {
+    extractedDateHtml = dateMatch[0];
+    cleanBodyRaw = cleanBodyRaw.replace(dateDivRegex, '');
+  }
+
+  // Determine final Generated Date string
+  let finalGeneratedDateHtml = '';
+  if (generatedDateHtml && typeof generatedDateHtml === 'string' && generatedDateHtml.trim()) {
+    finalGeneratedDateHtml = generatedDateHtml.trim();
+  } else if (extractedDateHtml) {
+    finalGeneratedDateHtml = extractedDateHtml.trim();
+  } else {
+    const gc = generationDateGc || formatGregorianDate(new Date());
+    const ec = generationDateEc || formatEthiopianDate(new Date());
+    finalGeneratedDateHtml = `<div class="doc-generated-date"><em><strong>Generated Date:</strong> ${escapeHtml(gc)} &nbsp;/&nbsp; ${escapeHtml(ec)}</em></div>`;
+  }
+
+  // Normalize finalGeneratedDateHtml: wrap in .doc-generated-date and <em> if missing
+  if (!finalGeneratedDateHtml.includes('doc-generated-date')) {
+    finalGeneratedDateHtml = `<div class="doc-generated-date"><em>${finalGeneratedDateHtml}</em></div>`;
+  } else if (!finalGeneratedDateHtml.includes('<em>')) {
+    finalGeneratedDateHtml = finalGeneratedDateHtml.replace(/<div\s+class=["']doc-generated-date["'][^>]*>([\s\S]*?)<\/div>/i, '<div class="doc-generated-date"><em>$1</em></div>');
+  }
+
   const cleanHeaderHtml = ensureAutoBidi(inlineStorageImages(stripEditorOnlyElements(headerHtml || '')));
-  const cleanBodyHtml = ensureAutoBidi(inlineStorageImages(stripEditorOnlyElements(bodyHtml || '')));
+  const cleanBodyHtml = ensureAutoBidi(inlineStorageImages(cleanBodyRaw));
   const cleanFooterHtml = ensureAutoBidi(inlineStorageImages(stripEditorOnlyElements(footerHtml || '')));
   
   // FR-017 color coding: DRAFT stays red (unapproved/in-progress), FINAL is green
@@ -75,11 +117,22 @@ function assembleDocumentHtml({ headerHtml, bodyHtml, footerHtml, tamperProofFoo
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&family=Noto+Sans+Ethiopic:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
 <style>
-  /* Uniform on all 4 sides, sourced from pageSpec — kept in sync with the .page rule
-     below even though page.pdf() currently passes its own margin:0 and overrides this
-     (see pdfGenerator.js), so this stays correct as a fallback for any other renderer
-     (e.g. a direct browser "Print" of this HTML) instead of silently going stale. */
-  @page { size: A4; margin: ${pageSpec.pagePaddingMm}mm; }
+  /* Standard Microsoft Word-style A4 paper margins on all four sides */
+  @page {
+    size: A4;
+    margin: ${pageSpec.pagePaddingMm || 20}mm;
+  }
+
+  *, *:before, *:after {
+    box-sizing: border-box;
+  }
+
+  html {
+    font-size: 11pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   /*
    * Multilingual typography support:
    * 1. Google Web Fonts: Noto Sans Ethiopic, Noto Sans Arabic, Noto Sans SC/TC, Amiri.
@@ -89,10 +142,12 @@ function assembleDocumentHtml({ headerHtml, bodyHtml, footerHtml, tamperProofFoo
    *    PingFang SC & Hiragino Sans GB (Chinese).
    * 4. Linux native fallbacks: Noto Sans Ethiopic, Abyssinica SIL, Noto Sans Arabic,
    *    WenQuanYi Zen Hei & WenQuanYi Micro Hei.
-   * Chromium walks the stack left-to-right per character, guaranteeing crisp glyph rendering
-   * across all platforms without tofu boxes (□□□) or blank gaps.
    */
   body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    box-sizing: border-box;
     font-family: 'Noto Sans',
       /* Arabic fonts */
       'Noto Sans Arabic', 'Noto Naskh Arabic', 'Amiri', 'Segoe UI', 'Tahoma', 'Traditional Arabic', 'Arabic Typesetting', 'Geeza Pro', 'Damascus',
@@ -102,15 +157,16 @@ function assembleDocumentHtml({ headerHtml, bodyHtml, footerHtml, tamperProofFoo
       'Noto Sans SC', 'Noto Sans TC', 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'Hiragino Sans GB', 'SimSun', '宋体', 'SimHei', '黑体', 'WenQuanYi Zen Hei', 'WenQuanYi Micro Hei',
       /* Additional scripts */
       'Noto Sans Hebrew', 'Noto Sans Devanagari', 'Noto Sans JP', 'Noto Sans KR',
-      Arial, sans-serif;
+      'Times New Roman', Calibri, Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.5;
     color: #1a1a2e;
-    position: relative;
-    margin: 0;
-    line-height: 1.6;
+    background: #ffffff;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     unicode-bidi: plaintext;
   }
+
   /* BiDi & RTL Support: Auto text direction and alignment */
   p, h1, h2, h3, h4, h5, h6, li, td, th, blockquote, div {
     unicode-bidi: plaintext;
@@ -124,45 +180,188 @@ function assembleDocumentHtml({ headerHtml, bodyHtml, footerHtml, tamperProofFoo
     direction: rtl;
     text-align: right;
   }
-  .page {
-    width: 210mm;
-    min-height: 297mm;
-    /* Uniform on all 4 sides — matches TemplateViewer.jsx's .a4-page padding exactly
-       (same pageSpec.json), so the PDF's margins are identical, corner for corner, to
-       what was reviewed on the View page. */
-    padding: ${pageSpec.pagePaddingMm}mm;
+
+  /* Formal Word-style printable page container: fills printable area naturally without artificial clipping */
+  .doc-container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
     box-sizing: border-box;
     position: relative;
-    background: #fff;
+    background: #ffffff;
   }
-  /* No margin/min-height/font overrides here — the preview concatenates header + body
-     + footer flush against each other with no extra spacing or restyling (see
-     combinedHtml in documentController.js), so this must not add any either. */
-  .doc-header { margin-bottom: 0; }
-  .doc-body { min-height: 0; }
-  .doc-footer { margin-top: 0; }
-  /* Verification stamp only (signature + tamper-proof footer) — this never appears in
-     the preview at all, so unlike .doc-footer it's free to have its own distinct,
-     deliberately small/gray "stamp" styling without affecting the author's own footer
-     content above it. */
-  .doc-footer-meta { margin-top: 24px; font-size: 11px; color: #444; }
-  /* Two-QR footer row: left QR = verify by Doc ID, right QR = scan for VALID/REVOKED.
-     Both sit inside .doc-footer-meta so they share the same border-top stamp styling.
-     Always kept LTR so technical QR stamps don't invert in RTL Arabic layouts. */
+
+  /* Typography: Microsoft Word Standards */
+  h1 {
+    font-size: 18pt;
+    font-weight: 700;
+    line-height: 1.25;
+    margin: 14pt 0 6pt 0;
+    color: #0f172a;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+  h2 {
+    font-size: 14pt;
+    font-weight: 700;
+    line-height: 1.3;
+    margin: 12pt 0 5pt 0;
+    color: #1e293b;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+  h3 {
+    font-size: 12pt;
+    font-weight: 600;
+    line-height: 1.35;
+    margin: 10pt 0 4pt 0;
+    color: #334155;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+  h4, h5, h6 {
+    font-size: 11pt;
+    font-weight: 600;
+    margin: 8pt 0 4pt 0;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  p {
+    margin: 0 0 8pt 0;
+    line-height: 1.5;
+    orphans: 2;
+    widows: 2;
+  }
+
+  ul, ol {
+    margin: 0 0 8pt 0;
+    padding-left: 24pt;
+  }
+  li {
+    margin-bottom: 3pt;
+    line-height: 1.5;
+  }
+
+  blockquote {
+    margin: 8pt 0;
+    padding: 4pt 14pt;
+    border-left: 3pt solid #2563eb;
+    color: #475569;
+    background: #f8fafc;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid #cbd5e1;
+    margin: 12pt 0;
+  }
+
+  /* Tables: Formal Word document layout with clean borders */
+  table:not(.signature-table) {
+    width: 100%;
+    max-width: 100%;
+    border-collapse: collapse;
+    margin: 10pt 0;
+    table-layout: auto;
+    page-break-inside: auto;
+    break-inside: auto;
+  }
+  table:not(.signature-table) tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  table:not(.signature-table) th,
+  table:not(.signature-table) td {
+    border: 1px solid #cbd5e1;
+    padding: 6pt 8pt;
+    word-break: break-word;
+    vertical-align: top;
+  }
+  table:not(.signature-table) th {
+    background-color: #f8fafc;
+    font-weight: 600;
+    text-align: start;
+    color: #0f172a;
+  }
+
+  /* Images: Constrained to printable area */
+  img {
+    max-width: 100%;
+    height: auto;
+    page-break-inside: avoid;
+  }
+
+  /* Page Break utilities */
+  .page-break,
+  [style*="page-break-after: always"],
+  [style*="break-after: page"] {
+    page-break-after: always !important;
+    break-after: page !important;
+    height: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+  }
+
+  /* Header, Body, Footer Sections */
+  .doc-header {
+    margin-bottom: 12pt;
+    position: relative;
+    z-index: 1;
+  }
+  .doc-body {
+    min-height: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .doc-footer {
+    margin-top: 14pt;
+    position: relative;
+    z-index: 1;
+  }
+  /* Footer Metadata Section: strictly on final page only, avoids page break */
+  .doc-footer-meta {
+    margin-top: 14pt;
+    font-size: 8.5pt;
+    color: #475569;
+    position: relative;
+    z-index: 1;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  /* Generated Date: directly above QR code on final page with small professional spacing */
+  .doc-generated-date {
+    font-size: 8.5pt;
+    font-style: italic !important;
+    color: #475569;
+    margin: 8pt 0 4pt 0;
+    line-height: 1.4;
+    text-align: left;
+    direction: ltr !important;
+  }
+  .doc-generated-date em,
+  .doc-generated-date strong,
+  .doc-generated-date p,
+  .doc-generated-date span {
+    font-style: italic !important;
+  }
   .qr-footer-row {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
-    margin-top: 12px;
-    border-top: 1px solid #ccc;
-    padding-top: 8px;
-    font-size: 9px;
-    color: #555;
+    margin-top: 6pt;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 6pt;
+    font-size: 8pt;
+    color: #64748b;
     direction: ltr !important;
   }
-  .qr-footer-left  { display:flex; align-items:center; gap:6px; direction: ltr !important; }
-  .qr-footer-right { display:flex; align-items:center; gap:6px; direction: ltr !important; }
+  .qr-footer-left  { display: flex; align-items: center; gap: 6px; direction: ltr !important; }
+  .qr-footer-right { display: flex; align-items: center; gap: 6px; direction: ltr !important; }
+
+  /* Watermark Overlay */
   .watermark-overlay {
     position: fixed;
     top: 45%;
@@ -170,65 +369,49 @@ function assembleDocumentHtml({ headerHtml, bodyHtml, footerHtml, tamperProofFoo
     transform: translate(-50%, -50%) rotate(-35deg);
     font-size: 72px;
     font-weight: 700;
-    color: rgba(220, 38, 38, 0.18);
     letter-spacing: 4px;
     z-index: 0;
     pointer-events: none;
     white-space: nowrap;
   }
-  /* FR-017: DRAFT (unapproved) is always red; FINAL (approved) is always green — kept
-     visually distinct on purpose so the two are never mistaken for each other. */
-  .watermark-overlay.watermark-draft { color: rgba(220, 38, 38, 0.18); }
-  .watermark-overlay.watermark-final { color: rgba(22, 163, 74, 0.20); }
-  .doc-header, .doc-body, .doc-footer, .doc-footer-meta { position: relative; z-index: 1; }
-  /* Font size mapping — matches the editor's FONT_SIZE_OPTIONS exactly, so what admins see while
-     authoring in RichTextEditor.jsx is what actually renders in the generated PDF. */
-  font[size="1"] { font-size: 10px; }
-  font[size="2"] { font-size: 13px; }
-  font[size="3"] { font-size: 16px; }
-  font[size="4"] { font-size: 18px; }
-  font[size="5"] { font-size: 24px; }
-  font[size="6"] { font-size: 32px; }
-  /* Prevent signature blocks, tables, and footer metadata from breaking across pages */
-  .signature-block, .signature-container, .visual-signature, [data-sig-field-id], .doc-footer-meta, .qr-footer-row, table.signature-table, table.signature-table tr, table.signature-table td {
+  .watermark-overlay.watermark-draft { color: rgba(220, 38, 38, 0.16); }
+  .watermark-overlay.watermark-final { color: rgba(22, 163, 74, 0.18); }
+
+  /* Font size mappings matching editor toolbar */
+  font[size="1"] { font-size: 8pt; }
+  font[size="2"] { font-size: 10pt; }
+  font[size="3"] { font-size: 11pt; }
+  font[size="4"] { font-size: 14pt; }
+  font[size="5"] { font-size: 18pt; }
+  font[size="6"] { font-size: 24pt; }
+  font[size="7"] { font-size: 36pt; }
+
+  /* Signatures */
+  .signature-block, .signature-container, .visual-signature, [data-sig-field-id],
+  table.signature-table, table.signature-table tr, table.signature-table td {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
   .visual-signature {
     font-style: italic !important;
-    font-size: 11px !important;
+    font-size: 10pt !important;
     color: #334155 !important;
-    margin: 8px 0 !important;
-    line-height: 1.5 !important;
+    margin: 6pt 0 !important;
+    line-height: 1.4 !important;
   }
-  table:not(.signature-table) {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 12px 0;
-  }
-  table:not(.signature-table) th,
-  table:not(.signature-table) td {
-    border: 1px solid #cbd5e1;
-    padding: 8px 10px;
-    word-break: break-word;
-  }
-  table:not(.signature-table) th {
-    background-color: #f1f5f9;
-    font-weight: 600;
-    text-align: start;
-  }
-  /* Conditional/loop block markers are authoring-time visual aids only — never shown in the final PDF. */
+
   .rte-block-marker { display: none; }
 </style>
 </head>
 <body>
-  <div class="page">
+  <div class="doc-container">
     ${watermarkBlock}
     <div class="doc-header" dir="auto">${cleanHeaderHtml}</div>
     <div class="doc-body" dir="auto">${cleanBodyHtml}</div>
     <div class="doc-footer" dir="auto">${cleanFooterHtml}</div>
     <div class="doc-footer-meta">
       ${signatureHtml || ''}
+      ${finalGeneratedDateHtml}
       <div class="qr-footer-row">
         <div class="qr-footer-left">${tamperProofFooterHtml || ''}</div>
         <div class="qr-footer-right">${deliveryVerificationQrHtml || ''}</div>
