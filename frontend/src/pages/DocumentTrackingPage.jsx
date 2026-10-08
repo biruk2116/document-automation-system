@@ -85,6 +85,26 @@ function IconSpinner({ size = 20 }) {
     </svg>
   );
 }
+
+function IconExternalLink({ size = 14, color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+      <polyline points="15 3 21 3 21 9" />
+      <line x1="10" y1="14" x2="21" y2="3" />
+    </svg>
+  );
+}
+
+function IconDownload({ size = 14, color = 'currentColor' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  );
+}
 // ─────────────────────────────────────────────────────────────────────────────
 
 const STATUS_FILTER_OPTIONS = [
@@ -138,6 +158,54 @@ export default function DocumentTrackingPage() {
   const [approverModalDoc, setApproverModalDoc] = useState(null);
   const [secureDeliveryModalDoc, setSecureDeliveryModalDoc] = useState(null);
   const [ownershipRejectionBanner, setOwnershipRejectionBanner] = useState(null);
+  const [viewerModalDoc, setViewerModalDoc] = useState(null);
+
+  const handleOpenViewer = async (doc) => {
+    if (viewerModalDoc?.url) {
+      URL.revokeObjectURL(viewerModalDoc.url);
+    }
+    setViewerModalDoc({
+      id: doc.id,
+      doc,
+      url: null,
+      loading: true,
+      error: null,
+    });
+    try {
+      const url = await documentService.viewUrl(doc.id);
+      setViewerModalDoc({
+        id: doc.id,
+        doc,
+        url,
+        loading: false,
+        error: null,
+      });
+    } catch (err) {
+      setViewerModalDoc({
+        id: doc.id,
+        doc,
+        url: null,
+        loading: false,
+        error: err.message || 'Failed to open the document.',
+      });
+    }
+  };
+
+  const handleCloseViewer = () => {
+    if (viewerModalDoc?.url) {
+      URL.revokeObjectURL(viewerModalDoc.url);
+    }
+    setViewerModalDoc(null);
+  };
+
+  useEffect(() => {
+    if (!viewerModalDoc) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') handleCloseViewer();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [viewerModalDoc]);
 
   const loadMyDocs = () => {
     if (!user) return;
@@ -211,7 +279,7 @@ export default function DocumentTrackingPage() {
 
   useEffect(() => {
     if (!pendingAction || !highlightDocId) return;
-    if (pendingAction !== 'edit_resubmit' && pendingAction !== 'view_rejection' && pendingAction !== 'view_workflow') return;
+    if (pendingAction !== 'edit_resubmit' && pendingAction !== 'view_rejection' && pendingAction !== 'view_workflow' && pendingAction !== 'view') return;
     if (loadingDocs) return;
     const target = myDocs.find((d) => String(d.id) === String(highlightDocId));
     if (!target) return;
@@ -221,6 +289,11 @@ export default function DocumentTrackingPage() {
       next.delete('action');
       return next;
     }, { replace: true });
+
+    if (pendingAction === 'view') {
+      handleOpenViewer(target);
+      return;
+    }
 
     if (pendingAction === 'view_workflow') {
       navigate(`/workflow-result?doc=${encodeURIComponent(highlightDocId)}`);
@@ -477,11 +550,21 @@ export default function DocumentTrackingPage() {
                       ? ownershipRejectionBanner
                       : null
                   }
+                  onView={handleOpenViewer}
                 />
               ))}
             </div>
           )}
         </div>
+
+        {viewerModalDoc && (
+          <DocumentViewerModal
+            viewerState={viewerModalDoc}
+            onClose={handleCloseViewer}
+            onDownload={(d) => documentService.download(d.id).catch((err) => showToast(err.message || 'Failed to download.', 'error'))}
+            onRetry={handleOpenViewer}
+          />
+        )}
 
         {approverModalDoc && (
           <ApproverSelectModal
@@ -542,10 +625,10 @@ function DocumentCard({
   onChanged,
   onEditResubmit,
   ownershipRejectionBanner,
+  onView,
 }) {
   const { showToast } = useToast();
   const cardRef = useRef(null);
-  const [viewingDoc, setViewingDoc] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [markingDelivered, setMarkingDelivered] = useState(false);
   const [sendingDocument, setSendingDocument] = useState(false);
@@ -570,15 +653,9 @@ function DocumentCard({
   const isAssignedApprover = doc.status === 'pending' && doc.approver_id === user?.id;
   const canDelete = !isDeleted && (isOwner || isAdmin || isAssignedApprover);
 
-  const handleView = async () => {
-    setViewingDoc(true);
-    try {
-      const url = await documentService.viewUrl(doc.id);
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } catch (err) {
-      showToast(err.message || 'Failed to open the document.', 'error');
-    } finally {
-      setViewingDoc(false);
+  const handleView = () => {
+    if (onView) {
+      onView(doc);
     }
   };
 
@@ -724,10 +801,10 @@ function DocumentCard({
         <button
           type="button"
           onClick={handleView}
-          disabled={viewingDoc}
           className="btn-doc-view"
+          title="View document"
         >
-          {viewingDoc ? 'Opening…' : 'View'}
+          View
         </button>
 
         <button
@@ -857,6 +934,96 @@ function DocumentCard({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function DocumentViewerModal({ viewerState, onClose, onDownload, onRetry }) {
+  if (!viewerState) return null;
+  const { doc, url, loading, error } = viewerState;
+
+  return (
+    <div className="doc-track-viewer-overlay" onClick={onClose} role="dialog" aria-modal="true">
+      <div className="doc-track-viewer-panel" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="doc-track-viewer-header">
+          <div className="doc-track-viewer-header-info">
+            <h3 className="doc-track-viewer-title">{doc.template_name || 'Document Preview'}</h3>
+            <span className="doc-track-viewer-code">{doc.doc_uuid}</span>
+            <DocBadge status={effectiveStatus(doc)} />
+          </div>
+          <div className="doc-track-viewer-header-actions">
+            {url && (
+              <button
+                type="button"
+                className="doc-track-viewer-action-btn"
+                onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+                title="Open in new browser tab"
+              >
+                <IconExternalLink size={14} />
+                <span>New Tab</span>
+              </button>
+            )}
+            <button
+              type="button"
+              className="doc-track-viewer-action-btn"
+              onClick={() => onDownload(doc)}
+              title="Download PDF"
+            >
+              <IconDownload size={14} />
+              <span>Download</span>
+            </button>
+            <button
+              type="button"
+              className="doc-track-viewer-close-btn"
+              onClick={onClose}
+              title="Close viewer"
+              aria-label="Close viewer"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        {/* Content Body */}
+        <div className="doc-track-viewer-body">
+          {loading && (
+            <div className="doc-track-viewer-loading-state">
+              <IconSpinner size={32} />
+              <span>Loading document preview…</span>
+            </div>
+          )}
+
+          {error && !loading && (
+            <div className="doc-track-viewer-error-state">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <p>{error}</p>
+              {onRetry && (
+                <button
+                  type="button"
+                  className="doc-track-viewer-action-btn"
+                  onClick={() => onRetry(doc)}
+                  style={{ marginTop: 8 }}
+                >
+                  Retry
+                </button>
+              )}
+            </div>
+          )}
+
+          {url && !loading && (
+            <iframe
+              src={url}
+              title={doc.template_name || 'Document Preview'}
+              className="doc-track-viewer-iframe"
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 }
