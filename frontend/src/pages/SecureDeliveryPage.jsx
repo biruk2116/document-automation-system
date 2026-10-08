@@ -67,8 +67,8 @@ function CheckCircleIcon({ size = 20, color = '#16A34A' }) {
 }
 
 function StepBadge({ n, active, done }) {
-  const bg  = done ? '#16A34A' : active ? '#2563EB' : '#E2E8F0';
-  const clr = done || active ? '#fff' : '#94A3B8';
+  const bg  = done ? 'var(--success, #15803D)' : active ? 'var(--brand, #0856C3)' : 'var(--border, #E2E8F0)';
+  const clr = done || active ? '#fff' : 'var(--text-muted, #94A3B8)';
   return (
     <div style={{
       width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
@@ -96,22 +96,22 @@ function Card({ children, style = {} }) {
 
 function ActionBtn({ onClick, disabled, loading, children, variant = 'primary', style = {} }) {
   const variants = {
-    primary:   { background: '#2563EB', color: '#fff', border: '1px solid #2563EB' },
-    success:   { background: '#16A34A', color: '#fff', border: '1px solid #16A34A' },
-    green:     { background: '#16A34A', color: '#fff', border: '1px solid #16A34A' },
-    danger:    { background: '#DC2626', color: '#fff', border: '1px solid #DC2626' },
+    primary:   { background: 'var(--brand, #0856C3)', color: '#fff', border: '1px solid var(--brand, #0856C3)' },
+    success:   { background: 'var(--success, #15803D)', color: '#fff', border: '1px solid var(--success, #15803D)' },
+    green:     { background: 'var(--success, #15803D)', color: '#fff', border: '1px solid var(--success, #15803D)' },
+    danger:    { background: 'var(--danger, #DC2626)', color: '#fff', border: '1px solid var(--danger, #DC2626)' },
     secondary: { background: 'var(--bg-surface, #fff)', color: 'var(--text-secondary, #334155)', border: '1px solid var(--border-strong, #CBD5E1)' },
-    indigo:    { background: '#2563EB', color: '#fff', border: '1px solid #2563EB' },
-    navy:      { background: '#2563EB', color: '#fff', border: '1px solid #2563EB' },
+    indigo:    { background: 'var(--brand, #0856C3)', color: '#fff', border: '1px solid var(--brand, #0856C3)' },
+    navy:      { background: 'var(--brand, #0856C3)', color: '#fff', border: '1px solid var(--brand, #0856C3)' },
   };
   return (
     <button type="button" onClick={onClick} disabled={disabled || loading}
       style={{
-        padding: '10px 20px', borderRadius: 8, fontWeight: 600, fontSize: '0.88rem',
+        padding: '0 14px', height: 34, borderRadius: 6, fontWeight: 600, fontSize: '0.82rem', width: 'fit-content',
         cursor: disabled ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.55 : 1, border: 'none', fontFamily: 'inherit',
         display: 'inline-flex', alignItems: 'center', gap: 7,
-        transition: 'opacity .15s',
+        transition: 'opacity .15s, background-color .15s',
         ...variants[variant],
         ...style,
       }}>
@@ -493,9 +493,9 @@ export default function SecureDeliveryPage() {
 
         {/* ── Header ── */}
         <div className="public-page-header">
-          <div className="public-page-header-brand">
+          <div className="public-page-header-brand font-handwriting" style={{ fontFamily: "'Edu QLD Beginner', 'Edu AU VIC WA NT Hand', cursive, sans-serif" }}>
             <img src={logo} alt="" style={{ width: 28, height: 28 }}/>
-            Document Automation
+            Document Automation System
           </div>
           <span className="public-page-header-meta">
             Secure delivery{docId ? ` · ${docId}` : ''}
@@ -610,7 +610,7 @@ export default function SecureDeliveryPage() {
                             width: 20, height: 20, borderRadius: '50%',
                             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                             fontSize: '0.68rem', fontWeight: 700,
-                            background: done ? 'var(--success-bg)' : active ? '#2563EB' : 'var(--bg-subtle)',
+                            background: done ? 'var(--success-bg)' : active ? 'var(--brand, #0856C3)' : 'var(--bg-subtle)',
                             color: done ? 'var(--success-text)' : active ? '#fff' : 'var(--text-muted)',
                             border: done ? '1px solid var(--success-border)' : '1px solid transparent',
                             flexShrink: 0,
@@ -899,7 +899,7 @@ export default function SecureDeliveryPage() {
                           <p style={{ margin: '0 0 8px', fontSize: '0.72rem', fontWeight: 700,
                             color: 'var(--brand-text)', textTransform: 'uppercase', letterSpacing: '0.06em',
                             display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2563EB"
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--brand, #0856C3)"
                               strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                               <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                             </svg>
@@ -915,7 +915,7 @@ export default function SecureDeliveryPage() {
                                     <div style={{ marginTop: 4, fontSize: '0.7rem', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>Name</div>
                                   </td>
                                   <td style={{ width: '62%', paddingLeft: 8, verticalAlign: 'bottom' }}>
-                                    <div style={{ border: '1.5px solid #2563EB', borderRadius: 4, minHeight: 36,
+                                    <div style={{ border: '1.5px solid var(--brand, #0856C3)', borderRadius: 4, minHeight: 36,
                                       padding: '4px 8px', background: 'var(--bg-subtle)',
                                       display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                       <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>
@@ -1118,11 +1118,11 @@ export default function SecureDeliveryPage() {
                               ) : (
                                 <label style={{
                                   display: 'inline-flex', alignItems: 'center', gap: 7,
-                                  padding: '10px 16px',
-                                  background: ownershipStatus !== 'CONFIRMED' ? '#F8FAFC' : 'rgba(37, 99, 235, 0.05)',
-                                  border: '1.5px dashed #2563EB', borderRadius: 8,
+                                  padding: '8px 14px',
+                                  background: ownershipStatus !== 'CONFIRMED' ? 'var(--bg-subtle, #F8FAFC)' : 'var(--brand-light, #EFF6FF)',
+                                  border: '1.5px dashed var(--brand, #0856C3)', borderRadius: 6,
                                   cursor: ownershipStatus !== 'CONFIRMED' ? 'not-allowed' : 'pointer',
-                                  fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent-text)',
+                                  fontSize: '0.82rem', fontWeight: 600, color: 'var(--brand, #0856C3)',
                                 }}>
                                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                     strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1185,8 +1185,8 @@ export default function SecureDeliveryPage() {
                       </div>
                       <blockquote style={{
                         margin: 0, padding: '10px 14px',
-                        borderLeft: '3px solid #2563EB', background: 'var(--bg-subtle, #F8FAFC)',
-                        borderRadius: '0 8px 8px 0', fontSize: '0.87rem', color: 'var(--text-primary)', fontStyle: 'italic',
+                        borderLeft: '3px solid var(--brand, #0856C3)', background: 'var(--bg-subtle, #F8FAFC)',
+                        borderRadius: '0 6px 6px 0', fontSize: '0.87rem', color: 'var(--text-primary)', fontStyle: 'italic',
                       }}>
                         "{wfResponse}"
                       </blockquote>
