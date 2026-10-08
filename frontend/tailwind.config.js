@@ -9,16 +9,22 @@ export default {
     extend: {
       colors: {
         brand: {
-          DEFAULT: '#2563EB', // Blue 600
-          dark: '#1D4ED8',    // Blue 700
-          light: '#EFF6FF',   // Blue 50
+          DEFAULT: '#0856C3', // Royal Blue
+          dark: '#06449E',    // Deep Royal Blue
+          light: '#EFF6FF',   // Royal Blue 50
+          sidebar: '#FFFFFF', // Full White Sidebar in light mode
         },
         navy: {
-          base: '#0b1121',
-          surface: '#141b2d',
-          raised: '#182238',
-          border: '#1e293b',
+          base: '#0B1118',    // Dark background (Meditech dark)
+          surface: '#151E2B', // Dark primary surface
+          raised: '#1A2536',  // Dark secondary surface
+          border: '#1E293B',  // Dark border
         },
+      },
+      fontFamily: {
+        sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+        handwriting: ['"Edu QLD Beginner"', '"Edu AU VIC WA NT Hand"', 'cursive', 'sans-serif'],
+        edu: ['"Edu QLD Beginner"', '"Edu AU VIC WA NT Hand"', 'cursive', 'sans-serif'],
       },
     },
   },
