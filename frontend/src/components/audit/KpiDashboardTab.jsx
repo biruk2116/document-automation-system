@@ -7,7 +7,7 @@ const STATUS_COLORS = {
   pending:   '#F59E0B', // amber   — awaiting action
   signed:    '#16A34A', // green   — approved/complete
   rejected:  '#EF4444', // red     — needs attention
-  delivered: '#2563EB', // blue    — sent to recipient
+  delivered: '#0856C3', // teal    — sent to recipient
 };
 
 const STATUS_LABELS = {
@@ -39,7 +39,7 @@ function BarChart({ daily }) {
           <g key={d.day}>
             <rect
               x={x} y={y} width={Math.max(barW, 2)} height={Math.max(barH, d.count > 0 ? 2 : 0)}
-              rx="3" fill="#2563EB"
+              rx="3" fill="#0856C3"
             >
               <title>{`${label}: ${d.count} document(s)`}</title>
             </rect>
@@ -152,7 +152,7 @@ export default function KpiDashboardTab() {
   return (
     <>
       <div className="ar-kpi-row">
-        <div className="ar-kpi-card ar-kpi-navy">
+        <div className="ar-kpi-card">
           <div className="ar-kpi-top">
             <span className="ar-kpi-label">Documents Generated Today</span>
           </div>
@@ -160,7 +160,7 @@ export default function KpiDashboardTab() {
           <span className="ar-kpi-sub">Live count, updated in real time</span>
         </div>
 
-        <div className="ar-kpi-card ar-kpi-slate">
+        <div className="ar-kpi-card">
           <div className="ar-kpi-top">
             <span className="ar-kpi-label">Average Approval Time</span>
           </div>
