@@ -54,13 +54,13 @@ export default function ArchiveManagementTab() {
           <div className="ar-summary-tile-label">Retention Policy</div>
           <div className="ar-summary-tile-value">{overview ? `${overview.retentionYears} yr` : '—'}</div>
         </div>
-        <div className="ar-summary-tile" style={{ background: '#DBEAFE', borderColor: '#BFDBFE' }}>
+        <div className="ar-summary-tile" style={{ background: 'var(--brand-light, #EFF6FF)', borderColor: 'var(--border, #E2E8F0)' }}>
           <div className="ar-summary-tile-label">Approaching Retention</div>
-          <div className="ar-summary-tile-value" style={{ color: '#1D4ED8' }}>{overview?.summary.approaching ?? '—'}</div>
+          <div className="ar-summary-tile-value" style={{ color: 'var(--brand, #0856C3)' }}>{overview?.summary.approaching ?? '—'}</div>
         </div>
-        <div className="ar-summary-tile" style={{ background: '#F1F5F9', borderColor: '#0F172A', borderWidth: 2 }}>
+        <div className="ar-summary-tile" style={{ background: 'var(--bg-subtle, #F1F5F9)', borderColor: 'var(--border-strong, #CBD5E1)' }}>
           <div className="ar-summary-tile-label">Overdue for Archive</div>
-          <div className="ar-summary-tile-value" style={{ color: '#0F172A', fontWeight: 800 }}>{overview?.summary.overdue ?? '—'}</div>
+          <div className="ar-summary-tile-value" style={{ color: 'var(--text-primary, #0F172A)', fontWeight: 800 }}>{overview?.summary.overdue ?? '—'}</div>
         </div>
         <div className="ar-summary-tile">
           <div className="ar-summary-tile-label">Already Archived</div>
