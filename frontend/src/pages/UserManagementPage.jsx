@@ -140,7 +140,7 @@ export default function UserManagementPage() {
 
   return (
     <div className="user-management-page">
-      <div className="page-header user-management-header">
+      <div className="page-header user-management-header" style={{ alignItems: 'center' }}>
         <div>
           <h1>User Management</h1>
           <p className="user-management-subtitle">
@@ -208,7 +208,7 @@ export default function UserManagementPage() {
         ) : (
           <table className="template-list-table user-management-table">
             <thead>
-              <tr><th>User</th><th>Role</th><th>Status</th><th>Actions</th></tr>
+              <tr><th>User</th><th>Role</th><th>Status</th><th style={{ textAlign: 'center' }}>Actions</th></tr>
             </thead>
             <tbody>
               {filteredUsers.map((u) => (
@@ -230,7 +230,7 @@ export default function UserManagementPage() {
                       {u.is_active ? 'active' : 'inactive'}
                     </span>
                   </td>
-                  <td className="template-actions">
+                  <td className="template-actions" style={{ textAlign: 'center' }}>
                     {u.role !== 'super_admin' && (
                       <div style={{
                         display: 'flex',
@@ -238,6 +238,7 @@ export default function UserManagementPage() {
                         flexWrap: 'wrap',
                         gap: 6,
                         alignItems: 'center',
+                        justifyContent: 'center',
                       }}>
                         <button
                           type="button"
