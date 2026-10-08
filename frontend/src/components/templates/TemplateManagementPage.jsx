@@ -28,7 +28,7 @@ export default function TemplateManagementPage() {
 
   return (
     <div className="template-management-page">
-      <div className="page-header" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+      <div className="page-header" style={{ alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
         <div>
           <h1 style={{ margin: '0 0 6px' }}>Template Management</h1>
           <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
@@ -46,7 +46,7 @@ export default function TemplateManagementPage() {
       <div style={{
         display: 'flex',
         gap: 8,
-        borderBottom: '1px solid var(--border)',
+        borderBottom: 'none',
         marginBottom: 20,
         paddingBottom: 2,
       }}>
@@ -62,8 +62,8 @@ export default function TemplateManagementPage() {
             fontWeight: 600,
             background: 'transparent',
             border: 'none',
-            borderBottom: currentTab === 'templates' ? '2.5px solid var(--accent, #2563EB)' : '2.5px solid transparent',
-            color: currentTab === 'templates' ? 'var(--accent, #2563EB)' : 'var(--text-secondary)',
+            borderBottom: currentTab === 'templates' ? '2.5px solid var(--brand, #0856C3)' : '2.5px solid transparent',
+            color: currentTab === 'templates' ? 'var(--brand, #0856C3)' : 'var(--text-secondary)',
             cursor: 'pointer',
             transition: 'all 0.15s ease',
           }}
