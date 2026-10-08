@@ -12,43 +12,6 @@ import './DocumentTracking.css';
 const ADMIN_ROLES = [ROLES.SUPER_ADMIN, ROLES.SYSTEM_ADMIN];
 
 // ── Pure SVG Icons (No Emojis) ────────────────────────────────────────────────
-function IconTotalDocs({ size = 18 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-      <line x1="16" y1="13" x2="8" y2="13" />
-      <line x1="16" y1="17" x2="8" y2="17" />
-      <polyline points="10 9 9 9 8 9" />
-    </svg>
-  );
-}
-
-function IconClock({ size = 14, color = '#D97706' }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
-  );
-}
-
-function IconCheck({ size = 14, color = '#10B981' }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <polyline points="20 6 9 17 4 12" />
-    </svg>
-  );
-}
-
-function IconDeliveredMail({ size = 16, color = '#2563EB' }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-      <polyline points="22,6 12,13 2,6" />
-    </svg>
-  );
-}
 
 function IconTrash({ size = 15, color = '#8B1D2C' }) {
   return (
@@ -80,7 +43,7 @@ function IconChevronDown({ size = 12, color = '#64748B' }) {
 
 function IconSpinner({ size = 20 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="doc-track-spinner" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--brand, #0856C3)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="doc-track-spinner" aria-hidden="true">
       <path d="M21 12a9 9 0 1 1-6.219-8.56" />
     </svg>
   );
@@ -158,54 +121,53 @@ export default function DocumentTrackingPage() {
   const [approverModalDoc, setApproverModalDoc] = useState(null);
   const [secureDeliveryModalDoc, setSecureDeliveryModalDoc] = useState(null);
   const [ownershipRejectionBanner, setOwnershipRejectionBanner] = useState(null);
-  const [viewerModalDoc, setViewerModalDoc] = useState(null);
 
   const handleOpenViewer = async (doc) => {
-    if (viewerModalDoc?.url) {
-      URL.revokeObjectURL(viewerModalDoc.url);
+    // Open a new tab synchronously on click to prevent popup blockers
+    const newTab = window.open('', '_blank');
+    if (newTab) {
+      try {
+        newTab.document.write(`
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>${doc.template_name || 'Document'} - ${doc.doc_uuid || ''}</title>
+              <style>
+                html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #525659; }
+                iframe { width: 100%; height: 100%; border: none; display: block; }
+              </style>
+            </head>
+            <body>
+              <iframe id="pdfFrame" src="about:blank"></iframe>
+            </body>
+          </html>
+        `);
+        newTab.document.close();
+      } catch {
+        /* cross-origin fallback */
+      }
     }
-    setViewerModalDoc({
-      id: doc.id,
-      doc,
-      url: null,
-      loading: true,
-      error: null,
-    });
     try {
       const url = await documentService.viewUrl(doc.id);
-      setViewerModalDoc({
-        id: doc.id,
-        doc,
-        url,
-        loading: false,
-        error: null,
-      });
+      if (newTab && !newTab.closed) {
+        try {
+          const frame = newTab.document.getElementById('pdfFrame');
+          if (frame) {
+            frame.src = url;
+          } else {
+            newTab.location.href = url;
+          }
+        } catch {
+          newTab.location.href = url;
+        }
+      } else {
+        window.open(url, '_blank');
+      }
     } catch (err) {
-      setViewerModalDoc({
-        id: doc.id,
-        doc,
-        url: null,
-        loading: false,
-        error: err.message || 'Failed to open the document.',
-      });
+      if (newTab && !newTab.closed) newTab.close();
+      showToast(err.message || 'Failed to open the document.', 'error');
     }
   };
-
-  const handleCloseViewer = () => {
-    if (viewerModalDoc?.url) {
-      URL.revokeObjectURL(viewerModalDoc.url);
-    }
-    setViewerModalDoc(null);
-  };
-
-  useEffect(() => {
-    if (!viewerModalDoc) return;
-    const onKey = (e) => {
-      if (e.key === 'Escape') handleCloseViewer();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [viewerModalDoc]);
 
   const loadMyDocs = () => {
     if (!user) return;
@@ -355,16 +317,7 @@ export default function DocumentTrackingPage() {
     [activeDocs]
   );
 
-  const totals = useMemo(() => {
-    const t = { total: activeDocs.length, pending: 0, approved: 0, delivered: 0 };
-    for (const doc of activeDocs) {
-      const status = effectiveStatus(doc);
-      if (status === 'pending') t.pending += 1;
-      else if (status === 'signed') t.approved += 1;
-      else if (status === 'delivered') t.delivered += 1;
-    }
-    return t;
-  }, [activeDocs]);
+
 
   const filteredDocs = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -401,52 +354,7 @@ export default function DocumentTrackingPage() {
             <p className="doc-track-subtitle">Track generated documents, approval, and delivery.</p>
           </div>
 
-          {/* 4 KPI Stat Cards */}
-          <div className="doc-track-kpi-row">
-            {/* Total Documents */}
-            <div className="doc-kpi-card">
-              <div className="doc-kpi-content">
-                <span className="doc-kpi-value">{totals.total}</span>
-                <span className="doc-kpi-label">Total Documents</span>
-              </div>
-              <div className="doc-kpi-icon-wrap" style={{ background: '#F1F5F9' }}>
-                <IconTotalDocs />
-              </div>
-            </div>
 
-            {/* Pending Approval */}
-            <div className="doc-kpi-card">
-              <div className="doc-kpi-content">
-                <span className="doc-kpi-value doc-kpi-value-amber">{totals.pending}</span>
-                <span className="doc-kpi-label">Pending Approval</span>
-              </div>
-              <div className="doc-kpi-icon-wrap" style={{ background: '#FEF3C7' }}>
-                <IconClock color="#D97706" />
-              </div>
-            </div>
-
-            {/* Approved Docs */}
-            <div className="doc-kpi-card">
-              <div className="doc-kpi-content">
-                <span className="doc-kpi-value doc-kpi-value-green">{totals.approved}</span>
-                <span className="doc-kpi-label">Approved Docs</span>
-              </div>
-              <div className="doc-kpi-icon-wrap" style={{ background: '#D1FAE5' }}>
-                <IconCheck color="#10B981" />
-              </div>
-            </div>
-
-            {/* Successfully Delivered */}
-            <div className="doc-kpi-card">
-              <div className="doc-kpi-content">
-                <span className="doc-kpi-value doc-kpi-value-blue">{totals.delivered}</span>
-                <span className="doc-kpi-label">Successfully Delivered</span>
-              </div>
-              <div className="doc-kpi-icon-wrap" style={{ background: '#DBEAFE' }}>
-                <IconDeliveredMail color="#2563EB" />
-              </div>
-            </div>
-          </div>
 
           {/* Search & Filter Toolbar */}
           <div className="doc-track-toolbar">
@@ -557,14 +465,7 @@ export default function DocumentTrackingPage() {
           )}
         </div>
 
-        {viewerModalDoc && (
-          <DocumentViewerModal
-            viewerState={viewerModalDoc}
-            onClose={handleCloseViewer}
-            onDownload={(d) => documentService.download(d.id).catch((err) => showToast(err.message || 'Failed to download.', 'error'))}
-            onRetry={handleOpenViewer}
-          />
-        )}
+
 
         {approverModalDoc && (
           <ApproverSelectModal
@@ -883,10 +784,10 @@ function DocumentCard({
             style={{
               maxWidth: 420,
               padding: '22px 24px',
-              background: '#FFFFFF',
+              background: 'var(--bg-surface, #FFFFFF)',
               borderRadius: 12,
-              border: '1px solid #E2E8F0',
-              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
+              border: '1px solid var(--border, #E2E8F0)',
+              boxShadow: '0 10px 25px rgba(0, 0, 0, 0.25)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -894,11 +795,11 @@ function DocumentCard({
               <span style={{ color: '#DC2626', display: 'flex' }}>
                 <IconTrash size={22} />
               </span>
-              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: '#111827' }}>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary, #111827)' }}>
                 Delete Document?
               </h3>
             </div>
-            <p style={{ margin: '0 0 18px', fontSize: '0.85rem', color: '#4B5563', lineHeight: 1.5 }}>
+            <p style={{ margin: '0 0 18px', fontSize: '0.85rem', color: 'var(--text-secondary, #4B5563)', lineHeight: 1.5 }}>
               {doc.status === 'pending'
                 ? `Delete ${doc.doc_uuid}? The pending approval request will be cancelled immediately and the approver's review link will stop working. This cannot be undone.`
                 : `Delete ${doc.doc_uuid}? Its file will be removed and it can no longer be viewed, downloaded, or delivered. This cannot be undone.`}
@@ -938,92 +839,4 @@ function DocumentCard({
   );
 }
 
-function DocumentViewerModal({ viewerState, onClose, onDownload, onRetry }) {
-  if (!viewerState) return null;
-  const { doc, url, loading, error } = viewerState;
 
-  return (
-    <div className="doc-track-viewer-overlay" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="doc-track-viewer-panel" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="doc-track-viewer-header">
-          <div className="doc-track-viewer-header-info">
-            <h3 className="doc-track-viewer-title">{doc.template_name || 'Document Preview'}</h3>
-            <span className="doc-track-viewer-code">{doc.doc_uuid}</span>
-            <DocBadge status={effectiveStatus(doc)} />
-          </div>
-          <div className="doc-track-viewer-header-actions">
-            {url && (
-              <button
-                type="button"
-                className="doc-track-viewer-action-btn"
-                onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
-                title="Open in new browser tab"
-              >
-                <IconExternalLink size={14} />
-                <span>New Tab</span>
-              </button>
-            )}
-            <button
-              type="button"
-              className="doc-track-viewer-action-btn"
-              onClick={() => onDownload(doc)}
-              title="Download PDF"
-            >
-              <IconDownload size={14} />
-              <span>Download</span>
-            </button>
-            <button
-              type="button"
-              className="doc-track-viewer-close-btn"
-              onClick={onClose}
-              title="Close viewer"
-              aria-label="Close viewer"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-
-        {/* Content Body */}
-        <div className="doc-track-viewer-body">
-          {loading && (
-            <div className="doc-track-viewer-loading-state">
-              <IconSpinner size={32} />
-              <span>Loading document preview…</span>
-            </div>
-          )}
-
-          {error && !loading && (
-            <div className="doc-track-viewer-error-state">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              <p>{error}</p>
-              {onRetry && (
-                <button
-                  type="button"
-                  className="doc-track-viewer-action-btn"
-                  onClick={() => onRetry(doc)}
-                  style={{ marginTop: 8 }}
-                >
-                  Retry
-                </button>
-              )}
-            </div>
-          )}
-
-          {url && !loading && (
-            <iframe
-              src={url}
-              title={doc.template_name || 'Document Preview'}
-              className="doc-track-viewer-iframe"
-            />
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
