@@ -125,7 +125,7 @@ export default function TemplateViewer({ data }) {
     .a4-content p  { margin: 0 0 8pt 0; line-height: 1.5; }
     .a4-content ul, .a4-content ol { margin: 0 0 8pt 0; padding-left: 24pt; }
     .a4-content li { margin-bottom: 3pt; line-height: 1.5; }
-    .a4-content blockquote { margin: 8pt 0; padding: 4pt 14pt; border-left: 3pt solid #2563eb; color: #475569; background: #f8fafc; }
+    .a4-content blockquote { margin: 8pt 0; padding: 4pt 14pt; border-left: 3pt solid #0856C3; color: #475569; background: #f8fafc; }
     .a4-content hr { border: none; border-top: 1px solid #cbd5e1; margin: 12pt 0; }
     .a4-content img { max-width: 100%; height: auto; display: block; }
     .a4-content table:not(.signature-table) { width: 100%; max-width: 100%; border-collapse: collapse; margin: 10pt 0; table-layout: auto; }
