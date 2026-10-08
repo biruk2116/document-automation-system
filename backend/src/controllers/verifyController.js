@@ -32,8 +32,16 @@ async function verifyDocument(req, res) {
           // Lazy-require: pdf-parse pulls in a decent-sized dependency tree we only need here.
           // eslint-disable-next-line global-require
           const pdfParse = require('pdf-parse');
-          const parsed = await pdfParse(uploadedFile.buffer);
-          const match = parsed.text.match(/ID:\s*(DOC-\d{8}-[A-Z0-9]{5})/i);
+          let parsedText = '';
+          if (typeof pdfParse === 'function') {
+            const parsed = await pdfParse(uploadedFile.buffer);
+            parsedText = parsed?.text || '';
+          } else if (pdfParse?.PDFParse) {
+            const parser = new pdfParse.PDFParse({ data: uploadedFile.buffer });
+            const result = await parser.getText();
+            parsedText = result?.text || '';
+          }
+          const match = parsedText.match(/ID:\s*(DOC-\d{8}-[A-Z0-9]{5})/i);
           if (match) targetDocId = match[1].toUpperCase();
         } catch (parseErr) {
           console.warn('[verify] pdf-parse failed, falling back to hash-only lookup:', parseErr.message);
