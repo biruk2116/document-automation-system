@@ -158,15 +158,15 @@ export default function WorkflowTrackingPage() {
         minHeight: '100vh',
         background: 'var(--bg-base)',
         color: 'var(--text-primary)',
-        fontFamily: "'Inter', system-ui, sans-serif",
+        fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
       }}>
         <style>{`@keyframes wtp-spin{to{transform:rotate(360deg)}}`}</style>
 
         {/* Brand */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
           <img src={logo} alt="" style={{ width: 36, height: 36 }} />
-          <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-primary)' }}>
-            Document Automation
+          <span className="font-handwriting" style={{ fontWeight: 700, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+            Document Automation System
           </span>
         </div>
 
@@ -207,7 +207,7 @@ export default function WorkflowTrackingPage() {
       minHeight: '100vh',
       background: 'var(--bg-base)',
       color: 'var(--text-primary)',
-      fontFamily: "'Inter', system-ui, sans-serif",
+      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
     }}>
       {/* Minimal header */}
       <div style={{
@@ -215,16 +215,16 @@ export default function WorkflowTrackingPage() {
         padding: '12px 24px',
         background: 'var(--bg-surface)',
         borderBottom: '1px solid var(--border)',
-        boxShadow: 'var(--shadow-sm)',
+        boxShadow: 'none',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <img src={logo} alt="" style={{ width: 26, height: 26 }} />
-          <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-            Document Automation
+          <span className="font-handwriting" style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-primary)' }}>
+            Document Automation System
           </span>
         </div>
         <Link to="/login" style={{
-          fontSize: 13, padding: '5px 13px',
+          fontSize: 13, padding: '0 12px', height: 32, display: 'inline-flex', alignItems: 'center',
           border: '1px solid var(--border-strong)',
           borderRadius: 6, color: 'var(--text-secondary)',
           textDecoration: 'none',
@@ -243,16 +243,16 @@ export default function WorkflowTrackingPage() {
           maxWidth: 480, width: '100%',
           background: 'var(--bg-surface)',
           border: '1px solid var(--error-border)',
-          borderRadius: 12,
-          padding: '28px 32px',
-          boxShadow: 'var(--shadow-md)',
+          borderRadius: 8,
+          padding: '24px 28px',
+          boxShadow: 'none',
         }}>
           {/* Lock icon */}
           <div style={{
-            width: 44, height: 44, borderRadius: '50%',
+            width: 40, height: 40, borderRadius: '50%',
             background: 'var(--error-bg)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            marginBottom: 16,
+            marginBottom: 14,
           }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
               stroke="var(--error-text)" strokeWidth="2" strokeLinecap="round"
@@ -262,13 +262,13 @@ export default function WorkflowTrackingPage() {
             </svg>
           </div>
 
-          <h2 style={{ margin: '0 0 8px', fontSize: '1.1rem', color: 'var(--text-primary)' }}>
+          <h2 style={{ margin: '0 0 8px', fontSize: '1.05rem', color: 'var(--text-primary)' }}>
             Secure Link Unavailable
           </h2>
-          <p style={{ margin: '0 0 20px', fontSize: '0.88rem', color: 'var(--error-text)', fontWeight: 500 }}>
+          <p style={{ margin: '0 0 16px', fontSize: '0.85rem', color: 'var(--error-text)', fontWeight: 500 }}>
             {errorMsg}
           </p>
-          <p style={{ margin: '0 0 20px', fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+          <p style={{ margin: '0 0 20px', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
             This link may have expired (links are valid for 7 days), already been opened, or
             belong to a different account. Please sign in to view your documents directly.
           </p>
@@ -276,14 +276,17 @@ export default function WorkflowTrackingPage() {
           <Link
             to="/login"
             style={{
-              display: 'inline-block',
-              padding: '10px 22px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '0 14px',
+              height: 34,
               background: 'var(--brand)',
-              color: 'var(--text-inverse)',
-              borderRadius: 8,
+              color: '#FFFFFF',
+              borderRadius: 6,
               textDecoration: 'none',
               fontWeight: 600,
-              fontSize: '0.88rem',
+              fontSize: '0.82rem',
+              width: 'fit-content',
             }}
           >
             Sign in to Document Tracking
