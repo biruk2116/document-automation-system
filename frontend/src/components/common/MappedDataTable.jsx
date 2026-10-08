@@ -101,7 +101,7 @@ export default function MappedDataTable({ table, connectionId, onSelectRecord, s
                           key={r.recordId}
                           className={onSelectRecord ? 'mapped-data-row-clickable' : undefined}
                           onClick={onSelectRecord ? () => onSelectRecord(r.recordId) : undefined}
-                          style={isSelected ? { background: '#DBEAFE' } : undefined}
+                          style={isSelected ? { background: 'var(--brand-light, #EFF6FF)' } : undefined}
                         >
                           {onSelectRecord && (
                             <td>
