@@ -9,26 +9,6 @@ import RejectRecipientsPicker from '../components/common/RejectRecipientsPicker'
 import './DocumentTracking.css';
 
 // ── Pure SVG Icons (matching Document Tracking) ──────────────────────────────
-function IconTotalDocs({ size = 18 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-      <line x1="16" y1="13" x2="8" y2="13" />
-      <line x1="16" y1="17" x2="8" y2="17" />
-      <polyline points="10 9 9 9 8 9" />
-    </svg>
-  );
-}
-
-function IconClock({ size = 14, color = '#D97706' }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
-  );
-}
 
 function IconTrash({ size = 15 }) {
   return (
@@ -60,7 +40,7 @@ function IconChevronDown({ size = 12, color = '#64748B' }) {
 
 function IconSpinner({ size = 20 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="doc-track-spinner" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="var(--brand, #0856C3)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="doc-track-spinner" aria-hidden="true">
       <path d="M21 12a9 9 0 1 1-6.219-8.56" />
     </svg>
   );
@@ -309,28 +289,7 @@ export default function ApprovalsPage() {
             <p className="doc-track-subtitle">Documents routed to you for review, OTP-confirmed approval, or rejection.</p>
           </div>
 
-          {/* KPI Stat Cards */}
-          <div className="doc-track-kpi-row" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 260px))' }}>
-            <div className="doc-kpi-card">
-              <div className="doc-kpi-content">
-                <span className="doc-kpi-value doc-kpi-value-amber">{pending.length}</span>
-                <span className="doc-kpi-label">Awaiting You</span>
-              </div>
-              <div className="doc-kpi-icon-wrap" style={{ background: '#FEF3C7' }}>
-                <IconClock color="#D97706" />
-              </div>
-            </div>
 
-            <div className="doc-kpi-card">
-              <div className="doc-kpi-content">
-                <span className="doc-kpi-value">{templateNames.length}</span>
-                <span className="doc-kpi-label">Templates</span>
-              </div>
-              <div className="doc-kpi-icon-wrap" style={{ background: '#F1F5F9' }}>
-                <IconTotalDocs />
-              </div>
-            </div>
-          </div>
 
           {/* Search & Filter Toolbar */}
           <div className="doc-track-toolbar">
@@ -390,11 +349,11 @@ export default function ApprovalsPage() {
             <div style={{
               marginBottom: 14,
               padding: '8px 14px',
-              borderRadius: 8,
-              background: '#EFF6FF',
-              border: '1px solid #BFDBFE',
+              borderRadius: 6,
+              background: 'var(--brand-light, #EFF6FF)',
+              border: '1px solid var(--border, #E2E8F0)',
               fontSize: '0.8rem',
-              color: '#1D4ED8',
+              color: 'var(--brand, #0856C3)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -671,10 +630,10 @@ export default function ApprovalsPage() {
               style={{
                 maxWidth: 420,
                 padding: '22px 24px',
-                background: '#FFFFFF',
+                background: 'var(--bg-surface, #FFFFFF)',
                 borderRadius: 12,
-                border: '1px solid #E2E8F0',
-                boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)',
+                border: '1px solid var(--border, #E2E8F0)',
+                boxShadow: '0 10px 25px rgba(0, 0, 0, 0.25)',
               }}
               onClick={(e) => e.stopPropagation()}
             >
@@ -682,11 +641,11 @@ export default function ApprovalsPage() {
                 <span style={{ color: '#DC2626', display: 'flex' }}>
                   <IconTrash size={22} />
                 </span>
-                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: '#111827' }}>
+                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary, #111827)' }}>
                   Delete Document?
                 </h3>
               </div>
-              <p style={{ margin: '0 0 18px', fontSize: '0.85rem', color: '#4B5563', lineHeight: 1.5 }}>
+              <p style={{ margin: '0 0 18px', fontSize: '0.85rem', color: 'var(--text-secondary, #4B5563)', lineHeight: 1.5 }}>
                 Delete <b>{deleteTarget.doc_uuid}</b>? The pending approval request will be cancelled immediately and the document will be permanently removed from Document Tracking. This cannot be undone.
               </p>
               <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
