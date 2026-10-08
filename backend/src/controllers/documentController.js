@@ -60,10 +60,10 @@ async function regenerateDocument(doc) {
   const bodyHtml = renderTemplate(template.body_html || '', dataContext, bodyWarnings);
   const footerHtml = renderTemplate(template.footer_html || '', dataContext, footerWarnings);
   
-  // Add automatic date HTML
+  // Add automatic date HTML (italic, positioned above QR code on final page)
   const automaticDateHtml = `
-    <div class="document-dates">
-        <p><strong>Generated Date:</strong> ${dataContext.generation_date_gc} &nbsp;/&nbsp; ${dataContext.generation_date_ec}</p>
+    <div class="doc-generated-date">
+      <em><strong>Generated Date:</strong> ${dataContext.generation_date_gc} &nbsp;/&nbsp; ${dataContext.generation_date_ec}</em>
     </div>
   `;
   
@@ -90,8 +90,8 @@ async function regenerateDocument(doc) {
     if (sigRows.length > 0) {
       approverName = sigRows[0].approver_name;
       approverTs = sigRows[0].signature_timestamp ? new Date(sigRows[0].signature_timestamp).toISOString() : new Date().toISOString();
-      const sigText = `document is digitally signed by ${approverName} Digitally Approved by ${approverName} on ${approverTs}`;
-      signatureHtml = `<p class="visual-signature" style="margin-top:10px;font-style:italic;">${sigText}</p>`;
+      const sigText = `Digitally Approved by ${approverName} on ${approverTs}`;
+      signatureHtml = `<p class="visual-signature" style="margin-top:10px;font-style:italic;"><em>${sigText}</em></p>`;
     } else {
       const [srRows] = await pool.query(
         `SELECT sr.approved_at, u.full_name AS approver_name
@@ -104,15 +104,15 @@ async function regenerateDocument(doc) {
       if (srRows.length > 0) {
         approverName = srRows[0].approver_name;
         approverTs = srRows[0].approved_at ? new Date(srRows[0].approved_at).toISOString() : new Date().toISOString();
-        const sigText = `document is digitally signed by ${approverName} Digitally Approved by ${approverName} on ${approverTs}`;
-        signatureHtml = `<p class="visual-signature" style="margin-top:10px;font-style:italic;">${sigText}</p>`;
+        const sigText = `Digitally Approved by ${approverName} on ${approverTs}`;
+        signatureHtml = `<p class="visual-signature" style="margin-top:10px;font-style:italic;"><em>${sigText}</em></p>`;
       }
     }
   } catch (sigErr) {
     console.warn('[documents] Could not fetch signature info for regeneration:', sigErr.message);
   }
 
-  let finalBodyHtml = `${bodyHtml}${automaticDateHtml}`;
+  let finalBodyHtml = bodyHtml;
   let finalFooterHtml = footerHtml;
 
   // Inject the recipient / user signature if the document was signed by the recipient in secure delivery workflow
@@ -137,6 +137,7 @@ async function regenerateDocument(doc) {
     deliveryVerificationQrHtml: deliveryVerifyFooterHtml,
     watermarkText: resolveWatermarkForStatus(doc.status, template.watermark_text),
     signatureHtml,
+    generatedDateHtml: automaticDateHtml,
   });
   
   const pdfBuffer = await htmlToPdfBuffer(fullHtml);
@@ -264,10 +265,10 @@ async function buildRenderedDocument(template, recordId) {
   // FR-013: only the generation date is ever auto-filled — no "effective date" is
   // guessed or defaulted on the document's behalf. Shown in both calendars per BR spec.
   const automaticDateHtml = `
-        <div class="document-dates">
-            <p><strong>Generated Date:</strong> ${dataContext.generation_date_gc} &nbsp;/&nbsp; ${dataContext.generation_date_ec}</p>
-        </div>
-    `;
+    <div class="doc-generated-date">
+      <em><strong>Generated Date:</strong> ${dataContext.generation_date_gc} &nbsp;/&nbsp; ${dataContext.generation_date_ec}</em>
+    </div>
+  `;
 
   return { record, dataContext, headerHtml, bodyHtml, footerHtml, automaticDateHtml, placeholderWarnings };
 }
@@ -299,7 +300,7 @@ async function previewDocument(req, res) {
     const cleanBodyHtml = stripEditorOnlyElements(bodyHtml);
     const cleanFooterHtml = stripEditorOnlyElements(footerHtml);
     
-    const combinedHtml = `${cleanHeaderHtml}${cleanBodyHtml}${automaticDateHtml}${cleanFooterHtml}`;
+    const combinedHtml = `${cleanHeaderHtml}${cleanBodyHtml}${cleanFooterHtml}${automaticDateHtml}`;
 
     await recordAudit({ userId: req.user.id, action: 'PREVIEW', details: { templateId: template.id, recordId: record_id }, req });
 
@@ -367,11 +368,12 @@ async function generateSingleDocument({ template, recordId, userId }) {
 
   const fullHtml = assembleDocumentHtml({
     headerHtml,
-    bodyHtml: `${bodyHtml}${automaticDateHtml}`,
+    bodyHtml,
     footerHtml,
     tamperProofFooterHtml: hashVerifyFooterHtml,
     deliveryVerificationQrHtml: deliveryVerifyFooterHtml,
     watermarkText: resolveWatermarkForStatus('draft', template.watermark_text), // FR-017: always DRAFT at first generation
+    generatedDateHtml: automaticDateHtml,
   });
 
   const pdfBuffer = await htmlToPdfBuffer(fullHtml);
@@ -392,8 +394,9 @@ async function generateSingleDocument({ template, recordId, userId }) {
     fileName,
     renderPieces: { 
       headerHtml, 
-      bodyHtml: `${bodyHtml}${automaticDateHtml}`, 
+      bodyHtml, 
       footerHtml, 
+      generatedDateHtml: automaticDateHtml,
       tamperProofFooterHtml: hashVerifyFooterHtml, 
       deliveryVerificationQrHtml: deliveryVerifyFooterHtml, 
       watermarkText: template.watermark_text 
@@ -582,13 +585,7 @@ async function downloadDocument(req, res) {
     }
     const doc = rows[0];
 
-    // RBAC: everyone EXCEPT the approver role can download a generated document,
-    // regardless of who generated it — download is not ownership-gated. The approver
-    // only ever views the PDF in-browser via the signature-request "view" step
-    // (GET /api/signatures/:id/view); they never use this general download route.
-    if (req.user.role === 'approver') {
-      return res.status(403).json({ success: false, message: 'Approvers cannot download documents directly — view the document from your pending approvals instead.' });
-    }
+    // Allow all roles permitted to generate/track documents to view and download.
 
     if (doc.deleted_at) {
       return res.status(410).json({ success: false, message: 'This document has been deleted. It can still be checked on the Verify Document page using its Doc ID.' });
@@ -643,7 +640,8 @@ async function downloadDocument(req, res) {
       if (!needsRegen) {
         try {
           const fileBuf = fs.readFileSync(resolvedPath);
-          if (!fileBuf.toString('latin1').includes('document is digitally signed by')) {
+          const bufStr = fileBuf.toString('latin1');
+          if (!bufStr.includes('Digitally Approved by') && !bufStr.includes('document is digitally signed by')) {
             needsRegen = true;
           }
         } catch {
@@ -672,8 +670,9 @@ async function downloadDocument(req, res) {
         downloadFileName = `document-${doc.doc_uuid || doc.id}.pdf`;
       }
     }
+    const isInline = req.query.disposition === 'inline';
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${downloadFileName}"`);
+    res.setHeader('Content-Disposition', `${isInline ? 'inline' : 'attachment'}; filename="${downloadFileName}"`);
 
     await recordAudit({ userId: req.user.id, docId: doc.id, action: 'DOWNLOAD', details: { via: 'direct' }, req });
 
@@ -958,7 +957,8 @@ async function downloadViaNotifyToken(req, res) {
       if (!needsRegen) {
         try {
           const fileBuf = fs.readFileSync(resolvedPath);
-          if (!fileBuf.toString('latin1').includes('document is digitally signed by')) {
+          const bufStr = fileBuf.toString('latin1');
+          if (!bufStr.includes('Digitally Approved by') && !bufStr.includes('document is digitally signed by')) {
             needsRegen = true;
           }
         } catch {
