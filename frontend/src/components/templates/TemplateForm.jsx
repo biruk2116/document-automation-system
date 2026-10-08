@@ -7,8 +7,6 @@ import { useToast } from '../../hooks/useToast';
 const CATEGORIES = ['HR', 'Finance', 'Academic', 'Procurement', 'General'];
 const INTERNAL_SOURCE = 'internal';
 
-const USER_TYPES = ['Employee', 'Student', 'Supplier', 'Customer', 'Other'];
-
 /** Default workflow config — dynamic steps */
 const DEFAULT_WORKFLOW = {
   enabled: false,
@@ -35,29 +33,35 @@ function WorkflowToggle({ id, label, description, checked, onChange, locked = fa
       display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
       gap: 12, padding: '10px 0',
       borderBottom: '1px solid var(--border)',
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
     }}>
       <div style={{ flex: 1 }}>
         <label
           htmlFor={id}
           style={{
-            display: 'block',
+            display: 'flex', alignItems: 'center', gap: 8,
             fontSize: '0.88rem', fontWeight: 600,
-            color: locked ? 'var(--text-muted)' : 'var(--text-primary)',
+            color: 'var(--text-primary)',
             cursor: locked ? 'default' : 'pointer',
             marginBottom: description ? 2 : 0,
+            fontFamily: 'inherit',
           }}
         >
-          {label}
+          <span>{label}</span>
           {locked && (
             <span style={{
-              marginLeft: 6, fontSize: '0.7rem', fontWeight: 500,
-              color: 'var(--text-muted)', textTransform: 'uppercase',
-              letterSpacing: '0.06em',
+              fontSize: '0.68rem', fontWeight: 700,
+              color: 'var(--text-secondary)',
+              background: 'var(--bg-subtle)',
+              border: '1px solid var(--border)',
+              padding: '1px 6px', borderRadius: 4,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
             }}>always on</span>
           )}
         </label>
         {description && (
-          <p style={{ margin: 0, fontSize: '0.77rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+          <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.45, fontFamily: 'inherit' }}>
             {description}
           </p>
         )}
@@ -73,18 +77,17 @@ function WorkflowToggle({ id, label, description, checked, onChange, locked = fa
         onKeyDown={(e) => { if (!locked && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onChange(!checked); } }}
         style={{
           width: 38, height: 22, borderRadius: 11, flexShrink: 0,
-          background: checked ? 'var(--accent)' : 'var(--bg-muted)',
+          background: checked ? 'var(--accent, #2563EB)' : 'var(--bg-muted, #CBD5E1)',
           position: 'relative', cursor: locked ? 'default' : 'pointer',
           transition: 'background 0.2s',
           outline: 'none',
-          opacity: locked ? 0.7 : 1,
         }}
       >
         <span style={{
           position: 'absolute', top: 3, left: checked ? 19 : 3,
           width: 16, height: 16, borderRadius: '50%',
           background: '#fff',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
           transition: 'left 0.18s',
         }} />
       </div>
@@ -651,6 +654,7 @@ export default function TemplateForm({
         borderRadius: 'var(--radius-lg)',
         overflow: 'hidden',
         marginBottom: 4,
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
       }}>
         {/* Header / collapse toggle */}
         <button
@@ -660,33 +664,35 @@ export default function TemplateForm({
             width: '100%', display: 'flex', alignItems: 'center',
             justifyContent: 'space-between', gap: 12,
             padding: '14px 18px',
-            background: workflow.enabled ? 'rgba(21,154,156,0.06)' : 'var(--bg-subtle)',
+            background: workflow.enabled ? 'rgba(37,99,235,0.06)' : 'var(--bg-subtle)',
             border: 'none', cursor: 'pointer', textAlign: 'left',
             borderBottom: workflowOpen ? '1px solid var(--border)' : 'none',
+            fontFamily: 'inherit',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)"
-              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent, #2563EB)"
+              strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
               <circle cx="9" cy="7" r="4"/>
               <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
               <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
             </svg>
-            <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+            <span style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
               User Workflow
             </span>
             {workflow.enabled && (
               <span style={{
                 fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.06em',
-                textTransform: 'uppercase', color: 'var(--accent)',
-                background: 'rgba(21,154,156,0.12)', padding: '2px 8px', borderRadius: 20,
+                textTransform: 'uppercase', color: 'var(--accent, #2563EB)',
+                background: 'rgba(37,99,235,0.12)', border: '1px solid rgba(37,99,235,0.25)',
+                padding: '2px 8px', borderRadius: 20,
               }}>Configured</span>
             )}
           </div>
           <svg
             width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke="var(--text-muted)" strokeWidth="2.5"
+            stroke="var(--text-secondary)" strokeWidth="2.5"
             strokeLinecap="round" strokeLinejoin="round"
             style={{ transform: workflowOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .2s', flexShrink: 0 }}
             aria-hidden="true"
@@ -709,33 +715,12 @@ export default function TemplateForm({
 
             {workflow.enabled && (
               <>
-                {/* User Type */}
-                <div style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
-                  <label htmlFor="wf-user-type" style={{
-                    display: 'block', fontSize: '0.88rem', fontWeight: 600,
-                    color: 'var(--text-primary)', marginBottom: 6,
-                  }}>
-                    User / Recipient Type
-                  </label>
-                  <p style={{ margin: '0 0 8px', fontSize: '0.77rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                    Classifies who the recipient is — used for display and future reporting.
-                  </p>
-                  <select
-                    id="wf-user-type"
-                    value={workflow.userType}
-                    onChange={e => setWf('userType', e.target.value)}
-                    style={{ width: '100%', maxWidth: 260 }}
-                  >
-                    <option value="">— select —</option>
-                    {USER_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-
                 {/* Step toggles */}
                 <div style={{ margin: '4px 0 0' }}>
                   <p style={{
-                    margin: '10px 0 4px', fontSize: '0.75rem', fontWeight: 700,
-                    textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)',
+                    margin: '12px 0 6px', fontSize: '0.78rem', fontWeight: 700,
+                    textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-secondary)',
+                    fontFamily: 'inherit',
                   }}>
                     Workflow Steps
                   </p>
@@ -833,7 +818,7 @@ export default function TemplateForm({
                               Remove All
                             </button>
                           </div>
-                          <p style={{ margin: '0 0 12px', fontSize: '0.76rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                          <p style={{ margin: '0 0 12px', fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
                             Each signature field in the footer has a × button at the top-right corner to remove it individually.
                             Users must sign inside these areas — they cannot move, resize, or remove them.
                           </p>
@@ -843,7 +828,7 @@ export default function TemplateForm({
                                 type="checkbox"
                                 checked={workflow.signatureField?.allowPhoto !== false}
                                 onChange={e => setWf('signatureField', { ...workflow.signatureField, allowPhoto: e.target.checked })}
-                                style={{ accentColor: 'var(--accent)', width: 14, height: 14 }}
+                                style={{ accentColor: 'var(--accent, #2563EB)', width: 14, height: 14 }}
                               />
                               Allow signature photo upload
                             </label>
@@ -852,7 +837,7 @@ export default function TemplateForm({
                                 type="checkbox"
                                 checked={workflow.signatureField?.allowDraw !== false}
                                 onChange={e => setWf('signatureField', { ...workflow.signatureField, allowDraw: e.target.checked })}
-                                style={{ accentColor: 'var(--accent)', width: 14, height: 14 }}
+                                style={{ accentColor: 'var(--accent, #2563EB)', width: 14, height: 14 }}
                               />
                               Allow drawing signature
                             </label>
@@ -861,7 +846,7 @@ export default function TemplateForm({
                                 type="checkbox"
                                 checked={workflow.signatureField?.required !== false}
                                 onChange={e => setWf('signatureField', { ...workflow.signatureField, required: e.target.checked })}
-                                style={{ accentColor: 'var(--accent)', width: 14, height: 14 }}
+                                style={{ accentColor: 'var(--accent, #2563EB)', width: 14, height: 14 }}
                               />
                               Required (user must sign before submitting)
                             </label>
@@ -869,10 +854,10 @@ export default function TemplateForm({
                         </>
                       ) : (
                         <>
-                          <p style={{ margin: '0 0 10px', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          <p style={{ margin: '0 0 10px', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                             Add Signature Field to Footer
                           </p>
-                          <p style={{ margin: '0 0 12px', fontSize: '0.76rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                          <p style={{ margin: '0 0 12px', fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
                             Use the <strong>"Add Signature Field"</strong> button above the Footer editor to insert
                             the locked signature area into the footer. The user will sign inside that exact box
                             and cannot move or resize it.
