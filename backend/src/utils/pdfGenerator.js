@@ -161,7 +161,7 @@ async function htmlToPdfBuffer(html) {
     });
 
     /*
-     * Generate A4 PDF.
+     * Generate formal Microsoft Word-style A4 PDF with sequential page numbering.
      */
     const pdfBuffer = await page.pdf({
       format: 'A4',
@@ -174,16 +174,21 @@ async function htmlToPdfBuffer(html) {
       preferCSSPageSize: true,
 
       /*
-       * Margins are controlled by the HTML/CSS.
+       * Standard 20mm margins on all four sides matching Word layout.
        */
       margin: {
-        top: '0mm',
-        bottom: '0mm',
-        left: '0mm',
-        right: '0mm',
+        top: '20mm',
+        bottom: '20mm',
+        left: '20mm',
+        right: '20mm',
       },
 
-      displayHeaderFooter: false,
+      /*
+       * Automatic sequential page numbers in the printable footer area (1, 2, 3...)
+       */
+      displayHeaderFooter: true,
+      headerTemplate: '<div></div>',
+      footerTemplate: '<div style="width: 100%; font-size: 9.5pt; font-family: \'Noto Sans\', Arial, sans-serif; color: #64748b; text-align: center; padding-bottom: 6mm; box-sizing: border-box;"><span class="pageNumber"></span></div>',
     });
 
     return pdfBuffer;
