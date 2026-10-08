@@ -66,7 +66,7 @@ export const documentService = {
    * save-as download, without hardcoding the Authorization header into a plain <a href>.
    */
   viewUrl: async (id) => {
-    const res = await fetch(`${BASE_URL}/documents/${id}/download`, {
+    const res = await fetch(`${BASE_URL}/documents/${id}/download?disposition=inline`, {
       headers: { Authorization: `Bearer ${getAuthToken()}` },
     });
     if (!res.ok) {
@@ -80,7 +80,8 @@ export const documentService = {
       throw new Error(message);
     }
     const blob = await res.blob();
-    return URL.createObjectURL(blob);
+    const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+    return URL.createObjectURL(pdfBlob);
   },
   /**
    * Same endpoint as viewUrl, but triggers a real save-as download (via a temporary
