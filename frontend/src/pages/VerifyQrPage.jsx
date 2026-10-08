@@ -28,19 +28,19 @@ export default function VerifyQrPage() {
   const copy = result ? (STATUS_COPY[result.status] || STATUS_COPY.INVALID) : null;
 
   return (
-    <div className="min-h-screen flex flex-col justify-between bg-white dark:bg-[#0b1121] text-slate-900 dark:text-slate-100 transition-colors duration-200">
+    <div className="min-h-screen flex flex-col justify-between bg-white dark:bg-[#0B1118] text-slate-900 dark:text-slate-100 transition-colors duration-200">
       {/* Top bar with brand */}
       <header className="w-full max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <img src={brandLogo} alt="Document Automation System" className="w-8 h-8 object-contain" />
-          <span className="font-bold text-sm tracking-tight text-[#0F2856] dark:text-white whitespace-nowrap">
+          <span className="font-handwriting font-bold text-base tracking-tight text-[#1E293B] dark:text-[#F1F5F9] whitespace-nowrap">
             Document Automation System
           </span>
         </div>
         <div className="flex items-center gap-3">
           <Link
             to="/login"
-            className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline"
+            className="text-xs font-semibold text-[#0856C3] dark:text-[#60A5FA] hover:underline"
           >
             Sign In
           </Link>
@@ -49,19 +49,19 @@ export default function VerifyQrPage() {
 
       {/* Centered Card */}
       <main className="flex-1 flex items-center justify-center px-4 py-8">
-        <div className="w-full max-w-md bg-white dark:bg-[#141b2d] rounded-2xl border border-slate-200 dark:border-transparent p-8 transition-all">
+        <div className="w-full max-w-md bg-white dark:bg-[#151E2B] rounded-lg border border-slate-200 dark:border-[#223044] p-7 shadow-none transition-all">
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-500 tracking-tight mb-2">
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight mb-1">
               QR Verification
             </h1>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
+            <p className="text-xs text-slate-600 dark:text-slate-400">
               Scanned from document QR security code
             </p>
           </div>
 
           {loading && (
             <div className="flex flex-col items-center justify-center py-8 gap-3">
-              <span className="w-6 h-6 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
+              <span className="w-6 h-6 border-2 border-[#0856C3]/30 border-t-[#0856C3] rounded-full animate-spin" />
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Verifying code…</p>
             </div>
           )}
