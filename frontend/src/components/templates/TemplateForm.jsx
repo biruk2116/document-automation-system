@@ -33,7 +33,7 @@ function WorkflowToggle({ id, label, description, checked, onChange, locked = fa
       display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
       gap: 12, padding: '10px 0',
       borderBottom: '1px solid var(--border)',
-      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+      fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
     }}>
       <div style={{ flex: 1 }}>
         <label
@@ -77,7 +77,7 @@ function WorkflowToggle({ id, label, description, checked, onChange, locked = fa
         onKeyDown={(e) => { if (!locked && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onChange(!checked); } }}
         style={{
           width: 38, height: 22, borderRadius: 11, flexShrink: 0,
-          background: checked ? 'var(--accent, #2563EB)' : 'var(--bg-muted, #CBD5E1)',
+          background: checked ? 'var(--brand, #0856C3)' : 'var(--border-strong, #CBD5E1)',
           position: 'relative', cursor: locked ? 'default' : 'pointer',
           transition: 'background 0.2s',
           outline: 'none',
@@ -176,7 +176,7 @@ export default function TemplateForm({
     // The × button is ONLY shown during template creation/editing (contenteditable=false wrapper)
     // and will be removed before final PDF generation.
     const sigBlockHtml = `
-<div contenteditable="false" style="margin-top:16px;padding:12px 16px;border:1.5px dashed #2563EB;border-radius:6px;background:rgba(37,99,235,0.03);user-select:none;position:relative;page-break-inside:avoid !important;break-inside:avoid !important;" data-sig-field-id="${fieldId}" data-editor-only="true">
+<div contenteditable="false" style="margin-top:16px;padding:12px 16px;border:1.5px dashed #0856C3;border-radius:6px;background:rgba(15,118,110,0.04);user-select:none;position:relative;page-break-inside:avoid !important;break-inside:avoid !important;" data-sig-field-id="${fieldId}" data-editor-only="true">
   <!-- [[SIGNATURE_FIELD:${fieldId}]] -->
   <button type="button" class="sig-field-remove-btn" onclick="this.closest('[data-sig-field-id]').remove()" style="position:absolute;top:8px;right:8px;width:24px;height:24px;border-radius:4px;border:1px solid #DC2626;background:#fff;color:#DC2626;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;transition:all 0.15s;" onmouseover="this.style.background='#DC2626';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#DC2626'" title="Remove this signature field">×</button>
   <table style="width:100%;border-collapse:collapse;font-family:inherit;page-break-inside:avoid !important;break-inside:avoid !important;">
@@ -187,7 +187,7 @@ export default function TemplateForm({
           <div style="margin-top:4px;font-size:0.72rem;color:#94A3B8;letter-spacing:0.04em;">Name</div>
         </td>
         <td style="padding:4px 0 4px 8px;width:62%;vertical-align:bottom;font-size:0.82rem;color:#475569;">
-          <div style="border:1.5px solid #2563EB;border-radius:4px;min-height:36px;padding:4px 8px;background:#fff;display:flex;align-items:center;justify-content:center;">
+          <div style="border:1.5px solid #0856C3;border-radius:4px;min-height:36px;padding:4px 8px;background:#fff;display:flex;align-items:center;justify-content:center;">
             <span style="font-size:0.75rem;color:#94A3B8;letter-spacing:0.04em;">[ SIGNATURE FIELD ]</span>
           </div>
           <div style="margin-top:4px;font-size:0.72rem;color:#94A3B8;letter-spacing:0.04em;">Signature</div>
@@ -573,10 +573,10 @@ export default function TemplateForm({
               onClick={handleAddSignatureField}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,
-                padding: '5px 12px', fontSize: '0.78rem', fontWeight: 600,
-                background: signatureFieldCount > 0 ? 'rgba(37,99,235,0.08)' : '#2563EB',
-                color: signatureFieldCount > 0 ? '#2563EB' : '#fff',
-                border: signatureFieldCount > 0 ? '1.5px solid #2563EB' : 'none',
+                padding: '0 12px', height: 32, fontSize: '0.78rem', fontWeight: 600,
+                background: signatureFieldCount > 0 ? 'var(--brand-light, #EFF6FF)' : 'var(--brand, #0856C3)',
+                color: signatureFieldCount > 0 ? 'var(--brand, #0856C3)' : '#fff',
+                border: signatureFieldCount > 0 ? '1px solid var(--brand, #0856C3)' : 'none',
                 borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit',
                 transition: 'background .15s',
               }}
@@ -601,12 +601,12 @@ export default function TemplateForm({
         {signatureFieldCount > 0 && (
           <div style={{
             marginTop: 8, padding: '10px 12px',
-            background: 'rgba(37,99,235,0.04)', border: '1px solid rgba(37,99,235,0.15)',
-            borderRadius: 6, fontSize: '0.77rem', color: '#2563EB',
+            background: 'var(--brand-light, #EFF6FF)', border: '1px solid var(--border)',
+            borderRadius: 6, fontSize: '0.77rem', color: 'var(--brand, #0856C3)',
             display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
           }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flex: 1 }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2563EB"
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--brand, #0856C3)"
                 strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
                 style={{ marginTop: 2, flexShrink: 0 }}>
                 <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
@@ -654,7 +654,7 @@ export default function TemplateForm({
         borderRadius: 'var(--radius-lg)',
         overflow: 'hidden',
         marginBottom: 4,
-        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+        fontFamily: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
       }}>
         {/* Header / collapse toggle */}
         <button
@@ -664,14 +664,14 @@ export default function TemplateForm({
             width: '100%', display: 'flex', alignItems: 'center',
             justifyContent: 'space-between', gap: 12,
             padding: '14px 18px',
-            background: workflow.enabled ? 'rgba(37,99,235,0.06)' : 'var(--bg-subtle)',
+            background: workflow.enabled ? 'var(--brand-light, #EFF6FF)' : 'var(--bg-subtle)',
             border: 'none', cursor: 'pointer', textAlign: 'left',
             borderBottom: workflowOpen ? '1px solid var(--border)' : 'none',
             fontFamily: 'inherit',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent, #2563EB)"
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand, #0856C3)"
               strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
               <circle cx="9" cy="7" r="4"/>
@@ -684,8 +684,8 @@ export default function TemplateForm({
             {workflow.enabled && (
               <span style={{
                 fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.06em',
-                textTransform: 'uppercase', color: 'var(--accent, #2563EB)',
-                background: 'rgba(37,99,235,0.12)', border: '1px solid rgba(37,99,235,0.25)',
+                textTransform: 'uppercase', color: 'var(--brand, #0856C3)',
+                background: 'var(--brand-light, #EFF6FF)', border: '1px solid var(--border)',
                 padding: '2px 8px', borderRadius: 20,
               }}>Configured</span>
             )}
@@ -828,7 +828,7 @@ export default function TemplateForm({
                                 type="checkbox"
                                 checked={workflow.signatureField?.allowPhoto !== false}
                                 onChange={e => setWf('signatureField', { ...workflow.signatureField, allowPhoto: e.target.checked })}
-                                style={{ accentColor: 'var(--accent, #2563EB)', width: 14, height: 14 }}
+                                style={{ accentColor: 'var(--brand, #0856C3)', width: 14, height: 14 }}
                               />
                               Allow signature photo upload
                             </label>
@@ -837,7 +837,7 @@ export default function TemplateForm({
                                 type="checkbox"
                                 checked={workflow.signatureField?.allowDraw !== false}
                                 onChange={e => setWf('signatureField', { ...workflow.signatureField, allowDraw: e.target.checked })}
-                                style={{ accentColor: 'var(--accent, #2563EB)', width: 14, height: 14 }}
+                                style={{ accentColor: 'var(--brand, #0856C3)', width: 14, height: 14 }}
                               />
                               Allow drawing signature
                             </label>
@@ -846,7 +846,7 @@ export default function TemplateForm({
                                 type="checkbox"
                                 checked={workflow.signatureField?.required !== false}
                                 onChange={e => setWf('signatureField', { ...workflow.signatureField, required: e.target.checked })}
-                                style={{ accentColor: 'var(--accent, #2563EB)', width: 14, height: 14 }}
+                                style={{ accentColor: 'var(--brand, #0856C3)', width: 14, height: 14 }}
                               />
                               Required (user must sign before submitting)
                             </label>
@@ -867,8 +867,8 @@ export default function TemplateForm({
                             onClick={handleAddSignatureField}
                             style={{
                               display: 'inline-flex', alignItems: 'center', gap: 6,
-                              padding: '7px 14px', fontSize: '0.82rem', fontWeight: 600,
-                              background: '#2563EB', color: '#fff',
+                              padding: '0 14px', height: 34, fontSize: '0.82rem', fontWeight: 600,
+                              background: 'var(--brand, #0856C3)', color: '#fff',
                               border: 'none', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit',
                             }}
                           >
