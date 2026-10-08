@@ -12,7 +12,7 @@
   flex-direction: column;
   gap: 20px;
   color: var(--text-primary);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
 
 /* ── Page header ── */
@@ -65,9 +65,9 @@
 .wfr-page-title {
   margin: 0;
   font-size: 1.3rem;
-  font-weight: 700;
-  color: #2563EB;
-  letter-spacing: -0.02em;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.015em;
 }
 
 /* ── Two-column content layout ── */
