@@ -67,7 +67,7 @@ export default function TemplateCreatePage({ mode = 'create' }) {
       }
       navigate('/templates');
     } catch (err) {
-      if (err.status === 409) {
+      if (mode === 'create' && err.status === 409) {
         setNameError(err.message);
       }
       showToast(err.message || 'Failed to save document/template.', 'error');
