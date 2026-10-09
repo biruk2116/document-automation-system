@@ -1847,17 +1847,84 @@ input::-ms-clear {
   color: #1a1a2e !important;
 }
 .rte-content ul, .rte-content ol {
-  margin: 0 0 8pt 0;
-  padding-left: 24pt;
+  margin: 0 0 10pt 0 !important;
+  padding-left: 28pt !important;
   color: #1a1a2e !important;
 }
+.rte-content ul { list-style-type: disc !important; list-style-position: outside !important; }
+.rte-content ol { list-style-type: decimal !important; list-style-position: outside !important; }
+.rte-content ul ul { list-style-type: circle !important; margin-bottom: 0 !important; }
+.rte-content ul ul ul { list-style-type: square !important; margin-bottom: 0 !important; }
+.rte-content ol ol { list-style-type: lower-alpha !important; margin-bottom: 0 !important; }
+.rte-content ol ol ol { list-style-type: lower-roman !important; margin-bottom: 0 !important; }
 .rte-content li {
-  margin-bottom: 3pt;
-  line-height: 1.5;
+  display: list-item !important;
+  list-style: inherit !important;
+  margin-bottom: 4pt !important;
+  line-height: 1.5 !important;
   color: #1a1a2e !important;
+}
+.rte-content li::marker {
+  color: #1a1a2e !important;
+  font-weight: 600 !important;
 }
 .rte-content-body { min-height: 240px; }
-.rte-content a { color: var(--brand); }
+.rte-content a {
+  color: #0856C3 !important;
+  text-decoration: underline !important;
+  text-decoration-color: #0856C3 !important;
+  text-underline-offset: 3px !important;
+  cursor: pointer !important;
+  font-weight: 500 !important;
+}
+.rte-content a:hover {
+  color: #06449E !important;
+  text-decoration-color: #06449E !important;
+}
+.rte-content b, .rte-content strong {
+  font-weight: 700 !important;
+  color: inherit !important;
+}
+.rte-content i, .rte-content em {
+  font-style: italic !important;
+}
+.rte-content u {
+  text-decoration: underline !important;
+  text-underline-offset: 2px !important;
+}
+.rte-content s, .rte-content strike, .rte-content del {
+  text-decoration: line-through !important;
+}
+.rte-content sub {
+  vertical-align: sub !important;
+  font-size: smaller !important;
+}
+.rte-content sup {
+  vertical-align: super !important;
+  font-size: smaller !important;
+}
+
+/* Alignments inside RTE */
+.rte-content [align="left"],
+.rte-content [style*="text-align: left"],
+.rte-content [style*="text-align:left"] {
+  text-align: left !important;
+}
+.rte-content [align="center"],
+.rte-content [style*="text-align: center"],
+.rte-content [style*="text-align:center"] {
+  text-align: center !important;
+}
+.rte-content [align="right"],
+.rte-content [style*="text-align: right"],
+.rte-content [style*="text-align:right"] {
+  text-align: right !important;
+}
+.rte-content [align="justify"],
+.rte-content [style*="text-align: justify"],
+.rte-content [style*="text-align:justify"] {
+  text-align: justify !important;
+}
 .rte-content blockquote {
   margin: 8pt 0; padding: 4pt 14pt; border-left: 3pt solid var(--brand);
   color: #475569 !important; background: #f8fafc !important;
