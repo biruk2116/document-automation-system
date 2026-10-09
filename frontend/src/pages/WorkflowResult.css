@@ -78,6 +78,23 @@
   align-items: start;
 }
 
+.wfr-content--doc-only {
+  display: block;
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+.wfr-content--doc-only .wfr-pdf-col {
+  width: 100%;
+}
+.wfr-content--doc-only .wfr-pdf-body {
+  min-height: 75vh;
+}
+.wfr-content--doc-only .wfr-pdf-embed {
+  min-height: 78vh;
+  height: 78vh;
+}
+
 /* ── Cards ── */
 .wfr-card {
   background: var(--bg-surface);
