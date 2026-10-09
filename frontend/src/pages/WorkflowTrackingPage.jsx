@@ -165,7 +165,7 @@ export default function WorkflowTrackingPage() {
         {/* Brand */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
           <img src={logo} alt="" style={{ width: 36, height: 36 }} />
-          <span className="font-handwriting" style={{ fontWeight: 700, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+          <span style={{ fontWeight: 700, fontSize: '22px', color: 'var(--text-primary)' }}>
             Document Automation System
           </span>
         </div>
@@ -219,7 +219,7 @@ export default function WorkflowTrackingPage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <img src={logo} alt="" style={{ width: 26, height: 26 }} />
-          <span className="font-handwriting" style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-primary)' }}>
+          <span style={{ fontWeight: 700, fontSize: '20px', color: 'var(--text-primary)' }}>
             Document Automation System
           </span>
         </div>
