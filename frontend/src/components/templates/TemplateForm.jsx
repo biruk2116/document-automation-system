@@ -168,11 +168,27 @@ export default function TemplateForm({
    * editor. Creates a unique ID for each field so they can be individually removed.
    */
   const handleAddSignatureField = () => {
+    // If a signature field already exists in the footer, do NOT duplicate it - keep it in one place!
+    if (footerHtml.includes('SIGNATURE_FIELD') || footerHtml.includes('[ SIGNATURE FIELD ]')) {
+      showToast('A signature field is already present in this template. It is kept in one place.', 'info');
+      setWf('signatureField', {
+        inFooter:   true,
+        multiple:   false,
+        required:   true,
+        allowPhoto: true,
+        allowDraw:  true,
+      });
+      setWf('userSignature', true);
+      setWorkflow(prev => ({ ...prev, enabled: true }));
+      if (!workflowOpen) setWorkflowOpen(true);
+      return;
+    }
+
     // Generate unique ID for this signature field
     const fieldId = `sig-field-${Date.now()}`;
     
     // The visual placeholder block that will be embedded in footer_html and
-    // stored in the DB. Each field has a unique data-sig-field-id for individual removal.
+    // stored in the DB.
     // The × button is ONLY shown during template creation/editing (contenteditable=false wrapper)
     // and will be removed before final PDF generation.
     const sigBlockHtml = `
@@ -212,10 +228,10 @@ export default function TemplateForm({
       setFooterHtml(prev => `${prev || ''}${sigBlockHtml}`);
     }
 
-    // Update signatureField config to track all fields
+    // Update signatureField config
     setWf('signatureField', {
       inFooter:   true,
-      multiple:   true,  // Indicates multiple fields are supported
+      multiple:   false,
       required:   true,
       allowPhoto: true,
       allowDraw:  true,
@@ -226,7 +242,7 @@ export default function TemplateForm({
     setWorkflow(prev => ({ ...prev, enabled: true }));
     if (!workflowOpen) setWorkflowOpen(true);
     
-    showToast('Signature field added. Click the × button on each field to remove individually.', 'success');
+    showToast('Signature field added to the footer.', 'success');
   };
 
   /**
@@ -580,13 +596,25 @@ export default function TemplateForm({
                 borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit',
                 transition: 'background .15s',
               }}
-              title="Insert another signature field into the footer. Each field has its own × button to remove individually."
+              title={signatureFieldCount > 0 ? "A signature field is already placed. Click to verify." : "Insert signature field into the footer."}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
-              {signatureFieldCount > 0 ? `Add Another (${signatureFieldCount} added)` : 'Add Signature Field'}
+              {signatureFieldCount > 0 ? (
+                <>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                  Signature Field in Place (1)
+                </>
+              ) : (
+                <>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                  Add Signature Field
+                </>
+              )}
             </button>
           )}
         </div>
