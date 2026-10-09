@@ -32,6 +32,106 @@ const CONTENT_W  = PAGE_W  - PAGE_PAD * 2; // 602
 const CONTENT_H  = PAGE_H  - PAGE_PAD * 2; // 931
 const PAGE_GAP   = 16;                      // gap between pages in the viewer
 
+function cleanViewerHtml(rawHtml) {
+  if (!rawHtml) return '';
+  return String(rawHtml)
+    .replace(/<button[^>]*class=["'][^"']*sig-field-remove-btn[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, '')
+    .replace(/<button[^>]*>[\s\S]*?<\/button>/gi, '');
+}
+
+function injectClientSignature(html, userSigned) {
+  if (!html || !userSigned) return html || '';
+
+  // If already contains embedded signature block, do not embed again — strip any stray raw placeholders
+  if (html.includes('<!-- SIGNATURE_EMBEDDED -->') || html.includes('signature-block')) {
+    return html
+      .replace(/<!-- \[\[SIGNATURE_FIELD[\s\S]*?<!-- \[\[\/SIGNATURE_FIELD[^\]]*\]\] -->/gi, '')
+      .replace(/\[\s*SIGNATURE FIELD\s*\]/gi, '');
+  }
+
+  const name = userSigned.name || userSigned.signatureText || userSigned.recipientName || '';
+  const photo = userSigned.photo || userSigned.signaturePhoto || null;
+  const signedAt = userSigned.signedAt || userSigned.workflow_user_signed_at || userSigned.date || new Date();
+  const dateStr = new Date(signedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  const sigImgHtml = photo
+    ? `<img src="${photo}" alt="Signature" style="display:block;max-height:48px;max-width:180px;object-fit:contain;" />`
+    : `<div style="font-family:'Edu QLD Beginner','Brush Script MT','Segoe Script',cursive;font-size:22px;color:#0F2747;font-style:italic;text-align:center;">${name || 'Digitally Approved'}</div>`;
+
+  const signedBlock = `<!-- SIGNATURE_EMBEDDED -->
+<div class="signature-block" style="break-inside:avoid !important;margin-top:12px;display:block;">
+<table class="signature-table" style="width:100%;border-collapse:collapse;font-family:inherit;font-size:12px;color:#1a1a2e;break-inside:avoid !important;">
+  <tbody>
+    <tr style="break-inside:avoid !important;">
+      <td style="width:38%;padding:4px 8px 4px 0;vertical-align:bottom;break-inside:avoid !important;">
+        <div style="padding-bottom:3px;min-width:80px;font-family:inherit;font-size:14px;font-weight:600;color:#0F2747;border-bottom:2px solid #0F2747;">
+          ${name || '&nbsp;'}
+        </div>
+        <div style="margin-top:4px;font-size:9px;color:#64748B;letter-spacing:0.04em;text-transform:uppercase;font-weight:600;">Name</div>
+      </td>
+      <td style="width:62%;padding:4px 0 4px 8px;vertical-align:bottom;break-inside:avoid !important;">
+        <div style="border:2px solid #0F2747;border-radius:4px;min-height:52px;padding:6px 8px;background:#fff;display:flex;align-items:center;justify-content:center;">
+          ${sigImgHtml}
+        </div>
+        <div style="margin-top:4px;font-size:9px;color:#64748B;letter-spacing:0.04em;text-transform:uppercase;font-weight:600;">Signature</div>
+      </td>
+    </tr>
+    <tr style="break-inside:avoid !important;">
+      <td colspan="2" style="padding:8px 0 0;vertical-align:bottom;break-inside:avoid !important;">
+        <div style="padding-bottom:3px;border-bottom:2px solid #64748B;font-size:13px;font-weight:600;color:#0F2747;">
+          ${dateStr}
+        </div>
+        <div style="margin-top:4px;font-size:9px;color:#64748B;letter-spacing:0.04em;text-transform:uppercase;font-weight:600;">Date</div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+</div>
+<!-- /SIGNATURE_EMBEDDED -->`;
+
+  let updated = html;
+  let replaced = false;
+
+  while (updated.includes('<!-- [[SIGNATURE_FIELD') || updated.includes('[ SIGNATURE FIELD ]') || updated.includes('[SIGNATURE FIELD]')) {
+    const blockToInsert = replaced ? '' : signedBlock;
+    let startIdx = updated.indexOf('<!-- [[SIGNATURE_FIELD');
+    if (startIdx !== -1) {
+      let endIdx = updated.indexOf('<!-- [[/SIGNATURE_FIELD', startIdx);
+      if (endIdx !== -1) {
+        let commentEnd = updated.indexOf('-->', endIdx) + 3;
+        let outerStart = updated.lastIndexOf('<div', startIdx);
+        let outerEnd = updated.indexOf('</div>', commentEnd);
+        if (outerStart !== -1 && outerEnd !== -1) {
+          updated = updated.slice(0, outerStart) + blockToInsert + updated.slice(outerEnd + 6);
+          replaced = true;
+          continue;
+        }
+      }
+    }
+    let sigIdx = Math.max(updated.indexOf('[ SIGNATURE FIELD ]'), updated.indexOf('[SIGNATURE FIELD]'));
+    if (sigIdx !== -1) {
+      let tblStart = updated.lastIndexOf('<table', sigIdx);
+      let tblEnd = updated.indexOf('</table>', sigIdx);
+      if (tblStart !== -1 && tblEnd !== -1) {
+        let divStart = updated.lastIndexOf('<div', tblStart);
+        let divEnd = updated.indexOf('</div>', tblEnd);
+        if (divStart !== -1 && divEnd !== -1 && (divEnd - divStart) < (tblEnd - tblStart) + 400) {
+          updated = updated.slice(0, divStart) + blockToInsert + updated.slice(divEnd + 6);
+        } else {
+          updated = updated.slice(0, tblStart) + blockToInsert + updated.slice(tblEnd + 8);
+        }
+        replaced = true;
+        continue;
+      }
+      updated = updated.replace(/\[\s*SIGNATURE FIELD\s*\]/i, replaced ? '' : sigImgHtml);
+      replaced = true;
+      break;
+    }
+    break;
+  }
+  return updated;
+}
+
 export default function TemplateViewer({ data }) {
   const containerRef = useRef(null);
   const ghostRef     = useRef(null);
@@ -73,8 +173,15 @@ export default function TemplateViewer({ data }) {
 
   if (!data) return null;
 
-  const html = data.html ||
+  // Extract signature info if attached
+  const userSigned = data.user_signed || data.userSigned || data.workflow_signature_data || data.metadata?.userSigned || null;
+  const parsedUserSigned = typeof userSigned === 'string' ? JSON.parse(userSigned) : userSigned;
+
+  const rawHtml = data.html ||
     `${data.header_html || ''}${data.body_html || ''}${data.footer_html || ''}`;
+  const cleanedHtml = cleanViewerHtml(rawHtml);
+  const html = injectClientSignature(cleanedHtml, parsedUserSigned);
+
   const watermarkText = data.watermark_text;
   const warnings      = data.placeholder_warnings || [];
 
@@ -108,11 +215,15 @@ export default function TemplateViewer({ data }) {
     .a4-content h6,
     .a4-content li {
       font-family: 'Noto Sans',
-        'Noto Sans Arabic', 'Noto Naskh Arabic', 'Amiri', 'Segoe UI', 'Tahoma', 'Traditional Arabic',
-        'Noto Sans Ethiopic', 'Noto Serif Ethiopic', 'Nyala', 'Ebrima', 'Abyssinica SIL', 'Kefa',
-        'Noto Sans SC', 'Noto Sans TC', 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'Hiragino Sans GB', 'SimSun', '宋体', 'SimHei', 'WenQuanYi Zen Hei',
+        /* Amharic / Ethiopic fonts */
+        'Noto Sans Ethiopic', 'Nyala', 'Ebrima', 'Abyssinica SIL', 'Kefa',
+        /* Arabic fonts */
+        'Noto Sans Arabic', 'Noto Naskh Arabic', 'Segoe UI', 'Tahoma', 'Traditional Arabic',
+        /* Chinese (Simplified & Traditional) fonts */
+        'Noto Sans SC', 'Noto Sans TC', 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'Hiragino Sans GB', 'SimSun', '宋体', 'SimHei',
+        /* Additional scripts */
         'Noto Sans Hebrew', 'Noto Sans Devanagari', 'Noto Sans JP', 'Noto Sans KR',
-        'Times New Roman', Calibri, Arial, sans-serif;
+        Calibri, Arial, Helvetica, sans-serif;
     }
     .a4-content {
       font-size: 11pt;
@@ -139,6 +250,32 @@ export default function TemplateViewer({ data }) {
     .a4-content h3 { font-size: 12pt; font-weight: 600; line-height: 1.35; margin: 10pt 0 4pt 0; color: #334155; }
     .a4-content h4, .a4-content h5, .a4-content h6 { font-size: 11pt; font-weight: 600; margin: 8pt 0 4pt 0; color: #1e293b; }
     .a4-content p  { margin: 0 0 8pt 0; line-height: 1.5; }
+
+    /* Strict bold & unbold overrides */
+    .a4-content b,
+    .a4-content strong,
+    .a4-content [style*="font-weight: bold"],
+    .a4-content [style*="font-weight:bold"],
+    .a4-content [style*="font-weight: 600"],
+    .a4-content [style*="font-weight:600"],
+    .a4-content [style*="font-weight: 700"],
+    .a4-content [style*="font-weight:700"],
+    .a4-content [style*="font-weight: 800"],
+    .a4-content [style*="font-weight:800"],
+    .a4-content [style*="font-weight: 900"],
+    .a4-content [style*="font-weight:900"],
+    .a4-content [style*="font-weight: bolder"],
+    .a4-content [style*="font-weight:bolder"] {
+      font-weight: 700 !important;
+    }
+    .a4-content [style*="font-weight: normal"],
+    .a4-content [style*="font-weight:normal"],
+    .a4-content [style*="font-weight: 400"],
+    .a4-content [style*="font-weight:400"],
+    .a4-content .font-normal {
+      font-weight: 400 !important;
+    }
+
     .a4-content ul, .a4-content ol { margin: 0 0 8pt 0; padding-left: 24pt; }
     .a4-content li { margin-bottom: 3pt; line-height: 1.5; }
     .a4-content blockquote { margin: 8pt 0; padding: 4pt 14pt; border-left: 3pt solid #0856C3; color: #475569; background: #f8fafc; }
