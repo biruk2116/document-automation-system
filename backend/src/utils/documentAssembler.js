@@ -39,6 +39,25 @@ function ensureAutoBidi(html) {
   return html.replace(/<(p|h[1-6]|li|blockquote|td|th)(?![^>]*\bdir=)([^>]*)>/gi, '<$1 dir="auto"$2>');
 }
 
+const MULTILINGUAL_FONT_FALLBACKS = ", 'Noto Sans Ethiopic', 'Noto Serif Ethiopic', 'Noto Sans Arabic', 'Noto Sans SC', 'Noto Sans TC', 'Amiri', 'Nyala', 'Ebrima', 'Microsoft YaHei', sans-serif";
+
+/**
+ * Ensures any inline font-family or legacy <font face="..."> has full Amharic,
+ * Arabic, and Chinese fallback support so non-Latin scripts never render as missing glyphs.
+ */
+function augmentInlineFonts(html) {
+  if (!html || typeof html !== 'string') return html || '';
+  return html
+    .replace(/style=(["'][^"']*font-family\s*:\s*)([^;"']+)(;?[^"']*["'])/gi, (match, prefix, val, postfix) => {
+      if (val.includes('Noto Sans Ethiopic') || val.includes('Nyala')) return match;
+      return `${prefix}${val}${MULTILINGUAL_FONT_FALLBACKS}${postfix}`;
+    })
+    .replace(/<font([^>]+)face=(["'])([^"']+)\2([^>]*)>/gi, (match, pre, q, face, post) => {
+      if (face.includes('Noto Sans Ethiopic') || face.includes('Nyala')) return match;
+      return `<font${pre}face=${q}${face}${MULTILINGUAL_FONT_FALLBACKS}${q} style="font-family:${face}${MULTILINGUAL_FONT_FALLBACKS};"${post}>`;
+    });
+}
+
 /**
  * Wraps rendered header/body/footer into a complete, styled A4 HTML document
  * ready for either on-screen preview or Puppeteer PDF rendering.
@@ -89,9 +108,9 @@ function assembleDocumentHtml({
     finalGeneratedDateHtml = finalGeneratedDateHtml.replace(/<div\s+class=["']doc-generated-date["'][^>]*>([\s\S]*?)<\/div>/i, '<div class="doc-generated-date"><em>$1</em></div>');
   }
 
-  const cleanHeaderHtml = ensureAutoBidi(inlineStorageImages(stripEditorOnlyElements(headerHtml || '')));
-  const cleanBodyHtml = ensureAutoBidi(inlineStorageImages(cleanBodyRaw));
-  const cleanFooterHtml = ensureAutoBidi(inlineStorageImages(stripEditorOnlyElements(footerHtml || '')));
+  const cleanHeaderHtml = ensureAutoBidi(augmentInlineFonts(inlineStorageImages(stripEditorOnlyElements(headerHtml || ''))));
+  const cleanBodyHtml = ensureAutoBidi(augmentInlineFonts(inlineStorageImages(cleanBodyRaw)));
+  const cleanFooterHtml = ensureAutoBidi(augmentInlineFonts(inlineStorageImages(stripEditorOnlyElements(footerHtml || ''))));
   
   // FR-017 color coding: DRAFT stays red (unapproved/in-progress), FINAL is green
   // (approved/complete) so the two are never visually confusable. Anything else
@@ -115,8 +134,10 @@ function assembleDocumentHtml({
 <!-- High-fidelity Google Fonts CDN for Amharic (Ethiopic), Arabic, and Chinese (Simplified & Traditional) -->
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&family=Noto+Sans+Ethiopic:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Amiri:wght@400;700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&family=Noto+Sans+Ethiopic:wght@400;500;600;700&family=Noto+Serif+Ethiopic:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Amiri:wght@400;700&display=block" rel="stylesheet" />
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&family=Noto+Sans+Ethiopic:wght@400;500;600;700&family=Noto+Serif+Ethiopic:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Amiri:wght@400;700&display=block');
+
   /* Standard Microsoft Word-style A4 paper margins on all four sides */
   @page {
     size: A4;
@@ -143,21 +164,24 @@ function assembleDocumentHtml({
    * 4. Linux native fallbacks: Noto Sans Ethiopic, Abyssinica SIL, Noto Sans Arabic,
    *    WenQuanYi Zen Hei & WenQuanYi Micro Hei.
    */
-  body {
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    box-sizing: border-box;
+  body, p, div, span, font, td, th, h1, h2, h3, h4, h5, h6, li, blockquote, strong, em, b, i, a, label {
     font-family: 'Noto Sans',
       /* Arabic fonts */
       'Noto Sans Arabic', 'Noto Naskh Arabic', 'Amiri', 'Segoe UI', 'Tahoma', 'Traditional Arabic', 'Arabic Typesetting', 'Geeza Pro', 'Damascus',
       /* Amharic / Ethiopic fonts */
-      'Noto Sans Ethiopic', 'Nyala', 'Ebrima', 'Abyssinica SIL', 'Kefa',
+      'Noto Sans Ethiopic', 'Noto Serif Ethiopic', 'Nyala', 'Ebrima', 'Abyssinica SIL', 'Kefa',
       /* Chinese (Simplified & Traditional) fonts */
       'Noto Sans SC', 'Noto Sans TC', 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'Hiragino Sans GB', 'SimSun', '宋体', 'SimHei', '黑体', 'WenQuanYi Zen Hei', 'WenQuanYi Micro Hei',
       /* Additional scripts */
       'Noto Sans Hebrew', 'Noto Sans Devanagari', 'Noto Sans JP', 'Noto Sans KR',
       'Times New Roman', Calibri, Arial, sans-serif;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    box-sizing: border-box;
     font-size: 11pt;
     line-height: 1.5;
     color: #1a1a2e;
