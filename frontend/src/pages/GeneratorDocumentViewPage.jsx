@@ -156,28 +156,26 @@ function DeliverySendForm({ notifyToken, recordIdentifier }) {
             <button
               key={m.id}
               type="button"
+              className="delivery-method-btn"
               onClick={() => { setMethod(m.id); setError(null); setConfirming(false); }}
               disabled={sending}
               style={{
-                display: 'flex', alignItems: 'flex-start', gap: 10,
-                padding: '8px 12px', borderRadius: 8, cursor: 'pointer',
                 border: selected ? '2px solid #6366F1' : '1.5px solid #E2E8F0',
                 background: selected ? '#EEF2FF' : '#fff',
-                textAlign: 'left', width: '100%',
               }}
             >
               <span style={{ flexShrink: 0, marginTop: 2, color: selected ? '#4338CA' : '#64748B' }}>
                 <Icon size={18} color={selected ? '#4338CA' : '#64748B'} />
               </span>
               <span>
-                <span style={{ display: 'block', fontWeight: 600, fontSize: '0.85rem', color: selected ? '#4338CA' : '#1E293B' }}>
+                <span className="delivery-method-label" style={{ color: selected ? '#4338CA' : '#1E293B' }}>
                   {m.label}{selected && (
                     <span style={{ marginLeft: 6, color: '#6366F1', display: 'inline-flex', verticalAlign: 'middle' }}>
                       <CheckIcon size={14} color="#6366F1" />
                     </span>
                   )}
                 </span>
-                <span style={{ display: 'block', fontSize: '0.78rem', color: '#475569', marginTop: 1 }}>{m.desc}</span>
+                <span className="delivery-method-desc">{m.desc}</span>
               </span>
             </button>
           );
