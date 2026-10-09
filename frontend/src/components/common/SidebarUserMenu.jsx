@@ -60,10 +60,10 @@ const Ic = ({ d, d2, circle, cx, cy, r, size = 15 }) => (
 
 const IconPerson = () => <Ic d="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" d2="M4 20c.5-3.5 3.6-6 8-6s7.5 2.5 8 6"/>;
 const IconX      = () => <Ic d="M6 6l12 12M18 6L6 18"/>;
-const IconCamera = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path d="M4 8.5C4 7.4 4.9 6.5 6 6.5H8l1.2-1.7c.4-.5 1-.8 1.6-.8h2.4c.6 0 1.2.3 1.6.8L16 6.5h2c1.1 0 2 .9 2 2V17c0 1.1-.9 2-2 2H6c-1.1 0-2-.9-2-2V8.5z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/>
-    <circle cx="12" cy="12.5" r="3.4" stroke="currentColor" strokeWidth="1.7"/>
+const IconCamera = ({ size = 12 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ display: 'block', pointerEvents: 'none' }}>
+    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+    <circle cx="12" cy="13" r="4"/>
   </svg>
 );
 
@@ -232,20 +232,22 @@ export default function SidebarUserMenu() {
         <Avatar user={user} size={28} />
         <span className="sidebar-user-trigger-text">
           <span
-            className="sidebar-user-trigger-name font-handwriting"
+            className="sidebar-user-trigger-name"
             style={{
-              fontSize: '0.85rem',
-              fontFamily: "'Edu QLD Beginner', 'Edu AU VIC WA NT Hand', cursive, sans-serif",
+              fontSize: '14px',
+              fontWeight: 600,
+              fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
             }}
           >
             {user.full_name}
           </span>
           <span
-            className="sidebar-user-trigger-role font-handwriting"
+            className="sidebar-user-trigger-role"
             style={{
-              fontSize: '0.72rem',
+              fontSize: '12px',
+              fontWeight: 400,
               textTransform: 'none',
-              fontFamily: "'Edu QLD Beginner', 'Edu AU VIC WA NT Hand', cursive, sans-serif",
+              fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
             }}
           >
             {formatRole(user.role)}
@@ -260,10 +262,10 @@ export default function SidebarUserMenu() {
         </svg>
       </button>
 
-      {/* ── My Profile panel — opens directly, covers sidebar height with Edu QLD Hand font ──────── */}
+      {/* ── My Profile panel — opens directly, covers sidebar height with Plus Jakarta Sans font ──────── */}
       {view === 'profile' && (
         <div
-          className="sidebar-profile-panel font-handwriting"
+          className="sidebar-profile-panel"
           style={{
             position: 'fixed',
             top: 0,
@@ -279,7 +281,7 @@ export default function SidebarUserMenu() {
             overflowY: 'auto',
             scrollbarWidth: 'none',
             msOverflowStyle: 'none',
-            fontFamily: "'Edu QLD Beginner', 'Edu AU VIC WA NT Hand', cursive, sans-serif",
+            fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
           }}
         >
 
@@ -361,22 +363,14 @@ export default function SidebarUserMenu() {
               <button
                 type="button"
                 onClick={pickFile}
+                className="user-avatar-upload-btn"
                 title="Upload or change profile photo"
                 aria-label="Upload or change profile photo"
-                style={{
-                  position: 'absolute', bottom: -2, right: -2,
-                  width: 22, height: 22, borderRadius: '50%',
-                  background: 'var(--brand, #0856C3)', color: '#FFFFFF',
-                  border: '2px solid var(--bg-surface)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', padding: 0,
-                  transition: 'background 0.15s',
-                }}
               >
                 {savingPh ? (
                   <span className="user-avatar-spinner" style={{ width: 10, height: 10 }} />
                 ) : (
-                  <IconCamera />
+                  <IconCamera size={12} />
                 )}
               </button>
             </div>
@@ -480,7 +474,7 @@ export default function SidebarUserMenu() {
                       padding: '5px 28px 5px 8px',
                       fontSize: '0.92rem',
                       borderRadius: 6,
-                      fontFamily: "'Edu QLD Beginner', 'Edu AU VIC WA NT Hand', cursive, sans-serif",
+                      fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif",
                     }}
                     onFocus={(e) => (e.target.style.borderColor = 'var(--brand, #0856C3)')}
                     onBlur={(e)  => (e.target.style.borderColor = 'var(--border-strong)')}
