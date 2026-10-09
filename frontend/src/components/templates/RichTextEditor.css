@@ -119,18 +119,112 @@
    EDITOR CONTENT STYLING (Inside .rte-content)
    ============================================================ */
 
+.rich-text-editor .rte-content,
+.rte-content {
+  font-family: 'Noto Sans',
+    /* Amharic / Ethiopic fonts */
+    'Noto Sans Ethiopic', 'Nyala', 'Ebrima', 'Abyssinica SIL', 'Kefa',
+    /* Arabic fonts */
+    'Noto Sans Arabic', 'Noto Naskh Arabic', 'Segoe UI', 'Tahoma', 'Traditional Arabic',
+    /* Chinese (Simplified & Traditional) fonts */
+    'Noto Sans SC', 'Noto Sans TC', 'Microsoft YaHei', 'PingFang SC', 'SimSun',
+    /* Additional scripts */
+    'Noto Sans Hebrew', 'Noto Sans Devanagari', 'Noto Sans JP', 'Noto Sans KR',
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+  color: #1a1a2e;
+  line-height: 1.5;
+}
+
+/* --- Headings inside RTE (matching PDF documentAssembler & TemplateViewer) --- */
+.rich-text-editor .rte-content h1, .rte-content h1 {
+  font-size: 18pt !important;
+  font-weight: 700 !important;
+  line-height: 1.25 !important;
+  margin: 14pt 0 6pt 0 !important;
+  color: #0f172a !important;
+}
+
+.rich-text-editor .rte-content h2, .rte-content h2 {
+  font-size: 14pt !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  margin: 12pt 0 5pt 0 !important;
+  color: #1e293b !important;
+}
+
+.rich-text-editor .rte-content h3, .rte-content h3 {
+  font-size: 12pt !important;
+  font-weight: 600 !important;
+  line-height: 1.35 !important;
+  margin: 10pt 0 4pt 0 !important;
+  color: #334155 !important;
+}
+
+.rich-text-editor .rte-content h4, .rte-content h4 {
+  font-size: 11pt !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  margin: 8pt 0 4pt 0 !important;
+  color: #1e293b !important;
+}
+
+.rich-text-editor .rte-content h5, .rte-content h5 {
+  font-size: 11pt !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  margin: 8pt 0 4pt 0 !important;
+  color: #1e293b !important;
+}
+
+.rich-text-editor .rte-content h6, .rte-content h6 {
+  font-size: 10pt !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  margin: 8pt 0 4pt 0 !important;
+  color: #1e293b !important;
+}
+
+/* --- Explicit UNBOLD overrides (e.g. unbolded text inside headings or paragraphs) --- */
+.rich-text-editor .rte-content [style*="font-weight: normal"],
+.rich-text-editor .rte-content [style*="font-weight:normal"],
+.rich-text-editor .rte-content [style*="font-weight: 400"],
+.rich-text-editor .rte-content [style*="font-weight:400"],
+.rich-text-editor .rte-content .font-normal,
+.rte-content [style*="font-weight: normal"],
+.rte-content [style*="font-weight:normal"],
+.rte-content [style*="font-weight: 400"],
+.rte-content [style*="font-weight:400"],
+.rte-content .font-normal {
+  font-weight: 400 !important;
+}
+
 /* --- Bold & Strong --- */
 .rich-text-editor .rte-content b,
 .rich-text-editor .rte-content strong,
 .rich-text-editor .rte-content [style*="font-weight: bold"],
 .rich-text-editor .rte-content [style*="font-weight:bold"],
+.rich-text-editor .rte-content [style*="font-weight: 600"],
+.rich-text-editor .rte-content [style*="font-weight:600"],
 .rich-text-editor .rte-content [style*="font-weight: 700"],
 .rich-text-editor .rte-content [style*="font-weight:700"],
-.rich-text-editor .rte-content [style*="font-weight: 600"],
 .rich-text-editor .rte-content [style*="font-weight: 800"],
+.rich-text-editor .rte-content [style*="font-weight:800"],
 .rich-text-editor .rte-content [style*="font-weight: 900"],
+.rich-text-editor .rte-content [style*="font-weight:900"],
+.rich-text-editor .rte-content [style*="font-weight: bolder"],
+.rich-text-editor .rte-content [style*="font-weight:bolder"],
 .rte-content b,
-.rte-content strong {
+.rte-content strong,
+.rte-content [style*="font-weight: bold"],
+.rte-content [style*="font-weight:bold"],
+.rte-content [style*="font-weight: 600"],
+.rte-content [style*="font-weight:600"],
+.rte-content [style*="font-weight: 700"],
+.rte-content [style*="font-weight:700"],
+.rte-content [style*="font-weight: 800"],
+.rte-content [style*="font-weight: 900"],
+.rte-content [style*="font-weight: bolder"],
+.rte-content [style*="font-weight:bolder"] {
   font-weight: 700 !important;
   color: inherit !important;
 }
