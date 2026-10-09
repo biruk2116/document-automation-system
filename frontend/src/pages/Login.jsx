@@ -58,7 +58,7 @@ export default function Login() {
             alt="Document Automation System"
             className="w-64 h-64 sm:w-72 sm:h-72 object-contain"
           />
-          <h1 className="text-4xl sm:text-5xl lg:text-[3.25rem] font-bold tracking-tight text-[#0f2856] dark:text-white leading-tight font-handwriting">
+          <h1 className="text-4xl lg:text-5xl font-extrabold tracking-tight text-[#0f2856] dark:text-white leading-tight">
             Document Automation<br />System
           </h1>
         </div>
@@ -73,14 +73,14 @@ export default function Login() {
             alt="Document Automation System"
             className="w-24 h-24 object-contain mb-3"
           />
-          <h1 className="text-xl font-bold text-[#0f2856] dark:text-white text-center font-handwriting">
+          <h1 className="text-xl font-bold text-[#0f2856] dark:text-white text-center">
             Document Automation System
           </h1>
         </div>
 
         <div className="w-full max-w-[390px] bg-white dark:bg-[#0B1118] p-6 sm:p-8">
-          {/* Title */}
-          <h2 className="text-3xl font-bold text-center text-[#0856C3] dark:text-[#60A5FA] mb-8 tracking-wide font-handwriting">
+          {/* Title: 24px, 700 */}
+          <h2 className="text-2xl font-bold text-center text-[#0856C3] dark:text-[#60A5FA] mb-8 tracking-tight">
             Login
           </h2>
 
@@ -97,7 +97,7 @@ export default function Login() {
           )}
 
           <form onSubmit={handleSubmit} noValidate className="space-y-6">
-            {/* Email / Username with underline input */}
+            {/* Email / Username with underline input: 14px, 400 */}
             <div className="flex items-center border-b-2 border-slate-300 dark:border-slate-700 focus-within:border-[#0856C3] dark:focus-within:border-[#60A5FA] pb-2 transition-colors">
               <span className="text-[#0856C3] dark:text-[#60A5FA] flex-shrink-0 mr-3">
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -109,7 +109,7 @@ export default function Login() {
                 type="email"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setError(null); }}
-                placeholder="099000 / email"
+                placeholder="enter your email"
                 autoComplete="username"
                 autoFocus
                 required
@@ -118,7 +118,7 @@ export default function Login() {
               />
             </div>
 
-            {/* Password with underline input */}
+            {/* Password with underline input: 14px, 400 */}
             <div className="flex items-center border-b-2 border-slate-300 dark:border-slate-700 focus-within:border-[#0856C3] dark:focus-within:border-[#60A5FA] pb-2 transition-colors relative">
               <span className="text-[#0856C3] dark:text-[#60A5FA] flex-shrink-0 mr-3">
                 <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -130,7 +130,7 @@ export default function Login() {
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(null); }}
-                placeholder="••••••••"
+                placeholder="password"
                 autoComplete="current-password"
                 required
                 disabled={submitting}
@@ -159,22 +159,22 @@ export default function Login() {
               </button>
             </div>
 
-            {/* Forgot Password link positioned ABOVE the login button as explicitly requested */}
+            {/* Forgot Password link positioned ABOVE the login button */}
             <div className="flex justify-end pt-1">
               <Link
                 to="/forgot-password"
-                className="text-sm font-semibold text-[#0856C3] dark:text-[#60A5FA] hover:underline transition-colors font-handwriting"
+                className="text-[13px] font-semibold text-[#0856C3] dark:text-[#60A5FA] hover:underline transition-colors"
               >
                 Forgot Password ?
               </Link>
             </div>
 
-            {/* Submit Button (Pill shaped matching Image 2) */}
+            {/* Submit Button: 14px, 600 */}
             <button
               type="submit"
               disabled={submitting || !email.trim() || !password}
               aria-busy={submitting}
-              className="w-full h-[42px] px-6 rounded-full bg-[#0856C3] hover:bg-[#06449E] active:bg-[#053782] dark:bg-[#2563EB] dark:hover:bg-[#1D4ED8] text-white font-bold text-base tracking-wide shadow-md hover:shadow-lg transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-handwriting"
+              className="w-full h-[42px] px-6 rounded-full bg-[#0856C3] hover:bg-[#06449E] active:bg-[#053782] dark:bg-[#2563EB] dark:hover:bg-[#1D4ED8] text-white font-semibold text-sm tracking-wide shadow-md hover:shadow-lg transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {submitting ? (
                 <>
@@ -191,7 +191,7 @@ export default function Login() {
           <div className="mt-8 pt-4 flex items-center justify-center text-xs font-semibold text-[#0856C3] dark:text-[#60A5FA]">
             <Link
               to="/verify"
-              className="hover:underline transition-colors font-handwriting text-sm"
+              className="hover:underline transition-colors text-[13px] font-semibold"
             >
               Verify Document
             </Link>
