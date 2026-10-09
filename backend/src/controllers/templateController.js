@@ -386,15 +386,8 @@ async function updateTemplate(req, res) {
     }
     const existing = existingRows[0];
 
-    // Check if the name conflicts with another template (exempts current template's entire lineage)
-    const lineageIds = await getLineageIds(pool, existing.id);
-    const duplicate = await findDuplicateTemplateName(pool, name, lineageIds);
-    if (duplicate) {
-      return res.status(409).json({
-        success: false,
-        message: 'This template name already exists. Please choose another name.',
-      });
-    }
+    // For editing/updating an existing template, do not restrict or ask to change the template name.
+    // Name uniqueness check applies strictly when creating a new template (createTemplate).
 
     // Single INSERT for new version without mutating past versions
     const [rows] = await pool.query(
@@ -440,14 +433,6 @@ async function updateTemplate(req, res) {
   } catch (err) {
     console.error('[templates] update error:', err);
     console.error('[templates] error stack:', err.stack);
-    
-    // Handle duplicate name error
-    if (err.code === '23505') {
-      return res.status(409).json({
-        success: false,
-        message: 'This template name already exists. Please choose another name.',
-      });
-    }
     
     return res.status(500).json({
       success: false,
