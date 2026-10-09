@@ -138,7 +138,7 @@ html {
 
 body {
   margin: 0;
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Noto Sans Ethiopic', 'Noto Serif Ethiopic', 'Noto Sans Arabic', 'Noto Sans SC', 'Noto Sans TC', system-ui, -apple-system, sans-serif;
   font-size: 14px;
   font-weight: 400;
   background: var(--bg-base);
@@ -161,104 +161,648 @@ body {
 .font-handwriting h3,
 .font-handwriting span,
 .font-handwriting label {
-  font-family: 'Edu QLD Beginner', 'Edu AU VIC WA NT Hand', cursive, sans-serif !important;
+  font-family: 'Plus Jakarta Sans', 'Noto Sans Ethiopic', 'Noto Serif Ethiopic', 'Noto Sans Arabic', 'Noto Sans SC', 'Noto Sans TC', system-ui, -apple-system, sans-serif !important;
 }
 
-/* Page title: Plus Jakarta Sans, 24px, Weight 700 */
-h1, .page-title, .page-header h1, .tpl-page-title, .doc-tracking-header-title {
+/* ============================================================
+   COMPLETE SYSTEM TYPOGRAPHY — PLUS JAKARTA SANS
+   ============================================================ */
+
+/* 1. Logo / System Name: 20–24px, Weight 700 */
+.app-brand-title,
+.public-page-header-brand,
+.login-brand-title,
+.auth-brand-title {
+  font-family: 'Plus Jakarta Sans', 'Noto Sans Ethiopic', 'Noto Sans Arabic', 'Noto Sans SC', system-ui, -apple-system, sans-serif !important;
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  line-height: 1.25;
+}
+
+/* Sidebar Title horizontally displayed in single line */
+.sidebar-brand-text {
+  font-family: 'Plus Jakarta Sans', 'Noto Sans Ethiopic', 'Noto Sans Arabic', 'Noto Sans SC', system-ui, -apple-system, sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+  letter-spacing: -0.2px;
+}
+
+/* 2. Header / Top Navigation: 14px, Weight 500 */
+.navbar,
+.top-nav,
+.navbar-nav,
+.navbar-link {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+}
+
+/* 3. Header username: 14px, Weight 600 */
+.navbar-user-name,
+.header-username,
+.sidebar-user-trigger-name {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
+
+/* 4. Header icons labels: 12–13px, Weight 500 */
+.navbar-user-role,
+.header-icon-label,
+.notif-badge,
+.navbar-logout-btn {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* 5. Sidebar menu: 14px, Weight 500 */
+.sidebar-link,
+.sidebar-menu-item,
+.sidebar-nav a {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+}
+
+/* 6. Sidebar active menu: 14px, Weight 600 */
+.sidebar-link.active,
+.sidebar-link-active,
+.sidebar-menu-item.active {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
+
+/* 7. Sidebar section title: 11–12px, Weight 600 */
+.sidebar-section-title,
+.sidebar-group-title,
+.sidebar-category {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* 8. Sidebar collapsed tooltip: 12px, Weight 500 */
+.sidebar-tooltip,
+.sidebar-collapsed-tooltip {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+/* 9. Page title / H1: 24px, Weight 700 */
+h1,
+.page-title,
+.page-header h1,
+.tpl-page-title,
+.doc-tracking-header-title {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   font-size: 24px !important;
   font-weight: 700 !important;
-  color: var(--text-primary);
-  margin-top: 0;
   letter-spacing: -0.015em;
   line-height: 1.3;
 }
 
-.dark h1, .dark .page-title, .dark .page-header h1 {
-  color: #F1F5F9;
+/* 10. Page title mobile: 20px, Weight 700 */
+@media (max-width: 640px) {
+  h1,
+  .page-title,
+  .page-header h1,
+  .tpl-page-title {
+    font-size: 20px !important;
+    font-weight: 700 !important;
+  }
 }
 
-.app-brand-title {
-  color: var(--text-primary);
-}
-.dark .app-brand-title {
-  color: #F1F5F9;
+/* 11. Page subtitle: 14px, Weight 400 */
+.page-subtitle,
+.page-header-desc,
+.page-description,
+.section-subtitle {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  line-height: 1.45;
 }
 
-/* Section heading: Plus Jakarta Sans, 18px, Weight 600 */
-h2, .section-title, .section-heading, .card-header h2, .panel-header h2 {
+/* 12. Section heading / H2: 18px, Weight 600 */
+h2,
+.section-title,
+.section-heading,
+.card-header h2,
+.panel-header h2 {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   font-size: 18px !important;
   font-weight: 600 !important;
-  color: var(--text-primary);
-  margin-top: 0;
   line-height: 1.35;
 }
 
-/* Card title: Plus Jakarta Sans, 15-16px, Weight 600 */
-h3, .card-title, .card-header h3, .panel-title, .tpl-card-title, .doc-card-title {
+/* 13. Subsection heading / H3: 16px, Weight 600 */
+h3,
+.subsection-heading,
+.card-header h3,
+.panel-title,
+.tpl-card-title,
+.doc-card-title {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   font-size: 16px !important;
   font-weight: 600 !important;
-  color: var(--text-primary);
-  margin-top: 0;
   line-height: 1.4;
 }
 
-h4 {
+/* 14. Card title: 15px, Weight 600 */
+.card-title,
+.kpi-card-title,
+.template-card-name,
+.dashboard-card-title {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-top: 0;
+  font-size: 15px !important;
+  font-weight: 600 !important;
 }
 
-/* Card/body text: Plus Jakarta Sans, 14px, Weight 400 */
-p, .card, .card-body, .panel, .panel-body, .template-table td, .template-list-table td {
+/* 15. Card body: 14px, Weight 400 */
+.card,
+.card-body,
+.panel,
+.panel-body {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   font-size: 14px;
   font-weight: 400;
   line-height: 1.5;
 }
 
-/* Form labels: Plus Jakarta Sans, 13px, Weight 500 */
-label, .form-field label, .form-label, .login-form label, .template-form label, .filter-label {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+/* 16. Card statistic: 24–28px, Weight 700 */
+.card-statistic,
+.kpi-value,
+.kpi-number,
+.stat-value,
+.stat-number {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 26px !important;
+  font-weight: 700 !important;
+}
+
+/* 17. Card secondary text: 12px, Weight 400 */
+.card-secondary,
+.card-meta,
+.card-meta-item,
+.template-card-meta,
+.kpi-card-desc,
+.card-footnote {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+}
+
+/* 18. Normal body text: 14px, Weight 400 */
+body,
+p,
+.text-normal {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+/* 19. Important body text: 14px, Weight 500 */
+.text-important,
+strong,
+b,
+.font-medium {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* 20. Form label: 13px, Weight 600 */
+label,
+.form-field label,
+.form-label,
+.login-form label,
+.template-form label,
+.filter-label,
+.login-label {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   font-size: 13px !important;
-  font-weight: 500 !important;
-  color: var(--text-secondary);
+  font-weight: 600 !important;
   line-height: 1.4;
 }
 
-/* Input text: Plus Jakarta Sans, 14px, Weight 400 */
+/* 21. Input text: 14px, Weight 400 */
 input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
 select,
 textarea,
+.form-input,
 .form-field input,
 .form-field select,
 .form-field textarea,
 .login-form input,
 .search-input {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   font-size: 14px !important;
   font-weight: 400 !important;
   line-height: 1.4;
 }
 
-/* Small/helper text: Plus Jakarta Sans, 12px, Weight 400 */
-.text-xs,
+/* 22. Input placeholder: 14px, Weight 400 */
+input::placeholder,
+textarea::placeholder,
+select::placeholder {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+}
+
+/* 23. Input helper text: 12px, Weight 400 */
 .field-hint,
-.field-error,
-.text-muted,
+.input-helper,
 .helper-text,
+.form-text,
 .subtext,
-small,
 .caption {
-  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   font-size: 12px !important;
   font-weight: 400 !important;
-  line-height: 1.4;
+}
+
+/* 24. Error message: 12px, Weight 500 */
+.error-msg,
+.field-error,
+.modal-error,
+.form-error,
+.text-error,
+.error-banner {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+/* 25. Success message: 12px, Weight 500 */
+.success-msg,
+.field-success,
+.form-success,
+.text-success {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+/* 26. Button text & geometry: standard system buttons (13px, weight 600, radius 6px, padding 6px 14px) */
+button:not(.hamburger-btn):not(.theme-toggle-btn):not(.navbar-logout-btn):not(.notif-bell-btn):not(.sidebar-close-btn):not(.modal-close-btn):not(.user-avatar-upload-btn):not(.tpl-action-btn):not([class*="btn-doc-"]):not(.template-view-back-btn):not(.template-card):not(.doc-template-card):not(.gen-mode-card):not([class*="card"]):not(.bulk-csv-clear):not(.wfr-back-btn):not(.tab):not([class*="tab-"]):not(.pagination-btn):not([class*="pagination"]):not(.delivery-method-btn):not(.notif-item):not(.sig-tab-btn),
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-success,
+.btn-danger,
+.btn-outline,
+.btn-neutral,
+.btn-accent,
+.btn-default,
+.btn-lg,
+.btn-large,
+.button-lg,
+.btn-submit-main,
+.login-submit-btn,
+.wfr-btn-primary {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+  padding: 6px 14px !important;
+  min-height: 32px !important;
+  height: 32px !important;
+  line-height: 1.2 !important;
+  box-sizing: border-box;
+}
+
+/* 27. Minimized Action Buttons: Templates & Document Tracking (compact, 11.5px, height 26px) */
+.tpl-action-btn,
+.btn-doc-view,
+.btn-doc-download,
+.btn-doc-send,
+.btn-doc-hand-delivered,
+.btn-doc-action,
+.btn-doc-rejection,
+.btn-doc-approve,
+.btn-doc-reject,
+.btn-doc-trash,
+.btn-doc-gray,
+.btn-doc-edit {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  border-radius: 5px !important;
+  padding: 3px 8px !important;
+  min-height: 26px !important;
+  height: 26px !important;
+  line-height: 1 !important;
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  white-space: nowrap !important;
+  width: fit-content !important;
+}
+
+/* User avatar camera upload icon button (circular badge) */
+.user-avatar-upload-btn {
+  position: absolute !important;
+  bottom: -2px !important;
+  right: -2px !important;
+  width: 24px !important;
+  height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
+  max-width: 24px !important;
+  max-height: 24px !important;
+  border-radius: 50% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: #0856C3 !important;
+  color: #FFFFFF !important;
+  border: 2px solid var(--bg-surface, #ffffff) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25) !important;
+  z-index: 10 !important;
+  line-height: 1 !important;
+  box-sizing: border-box !important;
+}
+.user-avatar-upload-btn svg {
+  width: 12px !important;
+  height: 12px !important;
+  display: block !important;
+  color: #FFFFFF !important;
+  stroke: #FFFFFF !important;
+  flex-shrink: 0 !important;
+}
+.user-avatar-upload-btn:hover {
+  background: #06449E !important;
+}
+.dark .user-avatar-upload-btn {
+  background: #2563EB !important;
+  border-color: #1E293B !important;
+}
+.dark .user-avatar-upload-btn:hover {
+  background: #1D4ED8 !important;
+}
+
+/* Small back button on template view page */
+.template-view-back-btn {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+  padding: 4px 10px !important;
+  min-height: 28px !important;
+  height: 28px !important;
+  line-height: 1.2 !important;
+  box-sizing: border-box;
+}
+
+/* 29. Table header: 12px, Weight 600 */
+th,
+.table th,
+.data-table th,
+.template-table th,
+.template-list-table th {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em;
+}
+
+/* 30. Table content: 13px, Weight 400 */
+td,
+.table td,
+.data-table td,
+.template-table td,
+.template-list-table td {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+}
+
+/* 31. Important table value: 13px, Weight 500 */
+.table td strong,
+.data-table td strong,
+.table-important,
+.data-table td.primary {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+/* 32. Status badge: 11px, Weight 600 */
+.status-badge,
+.badge,
+.tag {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+
+/* 33. Badge medium: 12px, Weight 600 */
+.badge-md,
+.badge-medium,
+.status-badge-lg {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+/* 34. Dropdown items: 14px, Weight 400–500 */
+.dropdown-item,
+.select-option,
+.menu-item,
+.notif-item {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+}
+
+/* 35. Dropdown selected: 14px, Weight 600 */
+.dropdown-item.selected,
+.dropdown-item-active,
+.select-option-selected {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
+
+/* 36. Tabs: 13px, Weight 500 */
+.tab,
+.tabs button,
+.bulk-tab,
+.nav-tabs button {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+/* 37. Active tab: 13px, Weight 600 */
+.tab.active,
+.tabs button.active,
+.bulk-tab-active,
+.tab-active {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+/* 38. Modal title: 18px, Weight 600 */
+.modal-title,
+.modal-header h2,
+.modal-header h3,
+.dialog-title {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 18px !important;
+  font-weight: 600 !important;
+}
+
+/* 39. Modal body: 14px, Weight 400 */
+.modal-body,
+.modal-content p,
+.dialog-body {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+}
+
+/* 40. Modal button: 13px, Weight 600 */
+.modal-footer button,
+.modal-btn,
+.modal-actions button {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+/* 41. Tooltip: 12px, Weight 500 */
+.tooltip,
+[data-tooltip]::after {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+/* 42. Breadcrumb: 12–13px, Weight 400–500 */
+.breadcrumb,
+.breadcrumb-item,
+.breadcrumbs a {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+/* 43. Pagination: 13px, Weight 500 */
+.pagination,
+.pagination button,
+.pagination-btn,
+.page-item {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+
+/* 44. Notification title: 13px, Weight 600 */
+.notif-item-title,
+.notification-title,
+.toast-title {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+/* 45. Notification body: 12px, Weight 400 */
+.notif-item-desc,
+.notif-item-time,
+.notification-body,
+.toast-message {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+}
+
+/* 46. Login title: 24px, Weight 700 */
+.login-title,
+.auth-title {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 24px !important;
+  font-weight: 700 !important;
+}
+
+/* 47. Login subtitle: 14px, Weight 400 */
+.login-subtitle,
+.auth-subtitle {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+}
+
+/* 48. Login label: 13px, Weight 600 */
+.login-label,
+.auth-label {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+/* 49. Login input: 14px, Weight 400 */
+.login-input,
+#login-username,
+#login-password,
+#fp-email,
+#reset-password {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+}
+
+/* 50. Login button: 14px, Weight 600 */
+.login-btn,
+.login-submit-btn,
+.auth-btn {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
+
+/* 51. Empty state title: 18px, Weight 600 */
+.empty-state-title,
+.no-data-title,
+.empty-title {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 18px !important;
+  font-weight: 600 !important;
+}
+
+/* 52. Empty state description: 14px, Weight 400 */
+.empty-state-desc,
+.no-data-desc,
+.empty-desc,
+.template-list-empty {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+}
+
+/* 53. Footer: 12px, Weight 400 */
+footer,
+.footer,
+.app-footer,
+.footer-text {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  font-size: 12px !important;
+  font-weight: 400 !important;
 }
 
 img { max-width: 100%; display: block; }
@@ -290,18 +834,33 @@ input::-ms-clear {
 .sidebar-closed { transform: translateX(-100%); }
 
 .sidebar-brand {
-  font-weight: 700; font-size: 0.88rem; margin-bottom: 12px;
-  display: flex; align-items: center; justify-content: space-between;
-  color: var(--text-primary); flex-shrink: 0;
+  font-weight: 700;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  color: var(--text-primary);
+  flex-shrink: 0;
   padding-bottom: 10px;
   border-bottom: none;
+  white-space: nowrap !important;
 }
 .sidebar-brand-text {
-  display: flex; align-items: center; gap: 8px; color: var(--text-primary);
-  font-family: 'Edu QLD Beginner', 'Edu AU VIC WA NT Hand', cursive, sans-serif !important;
-  font-size: 14px; font-weight: 700; line-height: 1.25;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-primary);
+  font-family: 'Plus Jakarta Sans', 'Noto Sans Ethiopic', 'Noto Sans Arabic', 'Noto Sans SC', system-ui, -apple-system, sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+  letter-spacing: -0.2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.sidebar-brand-logo { width: 24px; height: 24px; object-fit: contain; flex-shrink: 0; }
+.sidebar-brand-logo { width: 22px; height: 22px; object-fit: contain; flex-shrink: 0; }
 .sidebar-close-btn {
   display: inline-flex; background: none; border: none;
   color: var(--text-secondary); font-size: 1rem; cursor: pointer;
@@ -424,21 +983,19 @@ input::-ms-clear {
 .btn-danger,
 .btn-outline,
 .btn-neutral,
-.btn-accent,
-.tpl-action-btn,
-.doc-btn {
+.btn-accent {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 0 12px;
+  padding: 6px 14px;
   min-height: 32px;
-  height: 34px;
+  height: 32px;
   border-radius: 6px;
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  line-height: 1;
+  line-height: 1.2;
   white-space: nowrap;
   box-sizing: border-box;
   cursor: pointer;
@@ -449,16 +1006,17 @@ input::-ms-clear {
   border: 1px solid transparent;
 }
 
-/* Compact sizing for small table actions */
+/* Compact sizing for small actions (Templates page & Document Tracking) */
 .btn-sm,
 .tpl-action-btn {
-  min-height: 28px;
-  height: 28px;
-  padding: 0 9px;
-  font-size: 12px;
-  font-weight: 500;
-  border-radius: 5px;
-  gap: 4px;
+  min-height: 26px !important;
+  height: 26px !important;
+  padding: 0 8px !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  border-radius: 5px !important;
+  gap: 4px !important;
+  line-height: 1 !important;
 }
 
 /* 1. Primary: Main action of a page (Save, Create, Submit, Generate, Continue) */
@@ -1523,74 +2081,200 @@ input::-ms-clear {
    TEMPLATE CARDS
    ============================================================ */
 .template-card-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
 }
 .template-card {
-  background: var(--bg-surface); border-radius: var(--radius-md); padding: 16px;
-  display: flex; flex-direction: column; gap: 12px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-md, 10px) !important;
+  padding: 16px 18px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
   border: 1px solid var(--border);
-  transition: border-color 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  height: auto !important;
+  min-height: 96px !important;
+  max-height: none !important;
+  box-sizing: border-box !important;
+  text-align: left !important;
 }
-.template-card:hover { border-color: var(--border-strong); }
-.template-card-top { display: flex; align-items: flex-start; gap: 12px; }
+.template-card:hover {
+  border-color: var(--border-strong);
+}
+.template-card-top {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 12px !important;
+  width: 100% !important;
+}
 .template-card-icon {
-  flex-shrink: 0; width: 38px; height: 38px; border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--brand-light); color: var(--brand);
+  flex-shrink: 0 !important;
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: var(--brand-light) !important;
+  color: var(--brand) !important;
 }
-.template-card-title-wrap { min-width: 0; flex: 1; }
+.template-card-title-wrap {
+  min-width: 0 !important;
+  flex: 1 !important;
+  text-align: left !important;
+}
 .template-card-name {
-  margin: 0; font-size: 0.92rem; font-weight: 600; color: var(--text-primary);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  margin: 0 !important;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  line-height: 1.3 !important;
 }
 .template-card-category {
-  font-size: 0.72rem; color: var(--brand-text); background: var(--brand-light);
-  padding: 2px 7px; border-radius: 8px; display: inline-block; margin-top: 4px; font-weight: 600;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+  font-size: 11px !important;
+  color: var(--brand-text) !important;
+  background: var(--brand-light) !important;
+  padding: 2px 7px !important;
+  border-radius: 6px !important;
+  display: inline-block !important;
+  margin-top: 4px !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
 }
 .template-card-meta {
-  display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.75rem;
-  color: var(--text-secondary); border-top: 1px dashed var(--border); padding-top: 10px;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px 14px !important;
+  font-size: 12px !important;
+  color: var(--text-secondary) !important;
+  border-top: 1px dashed var(--border) !important;
+  padding-top: 10px !important;
+  margin-top: auto !important;
+  width: 100% !important;
+  line-height: 1.4 !important;
 }
-.template-card-meta-item strong { color: var(--text-primary); font-weight: 600; }
-.template-card-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+.template-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  flex-wrap: nowrap;
+  margin-top: auto;
+  width: 100%;
+}
 
 /* ============================================================
    GENERATION MODE CARDS
    ============================================================ */
-.gen-mode-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 16px 0 20px; }
+.gen-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin: 16px 0 20px;
+}
 .gen-mode-card {
-  background: var(--bg-surface); border-radius: var(--radius-md); padding: 14px 16px;
-  display: flex; flex-direction: column; gap: 6px;
-  border: 1px solid var(--border); transition: border-color 0.15s;
-  cursor: pointer; text-align: left; font-family: inherit;
+  background: var(--bg-surface) !important;
+  border-radius: var(--radius-md, 10px) !important;
+  padding: 14px 16px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  border: 1px solid var(--border) !important;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  cursor: pointer;
+  text-align: left !important;
+  font-family: inherit;
+  height: auto !important;
+  min-height: 78px !important;
+  max-height: none !important;
+  box-sizing: border-box !important;
+  width: 100%;
 }
-.gen-mode-card:hover { border-color: var(--border-strong); }
+.gen-mode-card:hover {
+  border-color: var(--border-strong) !important;
+}
 .gen-mode-card.gen-mode-selected {
-  border-color: var(--accent);
+  border-color: var(--accent) !important;
+  background: var(--brand-light) !important;
 }
-.gen-mode-card-top { display: flex; align-items: center; gap: 10px; }
+.gen-mode-card-top {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  width: 100% !important;
+}
 .gen-mode-card-icon {
-  flex-shrink: 0; width: 34px; height: 34px; border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  background: var(--brand-light); color: var(--brand); font-size: 1rem;
+  flex-shrink: 0 !important;
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: var(--brand-light) !important;
+  color: var(--brand) !important;
+  font-size: 1rem;
 }
-.gen-mode-selected .gen-mode-card-icon { background: var(--brand); color: #fff; }
-.gen-mode-card-title { margin: 0; font-size: 0.88rem; font-weight: 600; color: var(--text-primary); }
-.gen-mode-card-desc  { margin: 0; font-size: 0.76rem; color: var(--text-secondary); line-height: 1.4; }
-.gen-mode-card-check { margin-left: auto; color: var(--brand); font-weight: 700; }
+.gen-mode-selected .gen-mode-card-icon {
+  background: var(--brand) !important;
+  color: #fff !important;
+}
+.gen-mode-card-title {
+  margin: 0 !important;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+}
+.gen-mode-card-desc {
+  margin: 0 !important;
+  font-size: 12px !important;
+  color: var(--text-secondary) !important;
+  line-height: 1.4 !important;
+}
+.gen-mode-card-check {
+  margin-left: auto !important;
+  color: var(--brand) !important;
+  font-weight: 700 !important;
+}
 
 /* ============================================================
    DOCUMENT TEMPLATE PICKER
    ============================================================ */
-.doc-template-picker { margin-bottom: 20px; }
-.doc-template-card {
-  font: inherit; text-align: left; cursor: pointer; width: 100%;
-  transition: border-color 0.15s;
+.doc-template-picker {
+  margin-bottom: 20px;
 }
-.doc-template-card:hover { border-color: var(--border-strong); }
+.doc-template-card {
+  font: inherit;
+  text-align: left !important;
+  cursor: pointer;
+  width: 100%;
+  height: auto !important;
+  min-height: 96px !important;
+  max-height: none !important;
+  padding: 16px 18px !important;
+  border-radius: var(--radius-md, 10px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  border: 1px solid var(--border) !important;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-sizing: border-box !important;
+}
+.doc-template-card:hover {
+  border-color: var(--border-strong) !important;
+}
 .doc-template-card.doc-template-card-selected {
   border-color: var(--brand) !important;
-  background: var(--brand-light);
+  background: var(--brand-light) !important;
+  box-shadow: 0 0 0 1px var(--brand);
 }
 /* Standardized .tpl-action-btn rules are managed in the global button system above */
 
@@ -1678,7 +2362,7 @@ input::-ms-clear {
 .sidebar-user-dropdown-item-danger .sidebar-user-dropdown-item-icon { color: var(--error-text); }
 
 .sidebar-user-logout-btn {
-  font-family: 'Edu QLD Beginner', 'Edu AU VIC WA NT Hand', cursive, sans-serif !important;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
 }
 .dark .sidebar-user-logout-btn {
   background: rgba(239, 68, 68, 0.12) !important;
@@ -1830,16 +2514,75 @@ input::-ms-clear {
 }
 .notif-item {
   padding: 12px 14px; border-bottom: 1px solid var(--border);
-  font-size: 0.85rem; color: var(--text-primary);
+  font-size: 0.85rem !important; color: var(--text-primary);
   cursor: pointer; transition: background 0.12s;
   background: none; border-left: none; border-right: none; border-top: none;
   width: 100%; text-align: left;
+  /* Must override global button height reset — notif-items are variable height */
+  height: auto !important;
+  min-height: unset !important;
+  line-height: 1.4 !important;
+  white-space: normal !important;
 }
 .notif-item:hover { background: var(--bg-subtle); }
 .notif-item:last-child { border-bottom: none; }
 .notif-item-read { opacity: 0.6; }
 .notif-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-right: 6px; flex-shrink: 0; }
 .notif-empty { padding: 24px 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+
+/* Delivery method option cards — full auto height to show label + description */
+.delivery-method-btn {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 10px !important;
+  padding: 10px 14px !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  text-align: left !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: unset !important;
+  line-height: 1.4 !important;
+  white-space: normal !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  font-family: inherit !important;
+  transition: border-color 0.15s, background 0.15s;
+}
+.delivery-method-btn .delivery-method-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.87rem;
+  line-height: 1.3;
+}
+.delivery-method-btn .delivery-method-desc {
+  display: block;
+  font-size: 0.78rem;
+  color: #475569;
+  margin-top: 2px;
+  line-height: 1.45;
+  white-space: normal;
+}
+
+/* Signature tab buttons — keep auto height */
+.sig-tab-btn {
+  padding: 5px 14px !important;
+  height: auto !important;
+  min-height: 30px !important;
+  font-size: 0.8rem !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+  border: 1.5px solid var(--border-strong) !important;
+  background: var(--bg-surface) !important;
+  color: var(--text-secondary) !important;
+  cursor: pointer !important;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.sig-tab-btn.active {
+  border-color: var(--brand) !important;
+  background: var(--brand-light) !important;
+  color: var(--brand-text) !important;
+}
 
 /* Dark mode notification dropdown — sharp enterprise dark surfaces */
 .dark .notif-dropdown {
