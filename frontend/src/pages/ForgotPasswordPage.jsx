@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
         />
 
         {/* Brand Title: Full Horizontal */}
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#0f2856] dark:text-[#F1F5F9] whitespace-nowrap mb-6 select-none font-handwriting">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#0f2856] dark:text-[#F1F5F9] whitespace-nowrap mb-6 select-none">
           Document Automation System
         </h1>
 
@@ -59,7 +59,7 @@ export default function ForgotPasswordPage() {
                 <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2 font-handwriting">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
               Check Your Email
             </h2>
             <p
@@ -70,7 +70,7 @@ export default function ForgotPasswordPage() {
             </p>
             <Link
               to="/login"
-              className="inline-flex items-center justify-center w-full h-[38px] px-4 text-base font-bold rounded-md bg-[#0856C3] hover:bg-[#06449E] dark:bg-[#2563EB] dark:hover:bg-[#1D4ED8] text-white transition-colors font-handwriting"
+              className="inline-flex items-center justify-center w-full h-[38px] px-4 text-sm font-semibold rounded-md bg-[#0856C3] hover:bg-[#06449E] dark:bg-[#2563EB] dark:hover:bg-[#1D4ED8] text-white transition-colors"
             >
               Back to Login
             </Link>
@@ -114,7 +114,7 @@ export default function ForgotPasswordPage() {
                 type="submit"
                 disabled={submitting || !email.trim()}
                 aria-busy={submitting}
-                className="w-full h-[40px] px-4 rounded-md bg-[#0856C3] hover:bg-[#06449E] active:bg-[#053782] dark:bg-[#2563EB] dark:hover:bg-[#1D4ED8] text-white font-bold tracking-wide text-base transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-handwriting"
+                className="w-full h-[40px] px-4 rounded-md bg-[#0856C3] hover:bg-[#06449E] active:bg-[#053782] dark:bg-[#2563EB] dark:hover:bg-[#1D4ED8] text-white font-semibold tracking-wide text-sm transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {submitting ? (
                   <>
@@ -130,7 +130,7 @@ export default function ForgotPasswordPage() {
             <div className="mt-5 text-center">
               <Link
                 to="/login"
-                className="text-sm font-semibold text-[#0856C3] dark:text-[#60A5FA] hover:text-[#06449E] dark:hover:text-[#93C5FD] hover:underline transition-colors font-handwriting"
+                className="text-sm font-semibold text-[#0856C3] dark:text-[#60A5FA] hover:text-[#06449E] dark:hover:text-[#93C5FD] hover:underline transition-colors"
               >
                 Back to Login
               </Link>
