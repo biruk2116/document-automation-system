@@ -142,13 +142,23 @@ async function htmlToPdfBuffer(html) {
      * Wait for fonts to finish loading.
      *
      * This is particularly useful for:
-     * - Amharic
+     * - Amharic (Ethiopic)
      * - Arabic
      * - Chinese
      * - Other Unicode characters
      */
     await page.evaluate(async () => {
-      if (document.fonts && document.fonts.ready) {
+      if (document.fonts) {
+        await document.fonts.ready;
+        const fontFaces = Array.from(document.fonts.values());
+        await Promise.all(
+          fontFaces.map(f => {
+            if (f.status === 'unloaded') {
+              return f.load().catch(() => {});
+            }
+            return Promise.resolve();
+          })
+        );
         await document.fonts.ready;
       }
     });
@@ -157,7 +167,7 @@ async function htmlToPdfBuffer(html) {
      * Allow the browser to finish final layout/font rendering.
      */
     await new Promise((resolve) => {
-      setTimeout(resolve, 100);
+      setTimeout(resolve, 250);
     });
 
     /*
