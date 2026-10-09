@@ -92,16 +92,32 @@ export default function TemplateViewer({ data }) {
 
   /* ── Shared CSS for document content inside every page ── */
   const contentCSS = `
+    .a4-content,
+    .a4-content *,
+    .a4-content p,
+    .a4-content div,
+    .a4-content span,
+    .a4-content font,
+    .a4-content td,
+    .a4-content th,
+    .a4-content h1,
+    .a4-content h2,
+    .a4-content h3,
+    .a4-content h4,
+    .a4-content h5,
+    .a4-content h6,
+    .a4-content li {
+      font-family: 'Noto Sans',
+        'Noto Sans Arabic', 'Noto Naskh Arabic', 'Amiri', 'Segoe UI', 'Tahoma', 'Traditional Arabic',
+        'Noto Sans Ethiopic', 'Noto Serif Ethiopic', 'Nyala', 'Ebrima', 'Abyssinica SIL', 'Kefa',
+        'Noto Sans SC', 'Noto Sans TC', 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'Hiragino Sans GB', 'SimSun', '宋体', 'SimHei', 'WenQuanYi Zen Hei',
+        'Noto Sans Hebrew', 'Noto Sans Devanagari', 'Noto Sans JP', 'Noto Sans KR',
+        'Times New Roman', Calibri, Arial, sans-serif;
+    }
     .a4-content {
       font-size: 11pt;
       line-height: 1.5;
       color: #1a1a2e;
-      font-family: 'Noto Sans',
-        'Noto Sans Arabic', 'Noto Naskh Arabic', 'Amiri', 'Segoe UI', 'Tahoma', 'Traditional Arabic',
-        'Noto Sans Ethiopic', 'Nyala', 'Ebrima', 'Abyssinica SIL', 'Kefa',
-        'Noto Sans SC', 'Noto Sans TC', 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'Hiragino Sans GB', 'SimSun', '宋体', 'SimHei', 'WenQuanYi Zen Hei',
-        'Noto Sans Hebrew', 'Noto Sans Devanagari', 'Noto Sans JP', 'Noto Sans KR',
-        'Times New Roman', Calibri, Arial, sans-serif;
       unicode-bidi: plaintext;
       text-rendering: optimizeLegibility;
       -webkit-font-smoothing: antialiased;
