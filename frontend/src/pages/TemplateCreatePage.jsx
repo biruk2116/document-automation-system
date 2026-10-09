@@ -79,7 +79,7 @@ export default function TemplateCreatePage({ mode = 'create' }) {
   const backBar = (
     <div className="template-create-page-topbar">
       <button type="button" className="template-view-back-btn" onClick={() => navigate('/templates')}>
-        <BackArrowIcon /> Back to Templates
+        <BackArrowIcon /> Back
       </button>
     </div>
   );
