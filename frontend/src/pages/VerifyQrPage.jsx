@@ -33,7 +33,7 @@ export default function VerifyQrPage() {
       <header className="w-full max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <img src={brandLogo} alt="Document Automation System" className="w-8 h-8 object-contain" />
-          <span className="font-handwriting font-bold text-base tracking-tight text-[#1E293B] dark:text-[#F1F5F9] whitespace-nowrap">
+          <span className="font-bold text-base tracking-tight text-[#1E293B] dark:text-[#F1F5F9] whitespace-nowrap">
             Document Automation System
           </span>
         </div>
