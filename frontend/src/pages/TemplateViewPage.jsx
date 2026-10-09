@@ -72,7 +72,7 @@ export default function TemplateViewPage() {
     <div className="template-view-page">
       <div className="template-view-page-topbar">
         <button type="button" className="template-view-back-btn" onClick={() => navigate('/templates')}>
-          <BackArrowIcon /> Back to Templates
+          <BackArrowIcon /> Back
         </button>
       </div>
 
