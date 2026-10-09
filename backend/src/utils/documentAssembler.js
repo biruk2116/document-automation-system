@@ -39,7 +39,7 @@ function ensureAutoBidi(html) {
   return html.replace(/<(p|h[1-6]|li|blockquote|td|th)(?![^>]*\bdir=)([^>]*)>/gi, '<$1 dir="auto"$2>');
 }
 
-const MULTILINGUAL_FONT_FALLBACKS = ", 'Noto Sans Ethiopic', 'Noto Serif Ethiopic', 'Noto Sans Arabic', 'Noto Sans SC', 'Noto Sans TC', 'Amiri', 'Nyala', 'Ebrima', 'Microsoft YaHei', sans-serif";
+const MULTILINGUAL_FONT_FALLBACKS = ", 'Noto Sans Ethiopic', 'Nyala', 'Ebrima', 'Noto Sans Arabic', 'Noto Sans SC', 'Noto Sans TC', 'Microsoft YaHei', Arial, sans-serif";
 
 /**
  * Ensures any inline font-family or legacy <font face="..."> has full Amharic,
@@ -48,10 +48,16 @@ const MULTILINGUAL_FONT_FALLBACKS = ", 'Noto Sans Ethiopic', 'Noto Serif Ethiopi
 function augmentInlineFonts(html) {
   if (!html || typeof html !== 'string') return html || '';
   return html
-    .replace(/style=(["'][^"']*font-family\s*:\s*)([^;"']+)(;?[^"']*["'])/gi, (match, prefix, val, postfix) => {
-      if (val.includes('Noto Sans Ethiopic') || val.includes('Nyala')) return match;
-      return `${prefix}${val}${MULTILINGUAL_FONT_FALLBACKS}${postfix}`;
+    // 1. Safely augment font-family inside style="..." attributes without touching style= or any other CSS properties
+    .replace(/\bstyle=(["'])([\s\S]*?)\1/gi, (match, quote, styleContent) => {
+      if (!styleContent.includes('font-family')) return match;
+      const updatedStyle = styleContent.replace(/font-family\s*:\s*([^;]+)(;?)/gi, (m, familyVal, semi) => {
+        if (familyVal.includes('Noto Sans Ethiopic') || familyVal.includes('Nyala')) return m;
+        return `font-family: ${familyVal.trim()}${MULTILINGUAL_FONT_FALLBACKS}${semi || ';'}`;
+      });
+      return `style=${quote}${updatedStyle}${quote}`;
     })
+    // 2. Handle legacy <font face="...">
     .replace(/<font([^>]+)face=(["'])([^"']+)\2([^>]*)>/gi, (match, pre, q, face, post) => {
       if (face.includes('Noto Sans Ethiopic') || face.includes('Nyala')) return match;
       return `<font${pre}face=${q}${face}${MULTILINGUAL_FONT_FALLBACKS}${q} style="font-family:${face}${MULTILINGUAL_FONT_FALLBACKS};"${post}>`;
@@ -166,15 +172,40 @@ function assembleDocumentHtml({
    */
   body, p, div, span, font, td, th, h1, h2, h3, h4, h5, h6, li, blockquote, strong, em, b, i, a, label {
     font-family: 'Noto Sans',
-      /* Arabic fonts */
-      'Noto Sans Arabic', 'Noto Naskh Arabic', 'Amiri', 'Segoe UI', 'Tahoma', 'Traditional Arabic', 'Arabic Typesetting', 'Geeza Pro', 'Damascus',
       /* Amharic / Ethiopic fonts */
-      'Noto Sans Ethiopic', 'Noto Serif Ethiopic', 'Nyala', 'Ebrima', 'Abyssinica SIL', 'Kefa',
+      'Noto Sans Ethiopic', 'Nyala', 'Ebrima', 'Abyssinica SIL', 'Kefa',
+      /* Arabic fonts */
+      'Noto Sans Arabic', 'Noto Naskh Arabic', 'Segoe UI', 'Tahoma', 'Traditional Arabic', 'Arabic Typesetting', 'Geeza Pro', 'Damascus',
       /* Chinese (Simplified & Traditional) fonts */
       'Noto Sans SC', 'Noto Sans TC', 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'Hiragino Sans GB', 'SimSun', '宋体', 'SimHei', '黑体', 'WenQuanYi Zen Hei', 'WenQuanYi Micro Hei',
       /* Additional scripts */
       'Noto Sans Hebrew', 'Noto Sans Devanagari', 'Noto Sans JP', 'Noto Sans KR',
-      'Times New Roman', Calibri, Arial, sans-serif;
+      Calibri, Arial, Helvetica, sans-serif;
+  }
+
+  /* Strict bold and unbold overrides so heading/text boldness is 1:1 identical to editor intent */
+  b, strong,
+  [style*="font-weight: bold"],
+  [style*="font-weight:bold"],
+  [style*="font-weight: 600"],
+  [style*="font-weight:600"],
+  [style*="font-weight: 700"],
+  [style*="font-weight:700"],
+  [style*="font-weight: 800"],
+  [style*="font-weight:800"],
+  [style*="font-weight: 900"],
+  [style*="font-weight:900"],
+  [style*="font-weight: bolder"],
+  [style*="font-weight:bolder"] {
+    font-weight: 700 !important;
+  }
+
+  [style*="font-weight: normal"],
+  [style*="font-weight:normal"],
+  [style*="font-weight: 400"],
+  [style*="font-weight:400"],
+  .font-normal {
+    font-weight: 400 !important;
   }
 
   body {
@@ -556,6 +587,14 @@ function generateSignatureSvg(name) {
 function injectSignatureIntoHtml(html, name, photoDataUrl, signedAt, fallbackAppend = false) {
   if (!html || typeof html !== 'string') return { html: html || '', replaced: false };
 
+  // If already contains embedded signature block, do not embed again — strip any stray raw placeholders
+  if (html.includes('<!-- SIGNATURE_EMBEDDED -->') || html.includes('class="signature-block"')) {
+    let cleaned = html
+      .replace(/<!-- \[\[SIGNATURE_FIELD[\s\S]*?<!-- \[\[\/SIGNATURE_FIELD[^\]]*\]\] -->/gi, '')
+      .replace(/\[\s*SIGNATURE FIELD\s*\]/gi, '');
+    return { html: cleaned, replaced: true };
+  }
+
   let updated = html;
   let replaced = false;
 
@@ -600,7 +639,8 @@ function injectSignatureIntoHtml(html, name, photoDataUrl, signedAt, fallbackApp
 </div>
 <!-- /SIGNATURE_EMBEDDED -->`;
 
-  // 1. Replace ALL comment-delimited signature field placeholders: <!-- [[SIGNATURE_FIELD ...
+  // 1. Replace comment-delimited signature field placeholders: <!-- [[SIGNATURE_FIELD ...
+  // Replaces the first placeholder with signedBlock, and removes any subsequent duplicates so it is NEVER repeated.
   while (true) {
     let startIdx = updated.indexOf('<!-- [[SIGNATURE_FIELD:');
     let isNewFormat = true;
@@ -624,16 +664,24 @@ function injectSignatureIntoHtml(html, name, photoDataUrl, signedAt, fallbackApp
     if (endIdx === -1) break;
 
     let outerStart = updated.lastIndexOf('<div', startIdx);
+    if (outerStart !== -1 && updated.slice(outerStart, startIdx).includes('</div>')) {
+      outerStart = -1;
+    }
     let outerEnd = updated.indexOf('</div>', endIdx + endMarker.length);
+    if (outerEnd !== -1 && updated.slice(endIdx + endMarker.length, outerEnd).includes('<div')) {
+      outerEnd = -1;
+    }
+
+    const blockToInsert = replaced ? '' : signedBlock;
 
     if (outerStart === -1 || outerEnd === -1) {
       const before = updated.slice(0, startIdx);
       const after = updated.slice(endIdx + endMarker.length);
-      updated = before + signedBlock + after;
+      updated = before + blockToInsert + after;
     } else {
       const before = updated.slice(0, outerStart);
       const after = updated.slice(outerEnd + '</div>'.length);
-      updated = before + signedBlock + after;
+      updated = before + blockToInsert + after;
     }
     replaced = true;
   }
@@ -644,22 +692,23 @@ function injectSignatureIntoHtml(html, name, photoDataUrl, signedAt, fallbackApp
     if (sigIdx === -1) break;
     const tableStart = updated.lastIndexOf('<table', sigIdx);
     const tableEnd = updated.indexOf('</table>', sigIdx);
+    const blockToInsert = replaced ? '' : signedBlock;
     if (tableStart !== -1 && tableEnd !== -1) {
       const outerDivStart = updated.lastIndexOf('<div', tableStart);
       const outerDivEnd = updated.indexOf('</div>', tableEnd);
       if (outerDivStart !== -1 && outerDivEnd !== -1 && (outerDivEnd - outerDivStart) < (tableEnd - tableStart) + 400) {
-        updated = updated.slice(0, outerDivStart) + signedBlock + updated.slice(outerDivEnd + '</div>'.length);
+        updated = updated.slice(0, outerDivStart) + blockToInsert + updated.slice(outerDivEnd + '</div>'.length);
       } else {
-        updated = updated.slice(0, tableStart) + signedBlock + updated.slice(tableEnd + '</table>'.length);
+        updated = updated.slice(0, tableStart) + blockToInsert + updated.slice(tableEnd + '</table>'.length);
       }
       replaced = true;
     } else {
-      updated = updated.replace(/\[\s*SIGNATURE FIELD\s*\]/i, sigImgHtml);
+      updated = updated.replace(/\[\s*SIGNATURE FIELD\s*\]/i, replaced ? '' : sigImgHtml);
       replaced = true;
     }
   }
 
-  // 3. Fallback: append signature to end if requested and nothing was replaced
+  // 3. Fallback: ONLY append if absolutely no placeholder existed anywhere AND fallbackAppend is requested
   if (!replaced && fallbackAppend && (name || photoDataUrl)) {
     updated = html + '\n<div style="margin-top:20px;padding-top:12px;border-top:1px solid #e5e7eb;">' + signedBlock + '</div>';
     replaced = true;
@@ -680,14 +729,33 @@ function injectSignatureIntoFooter(footerHtml, name, photoDataUrl, signedAt) {
 /**
  * injectSignatureIntoDocument
  * Checks both footerHtml and bodyHtml of renderPieces, replacing any signature
- * field with the signed block. If none found, appends to footerHtml.
+ * field with the signed block. Guarantees that the signature is attached in EXACTLY ONE PLACE.
  */
 function injectSignatureIntoDocument(pieces, name, photoDataUrl, signedAt) {
   if (!pieces) return pieces;
   const newPieces = { ...pieces };
+
+  // IDEMPOTENCY: If already embedded in footerHtml or bodyHtml, NEVER duplicate or append!
+  const hasEmbeddedInFooter = newPieces.footerHtml && (newPieces.footerHtml.includes('SIGNATURE_EMBEDDED') || newPieces.footerHtml.includes('class="signature-block"'));
+  const hasEmbeddedInBody = newPieces.bodyHtml && (newPieces.bodyHtml.includes('SIGNATURE_EMBEDDED') || newPieces.bodyHtml.includes('class="signature-block"'));
+
+  if (hasEmbeddedInFooter || hasEmbeddedInBody) {
+    if (newPieces.footerHtml) {
+      newPieces.footerHtml = newPieces.footerHtml
+        .replace(/<!-- \[\[SIGNATURE_FIELD[\s\S]*?<!-- \[\[\/SIGNATURE_FIELD[^\]]*\]\] -->/gi, '')
+        .replace(/\[\s*SIGNATURE FIELD\s*\]/gi, '');
+    }
+    if (newPieces.bodyHtml) {
+      newPieces.bodyHtml = newPieces.bodyHtml
+        .replace(/<!-- \[\[SIGNATURE_FIELD[\s\S]*?<!-- \[\[\/SIGNATURE_FIELD[^\]]*\]\] -->/gi, '')
+        .replace(/\[\s*SIGNATURE FIELD\s*\]/gi, '');
+    }
+    return newPieces;
+  }
+
   let replaced = false;
 
-  // Check footerHtml
+  // Check footerHtml first (primary standard location)
   if (newPieces.footerHtml && (newPieces.footerHtml.includes('SIGNATURE_FIELD') || newPieces.footerHtml.includes('SIGNATURE FIELD'))) {
     const resFooter = injectSignatureIntoHtml(newPieces.footerHtml, name, photoDataUrl, signedAt, false);
     if (resFooter.replaced) {
@@ -696,16 +764,21 @@ function injectSignatureIntoDocument(pieces, name, photoDataUrl, signedAt) {
     }
   }
 
-  // Check bodyHtml
-  if (newPieces.bodyHtml && (newPieces.bodyHtml.includes('SIGNATURE_FIELD') || newPieces.bodyHtml.includes('SIGNATURE FIELD'))) {
+  // Check bodyHtml only if NOT already replaced in footerHtml (keep it in exactly ONE place)
+  if (!replaced && newPieces.bodyHtml && (newPieces.bodyHtml.includes('SIGNATURE_FIELD') || newPieces.bodyHtml.includes('SIGNATURE FIELD'))) {
     const resBody = injectSignatureIntoHtml(newPieces.bodyHtml, name, photoDataUrl, signedAt, false);
     if (resBody.replaced) {
       newPieces.bodyHtml = resBody.html;
       replaced = true;
     }
+  } else if (replaced && newPieces.bodyHtml) {
+    // If already placed in footerHtml, clean any leftover placeholder from bodyHtml so it never duplicates
+    newPieces.bodyHtml = newPieces.bodyHtml
+      .replace(/<!-- \[\[SIGNATURE_FIELD[\s\S]*?<!-- \[\[\/SIGNATURE_FIELD[^\]]*\]\] -->/gi, '')
+      .replace(/\[\s*SIGNATURE FIELD\s*\]/gi, '');
   }
 
-  // If no placeholder was found in either, append to footerHtml
+  // Fallback: ONLY append to footerHtml if NO placeholder was present anywhere in the document
   if (!replaced && (name || photoDataUrl)) {
     const resFallback = injectSignatureIntoHtml(newPieces.footerHtml || '', name, photoDataUrl, signedAt, true);
     newPieces.footerHtml = resFallback.html;
