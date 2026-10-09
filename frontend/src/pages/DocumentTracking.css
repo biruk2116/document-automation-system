@@ -525,21 +525,22 @@
 .btn-doc-action,
 .btn-doc-rejection,
 .btn-doc-approve,
-.btn-doc-reject {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 5px;
-  padding: 2px 8px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  min-height: 25px;
-  height: 25px;
-  line-height: 1;
-  cursor: pointer;
-  white-space: nowrap;
-  user-select: none;
-  box-sizing: border-box;
+.btn-doc-reject,
+.btn-doc-gray {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 5px !important;
+  padding: 2px 8px !important;
+  font-size: 0.72rem !important;
+  font-weight: 500 !important;
+  min-height: 25px !important;
+  height: 25px !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  user-select: none !important;
+  box-sizing: border-box !important;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
