@@ -31,9 +31,9 @@ export default function Sidebar({ open, onClose }) {
   return (
     <aside className={`sidebar ${open ? 'sidebar-open' : 'sidebar-closed'}`}>
       <div className="sidebar-brand">
-        <span className="sidebar-brand-text font-handwriting">
+        <span className="sidebar-brand-text">
           <img src={logo} alt="" className="sidebar-brand-logo" />
-          Document Automation System
+          Document Automation
         </span>
         <button type="button" className="sidebar-close-btn" onClick={onClose} title="Close sidebar" aria-label="Close sidebar">
           ×
