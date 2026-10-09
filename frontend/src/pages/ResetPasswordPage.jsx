@@ -65,7 +65,7 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen w-screen flex flex-col justify-center items-center p-4 sm:p-6 bg-white dark:bg-[#0B1118] text-slate-900 dark:text-[#F1F5F9] transition-colors duration-200 font-handwriting">
+    <div className="min-h-screen w-screen flex flex-col justify-center items-center p-4 sm:p-6 bg-white dark:bg-[#0B1118] text-slate-900 dark:text-[#F1F5F9] transition-colors duration-200">
       <div className="w-full max-w-[420px] flex flex-col items-center text-center">
         {/* Brand Logo */}
         <img
@@ -75,7 +75,7 @@ export default function ResetPasswordPage() {
         />
 
         {/* Brand Title: Full Horizontal */}
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#0f2856] dark:text-[#F1F5F9] whitespace-nowrap mb-6 select-none font-handwriting">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#0f2856] dark:text-[#F1F5F9] whitespace-nowrap mb-6 select-none">
           Document Automation System
         </h1>
 
@@ -88,7 +88,7 @@ export default function ResetPasswordPage() {
                 <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2 font-handwriting">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
               Password Updated
             </h2>
             <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mb-5 leading-relaxed">
@@ -97,7 +97,7 @@ export default function ResetPasswordPage() {
             <button
               type="button"
               onClick={() => navigate('/login', { replace: true })}
-              className="w-full h-[38px] px-4 text-base font-bold rounded-md bg-[#0856C3] hover:bg-[#06449E] dark:bg-[#2563EB] dark:hover:bg-[#1D4ED8] text-white transition-colors font-handwriting"
+              className="w-full h-[38px] px-4 text-sm font-semibold rounded-md bg-[#0856C3] hover:bg-[#06449E] dark:bg-[#2563EB] dark:hover:bg-[#1D4ED8] text-white transition-colors"
             >
               Sign In
             </button>
@@ -269,7 +269,7 @@ export default function ResetPasswordPage() {
                 type="submit"
                 disabled={submitting || !token || !isAllCriteriaMet || newPw !== confirmPw}
                 aria-busy={submitting}
-                className="w-full h-[38px] px-4 rounded-md bg-[#0856C3] hover:bg-[#06449E] active:bg-[#053782] dark:bg-[#2563EB] dark:hover:bg-[#1D4ED8] text-white font-bold text-base transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2 font-handwriting"
+                className="w-full h-[38px] px-4 rounded-md bg-[#0856C3] hover:bg-[#06449E] active:bg-[#053782] dark:bg-[#2563EB] dark:hover:bg-[#1D4ED8] text-white font-semibold text-sm transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
               >
                 {submitting ? (
                   <>
@@ -286,7 +286,7 @@ export default function ResetPasswordPage() {
             <div className="mt-4 text-center">
               <Link
                 to="/login"
-                className="text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-[#0856C3] dark:hover:text-white transition-colors font-handwriting"
+                className="text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-[#0856C3] dark:hover:text-white transition-colors"
               >
                 Cancel
               </Link>
