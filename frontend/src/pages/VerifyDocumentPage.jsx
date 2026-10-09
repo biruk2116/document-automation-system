@@ -45,7 +45,7 @@ export default function VerifyDocumentPage() {
         />
 
         {/* Brand Title: Full Horizontal */}
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#0f2856] dark:text-[#F1F5F9] whitespace-nowrap mb-5 font-handwriting">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[#0f2856] dark:text-[#F1F5F9] whitespace-nowrap mb-5">
           Document Automation System
         </h1>
 
