@@ -1,0 +1,377 @@
+/* ============================================================
+   RICH TEXT EDITOR SCOPED STYLES
+   Ensures bold, italic, underline, strike, alignment, lists,
+   tables, links, and toolbar buttons are clearly visible ONLY inside the editor.
+   ============================================================ */
+
+/* --- Toolbar & Action Buttons --- */
+.rich-text-editor .rte-toolbar {
+  background: #f8fafc !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  padding: 6px 10px !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 4px !important;
+  align-items: center !important;
+}
+
+.rich-text-editor .rte-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  border-radius: 5px !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  color: #1e293b !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  font-size: 14px !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  line-height: 1 !important;
+  flex-shrink: 0 !important;
+  user-select: none !important;
+  transition: all 0.15s ease !important;
+}
+
+.rich-text-editor .rte-btn svg {
+  display: block !important;
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  min-height: 18px !important;
+  max-width: 18px !important;
+  max-height: 18px !important;
+  stroke: currentColor !important;
+  stroke-width: 2 !important;
+  flex-shrink: 0 !important;
+}
+
+.rich-text-editor .rte-btn:hover {
+  background: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #0856C3 !important;
+}
+
+.rich-text-editor .rte-btn-active {
+  background: #eff6ff !important;
+  border-color: #0856C3 !important;
+  color: #0856C3 !important;
+  box-shadow: 0 0 0 1px #0856C3 inset !important;
+}
+
+.rich-text-editor .rte-divider {
+  width: 1px !important;
+  height: 22px !important;
+  background: #cbd5e1 !important;
+  margin: 0 4px !important;
+  align-self: center !important;
+}
+
+.rich-text-editor .rte-select {
+  height: 32px !important;
+  padding: 0 8px !important;
+  border-radius: 5px !important;
+  border: 1px solid #cbd5e1 !important;
+  background: #ffffff !important;
+  color: #1e293b !important;
+  font-size: 0.82rem !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+}
+
+.dark .rich-text-editor .rte-toolbar {
+  background: #151E2B !important;
+  border-bottom-color: #223044 !important;
+}
+
+.dark .rich-text-editor .rte-btn {
+  color: #94A3B8 !important;
+}
+
+.dark .rich-text-editor .rte-btn:hover {
+  background: #1A2536 !important;
+  border-color: #334155 !important;
+  color: #FFFFFF !important;
+}
+
+.dark .rich-text-editor .rte-btn-active {
+  background: #172A46 !important;
+  border-color: #2563EB !important;
+  color: #60A5FA !important;
+  box-shadow: 0 0 0 1px #2563EB inset !important;
+}
+
+.dark .rich-text-editor .rte-divider {
+  background: #223044 !important;
+}
+
+.dark .rich-text-editor .rte-select {
+  background: #1A2536 !important;
+  border-color: #223044 !important;
+  color: #F1F5F9 !important;
+}
+
+/* ============================================================
+   EDITOR CONTENT STYLING (Inside .rte-content)
+   ============================================================ */
+
+/* --- Bold & Strong --- */
+.rich-text-editor .rte-content b,
+.rich-text-editor .rte-content strong,
+.rich-text-editor .rte-content [style*="font-weight: bold"],
+.rich-text-editor .rte-content [style*="font-weight:bold"],
+.rich-text-editor .rte-content [style*="font-weight: 700"],
+.rich-text-editor .rte-content [style*="font-weight:700"],
+.rich-text-editor .rte-content [style*="font-weight: 600"],
+.rich-text-editor .rte-content [style*="font-weight: 800"],
+.rich-text-editor .rte-content [style*="font-weight: 900"],
+.rte-content b,
+.rte-content strong {
+  font-weight: 700 !important;
+  color: inherit !important;
+}
+
+/* --- Italic & Emphasis --- */
+.rich-text-editor .rte-content i,
+.rich-text-editor .rte-content em,
+.rich-text-editor .rte-content [style*="font-style: italic"],
+.rich-text-editor .rte-content [style*="font-style:italic"],
+.rte-content i,
+.rte-content em {
+  font-style: italic !important;
+}
+
+/* --- Underline, Strike, Sub, Sup --- */
+.rich-text-editor .rte-content u,
+.rich-text-editor .rte-content [style*="text-decoration: underline"],
+.rich-text-editor .rte-content [style*="text-decoration:underline"],
+.rte-content u {
+  text-decoration: underline !important;
+  text-underline-offset: 2px !important;
+}
+
+.rich-text-editor .rte-content s,
+.rich-text-editor .rte-content strike,
+.rich-text-editor .rte-content del,
+.rich-text-editor .rte-content [style*="text-decoration: line-through"],
+.rich-text-editor .rte-content [style*="text-decoration:line-through"],
+.rte-content s,
+.rte-content strike,
+.rte-content del {
+  text-decoration: line-through !important;
+}
+
+.rich-text-editor .rte-content sub,
+.rte-content sub {
+  vertical-align: sub !important;
+  font-size: smaller !important;
+  line-height: normal !important;
+}
+
+.rich-text-editor .rte-content sup,
+.rte-content sup {
+  vertical-align: super !important;
+  font-size: smaller !important;
+  line-height: normal !important;
+}
+
+/* --- Unordered Lists (Bullets) & Ordered Lists (Numbered) --- */
+.rich-text-editor .rte-content ul,
+.rte-content ul {
+  list-style-type: disc !important;
+  list-style-position: outside !important;
+  margin: 0 0 10pt 0 !important;
+  padding-left: 28pt !important;
+  color: #1a1a2e !important;
+}
+
+.rich-text-editor .rte-content ol,
+.rte-content ol {
+  list-style-type: decimal !important;
+  list-style-position: outside !important;
+  margin: 0 0 10pt 0 !important;
+  padding-left: 28pt !important;
+  color: #1a1a2e !important;
+}
+
+.rich-text-editor .rte-content ul ul,
+.rte-content ul ul {
+  list-style-type: circle !important;
+  margin-bottom: 0 !important;
+}
+
+.rich-text-editor .rte-content ul ul ul,
+.rte-content ul ul ul {
+  list-style-type: square !important;
+  margin-bottom: 0 !important;
+}
+
+.rich-text-editor .rte-content ol ol,
+.rte-content ol ol {
+  list-style-type: lower-alpha !important;
+  margin-bottom: 0 !important;
+}
+
+.rich-text-editor .rte-content ol ol ol,
+.rte-content ol ol ol {
+  list-style-type: lower-roman !important;
+  margin-bottom: 0 !important;
+}
+
+.rich-text-editor .rte-content li,
+.rte-content li {
+  display: list-item !important;
+  list-style: inherit !important;
+  margin-bottom: 4pt !important;
+  line-height: 1.5 !important;
+  color: #1a1a2e !important;
+}
+
+.rich-text-editor .rte-content li::marker,
+.rte-content li::marker {
+  color: #1a1a2e !important;
+  font-weight: 600 !important;
+}
+
+/* --- Links --- */
+.rich-text-editor .rte-content a,
+.rte-content a {
+  color: #0856C3 !important;
+  text-decoration: underline !important;
+  text-decoration-color: #0856C3 !important;
+  text-underline-offset: 3px !important;
+  cursor: pointer !important;
+  font-weight: 500 !important;
+  transition: color 0.15s, text-decoration-color 0.15s;
+}
+
+.rich-text-editor .rte-content a:hover,
+.rte-content a:hover {
+  color: #06449E !important;
+  text-decoration-color: #06449E !important;
+}
+
+/* --- Text Alignment --- */
+.rich-text-editor .rte-content [align="left"],
+.rich-text-editor .rte-content [style*="text-align: left"],
+.rich-text-editor .rte-content [style*="text-align:left"],
+.rich-text-editor .rte-content p[align="left"],
+.rich-text-editor .rte-content div[align="left"],
+.rich-text-editor .rte-content h1[align="left"],
+.rich-text-editor .rte-content h2[align="left"],
+.rich-text-editor .rte-content h3[align="left"],
+.rich-text-editor .rte-content h4[align="left"],
+.rich-text-editor .rte-content h5[align="left"],
+.rich-text-editor .rte-content h6[align="left"],
+.rich-text-editor .rte-content li[align="left"],
+.rich-text-editor .rte-content td[align="left"],
+.rich-text-editor .rte-content th[align="left"],
+.rte-content [align="left"],
+.rte-content [style*="text-align: left"],
+.rte-content [style*="text-align:left"] {
+  text-align: left !important;
+}
+
+.rich-text-editor .rte-content [align="center"],
+.rich-text-editor .rte-content [style*="text-align: center"],
+.rich-text-editor .rte-content [style*="text-align:center"],
+.rich-text-editor .rte-content p[align="center"],
+.rich-text-editor .rte-content div[align="center"],
+.rich-text-editor .rte-content h1[align="center"],
+.rich-text-editor .rte-content h2[align="center"],
+.rich-text-editor .rte-content h3[align="center"],
+.rich-text-editor .rte-content h4[align="center"],
+.rich-text-editor .rte-content h5[align="center"],
+.rich-text-editor .rte-content h6[align="center"],
+.rich-text-editor .rte-content li[align="center"],
+.rich-text-editor .rte-content td[align="center"],
+.rich-text-editor .rte-content th[align="center"],
+.rte-content [align="center"],
+.rte-content [style*="text-align: center"],
+.rte-content [style*="text-align:center"] {
+  text-align: center !important;
+}
+
+.rich-text-editor .rte-content [align="right"],
+.rich-text-editor .rte-content [style*="text-align: right"],
+.rich-text-editor .rte-content [style*="text-align:right"],
+.rich-text-editor .rte-content p[align="right"],
+.rich-text-editor .rte-content div[align="right"],
+.rich-text-editor .rte-content h1[align="right"],
+.rich-text-editor .rte-content h2[align="right"],
+.rich-text-editor .rte-content h3[align="right"],
+.rich-text-editor .rte-content h4[align="right"],
+.rich-text-editor .rte-content h5[align="right"],
+.rich-text-editor .rte-content h6[align="right"],
+.rich-text-editor .rte-content li[align="right"],
+.rich-text-editor .rte-content td[align="right"],
+.rich-text-editor .rte-content th[align="right"],
+.rte-content [align="right"],
+.rte-content [style*="text-align: right"],
+.rte-content [style*="text-align:right"] {
+  text-align: right !important;
+}
+
+.rich-text-editor .rte-content [align="justify"],
+.rich-text-editor .rte-content [style*="text-align: justify"],
+.rich-text-editor .rte-content [style*="text-align:justify"],
+.rich-text-editor .rte-content p[align="justify"],
+.rich-text-editor .rte-content div[align="justify"],
+.rich-text-editor .rte-content h1[align="justify"],
+.rich-text-editor .rte-content h2[align="justify"],
+.rich-text-editor .rte-content h3[align="justify"],
+.rich-text-editor .rte-content h4[align="justify"],
+.rich-text-editor .rte-content h5[align="justify"],
+.rich-text-editor .rte-content h6[align="justify"],
+.rich-text-editor .rte-content li[align="justify"],
+.rich-text-editor .rte-content td[align="justify"],
+.rich-text-editor .rte-content th[align="justify"],
+.rte-content [align="justify"],
+.rte-content [style*="text-align: justify"],
+.rte-content [style*="text-align:justify"] {
+  text-align: justify !important;
+}
+
+/* --- Tables in RTE --- */
+.rich-text-editor .rte-content table:not(.signature-table),
+.rte-content table:not(.signature-table) {
+  width: 100% !important;
+  max-width: 100% !important;
+  border-collapse: collapse !important;
+  margin: 12pt 0 !important;
+  table-layout: auto !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.rich-text-editor .rte-content table:not(.signature-table) th,
+.rich-text-editor .rte-content table:not(.signature-table) td,
+.rte-content table:not(.signature-table) th,
+.rte-content table:not(.signature-table) td {
+  border: 1px solid #cbd5e1 !important;
+  padding: 8px 12px !important;
+  min-width: 48px !important;
+  min-height: 28px !important;
+  color: #1a1a2e !important;
+  vertical-align: top !important;
+  box-sizing: border-box !important;
+}
+
+.rich-text-editor .rte-content table:not(.signature-table) th,
+.rte-content table:not(.signature-table) th {
+  background-color: #f1f5f9 !important;
+  font-weight: 700 !important;
+  text-align: left !important;
+  color: #0f172a !important;
+}
+
+.rich-text-editor .rte-content table:not(.signature-table) td:focus,
+.rich-text-editor .rte-content table:not(.signature-table) th:focus,
+.rte-content table:not(.signature-table) td:focus,
+.rte-content table:not(.signature-table) th:focus {
+  outline: 2px solid var(--brand, #0856C3) !important;
+  outline-offset: -2px !important;
+}
