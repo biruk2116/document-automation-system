@@ -117,12 +117,39 @@ async function regenerateDocument(doc) {
 
   // Inject the recipient / user signature if the document was signed by the recipient in secure delivery workflow
   const meta = typeof doc.metadata === 'string' ? JSON.parse(doc.metadata) : (doc.metadata || {});
-  if (meta.userSigned && (meta.userSigned.name || meta.userSigned.photo)) {
+  let userSigned = meta.userSigned;
+  if (!userSigned) {
+    try {
+      const [delivRows] = await pool.query(
+        `SELECT workflow_signature_data, workflow_user_signed_at, recipient_name
+         FROM document_deliveries
+         WHERE doc_id = ? AND workflow_signature_data IS NOT NULL
+         ORDER BY id DESC LIMIT 1`,
+        [doc.id]
+      );
+      if (delivRows.length > 0 && delivRows[0].workflow_signature_data) {
+        const sigData = typeof delivRows[0].workflow_signature_data === 'string'
+          ? JSON.parse(delivRows[0].workflow_signature_data)
+          : delivRows[0].workflow_signature_data;
+        userSigned = {
+          name: sigData.recipientName || sigData.signatureText || delivRows[0].recipient_name,
+          photo: sigData.signaturePhoto || null,
+          signedAt: sigData.signedAt || delivRows[0].workflow_user_signed_at || new Date().toISOString(),
+        };
+        meta.userSigned = userSigned;
+        await pool.query('UPDATE generated_docs SET metadata = ? WHERE id = ?', [JSON.stringify(meta), doc.id]).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('[documents] regenerateDocument delivery check error:', e.message);
+    }
+  }
+
+  if (userSigned && (userSigned.name || userSigned.photo)) {
     const injected = injectSignatureIntoDocument(
       { headerHtml, bodyHtml: finalBodyHtml, footerHtml: finalFooterHtml },
-      meta.userSigned.name,
-      meta.userSigned.photo,
-      meta.userSigned.signedAt
+      userSigned.name,
+      userSigned.photo,
+      userSigned.signedAt
     );
     finalBodyHtml = injected.bodyHtml;
     finalFooterHtml = injected.footerHtml;
@@ -595,66 +622,30 @@ async function downloadDocument(req, res) {
     // document was generated. Try these paths in order:
     // 1. Stored absolute path (fast path for same-machine access)
     // 2. Filename in current STORAGE_ROOT (handles server moves/redeployments)
-    // 3. If neither exists, offer to REGENERATE the document on-demand
-    let resolvedPath = doc.file_path;
-    if (!fs.existsSync(resolvedPath)) {
-      const { STORAGE_ROOT } = require('../utils/fileStorage');
-      const filename = path.basename(doc.file_path);
-      const fallback = path.join(STORAGE_ROOT, filename);
-      if (fs.existsSync(fallback)) {
-        resolvedPath = fallback;
-        // Update the stored path in the DB so future requests don't need to fall back.
-        pool.query('UPDATE generated_docs SET file_path = ? WHERE id = ?', [resolvedPath, doc.id])
-          .catch(() => {}); // non-fatal
-      } else {
-        // File doesn't exist anywhere — regenerate it on-demand from the stored metadata.
-        // This handles redeployments where the storage/ folder is empty, or when PDFs
-        // were manually deleted but the DB row remains. The regenerated PDF will have
-        // the same content, hash, and doc_uuid as the original.
-        console.log(`[documents] download: file not found for doc ${doc.id}, attempting on-demand regeneration...`);
-        try {
-          const regenerated = await regenerateDocument(doc);
-          resolvedPath = regenerated.file_path;
-          // Update DB with new file path
-          await pool.query('UPDATE generated_docs SET file_path = ? WHERE id = ?', [resolvedPath, doc.id]);
-          console.log(`[documents] download: successfully regenerated doc ${doc.id}`);
-        } catch (regenErr) {
-          console.error('[documents] download: regeneration failed:', regenErr);
-          console.error('[documents] download: full error stack:', regenErr.stack);
-          return res.status(410).json({ 
-            success: false, 
-            message: `File no longer exists. Regeneration failed: ${regenErr.message}. The template or data source may have been modified or deleted.`,
-            details: {
-              docId: doc.doc_uuid,
-              reason: regenErr.message,
-              suggestion: 'Try regenerating this document from My Documents page with the current template and data.'
-            }
-          });
-        }
-      }
-    }
+    // Resiliently resolve the exact PDF file path via resolveDocFilePath
+    // This guarantees recipient download and generator receive/view are 100% identical.
+    const { resolveDocFilePath } = require('./secureDeliveryController');
+    let resolvedPath = await resolveDocFilePath(doc);
 
-    // Ensure signed/delivered documents always have the visual signature embedded in the PDF
-    if (doc.status === 'signed' || doc.status === 'delivered') {
-      let needsRegen = !resolvedPath || !fs.existsSync(resolvedPath);
-      if (!needsRegen) {
-        try {
-          const fileBuf = fs.readFileSync(resolvedPath);
-          const bufStr = fileBuf.toString('latin1');
-          if (!bufStr.includes('Digitally Approved by') && !bufStr.includes('document is digitally signed by')) {
-            needsRegen = true;
+    if (!resolvedPath || !fs.existsSync(resolvedPath)) {
+      console.log(`[documents] download: file not found for doc ${doc.id}, attempting on-demand regeneration...`);
+      try {
+        const regenerated = await regenerateDocument(doc);
+        resolvedPath = regenerated.file_path;
+        await pool.query('UPDATE generated_docs SET file_path = ? WHERE id = ?', [resolvedPath, doc.id]);
+        console.log(`[documents] download: successfully regenerated doc ${doc.id}`);
+      } catch (regenErr) {
+        console.error('[documents] download: regeneration failed:', regenErr);
+        console.error('[documents] download: full error stack:', regenErr.stack);
+        return res.status(410).json({ 
+          success: false, 
+          message: `File no longer exists. Regeneration failed: ${regenErr.message}. The template or data source may have been modified or deleted.`,
+          details: {
+            docId: doc.doc_uuid,
+            reason: regenErr.message,
+            suggestion: 'Try regenerating this document from My Documents page with the current template and data.'
           }
-        } catch {
-          needsRegen = true;
-        }
-      }
-      if (needsRegen) {
-        try {
-          const regenerated = await regenerateDocument(doc);
-          resolvedPath = regenerated.file_path;
-        } catch (regenErr) {
-          console.warn('[documents] download: signature regeneration warning:', regenErr.message);
-        }
+        });
       }
     }
 
@@ -722,20 +713,14 @@ async function viewDocumentByNotifyToken(req, res) {
     if (doc.deleted_at) {
       return res.status(410).json({ success: false, message: 'This document has been deleted and is no longer available to view.' });
     }
-    let resolvedPath = doc.file_path;
-    if (!fs.existsSync(resolvedPath)) {
-      const { STORAGE_ROOT } = require('../utils/fileStorage');
-      const filename = path.basename(doc.file_path);
-      const fallback = path.join(STORAGE_ROOT, filename);
-      if (fs.existsSync(fallback)) {
-        resolvedPath = fallback;
-      } else {
-        try {
-          const regenerated = await regenerateDocument(doc);
-          resolvedPath = regenerated.file_path;
-        } catch (e) {
-          console.warn('[documents] viewDocumentByNotifyToken regen warning:', e.message);
-        }
+    const { resolveDocFilePath } = require('./secureDeliveryController');
+    let resolvedPath = await resolveDocFilePath(doc);
+    if (!resolvedPath || !fs.existsSync(resolvedPath)) {
+      try {
+        const regenerated = await regenerateDocument(doc);
+        resolvedPath = regenerated.file_path;
+      } catch (e) {
+        console.warn('[documents] viewDocumentByNotifyToken regen warning:', e.message);
       }
     }
 
@@ -942,36 +927,14 @@ async function downloadViaNotifyToken(req, res) {
     if (!doc) {
       return res.status(404).json({ success: false, message: 'Document not found.' });
     }
-    let resolvedPath = doc.file_path;
-    if (!fs.existsSync(resolvedPath)) {
-      const { STORAGE_ROOT } = require('../utils/fileStorage');
-      const filename = path.basename(doc.file_path);
-      const fallback = path.join(STORAGE_ROOT, filename);
-      if (fs.existsSync(fallback)) {
-        resolvedPath = fallback;
-      }
-    }
-
-    if (doc.status === 'signed' || doc.status === 'delivered') {
-      let needsRegen = !resolvedPath || !fs.existsSync(resolvedPath);
-      if (!needsRegen) {
-        try {
-          const fileBuf = fs.readFileSync(resolvedPath);
-          const bufStr = fileBuf.toString('latin1');
-          if (!bufStr.includes('Digitally Approved by') && !bufStr.includes('document is digitally signed by')) {
-            needsRegen = true;
-          }
-        } catch {
-          needsRegen = true;
-        }
-      }
-      if (needsRegen) {
-        try {
-          const regenerated = await regenerateDocument(doc);
-          resolvedPath = regenerated.file_path;
-        } catch (regenErr) {
-          console.warn('[documents] downloadViaNotifyToken: signature regen warning:', regenErr.message);
-        }
+    const { resolveDocFilePath } = require('./secureDeliveryController');
+    let resolvedPath = await resolveDocFilePath(doc);
+    if (!resolvedPath || !fs.existsSync(resolvedPath)) {
+      try {
+        const regenerated = await regenerateDocument(doc);
+        resolvedPath = regenerated.file_path;
+      } catch (regenErr) {
+        console.warn('[documents] downloadViaNotifyToken: signature regen warning:', regenErr.message);
       }
     }
 
@@ -2065,4 +2028,5 @@ module.exports = {
   sendSecureLinkViaNotifyToken,
   sendDocumentViaNotifyToken,
   deliverViaNotifyToken,
+  regenerateDocument,
 };
