@@ -23,8 +23,8 @@ export default {
       },
       fontFamily: {
         sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
-        handwriting: ['"Edu QLD Beginner"', '"Edu AU VIC WA NT Hand"', 'cursive', 'sans-serif'],
-        edu: ['"Edu QLD Beginner"', '"Edu AU VIC WA NT Hand"', 'cursive', 'sans-serif'],
+        handwriting: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+        edu: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
       },
     },
   },
