@@ -1,5 +1,6 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
 import pageSpec from '../../shared/documentPageSpec.json';
+import './RichTextEditor.css';
 
 const HEADING_OPTIONS = [
   { label: 'Normal text', value: 'P' },
@@ -64,57 +65,225 @@ const TEXT_COLOR_SWATCHES = ['#1a1a2e', '#b91c1c', '#c2410c', '#a16207', '#16653
 const HIGHLIGHT_SWATCHES = ['transparent', '#fef08a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#fed7aa', '#e9d5ff', '#d1d5db'];
 
 /* ---------- small inline icon set (stroke-based, consistent 18x18 grid) ---------- */
-const Icon = ({ children, viewBox = '0 0 18 18' }) => (
-  <svg width="16" height="16" viewBox={viewBox} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+/* ---------- High-visibility toolbar symbols & icons ---------- */
+const IconSvg = ({ children, viewBox = '0 0 24 24' }) => (
+  <svg
+    width="18"
+    height="18"
+    viewBox={viewBox}
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={{ width: '18px', height: '18px', minWidth: '18px', minHeight: '18px', display: 'block', flexShrink: 0 }}
+  >
     {children}
   </svg>
 );
-const IconUndo = () => <Icon><path d="M4 8h7a4 4 0 1 1 0 8h-2" /><path d="M7 4 3 8l4 4" /></Icon>;
-const IconRedo = () => <Icon><path d="M14 8H7a4 4 0 1 0 0 8h2" /><path d="M11 4l4 4-4 4" /></Icon>;
-const IconBold = () => <Icon><path d="M5 3h5a3 3 0 0 1 0 6H5zM5 9h6a3 3 0 0 1 0 6H5z" /></Icon>;
-const IconItalic = () => <Icon><path d="M8 3h5M5 15h5M11 3 7 15" /></Icon>;
-const IconUnderline = () => <Icon><path d="M5 3v6a4 4 0 0 0 8 0V3" /><path d="M4 15h10" /></Icon>;
-const IconStrike = () => <Icon><path d="M4 9h10" /><path d="M6 4.5c0-1 1.3-1.8 3-1.8s3 .8 3 1.8-1 1.6-3 2.3M6 13.5c0 1 1.3 1.8 3 1.8s3-.8 3-1.8-1-1.6-3-2.3" /></Icon>;
-const IconSub = () => <Icon><path d="M3 3l6 8M9 3 3 11" /><path d="M11 14h4M13 12v1a1.5 1.5 0 0 1-1.5 1.5H11" /></Icon>;
-const IconSup = () => <Icon><path d="M3 7l6 8M9 7 3 15" /><path d="M11 4h4M13 2v1a1.5 1.5 0 0 1-1.5 1.5H11" /></Icon>;
-const IconAlignLeft = () => <Icon><path d="M3 4h12M3 8h8M3 12h12M3 16h8" /></Icon>;
-const IconAlignCenter = () => <Icon><path d="M3 4h12M5 8h8M3 12h12M5 16h8" /></Icon>;
-const IconAlignRight = () => <Icon><path d="M3 4h12M7 8h8M3 12h12M7 16h8" /></Icon>;
-const IconAlignJustify = () => <Icon><path d="M3 4h12M3 8h12M3 12h12M3 16h12" /></Icon>;
-const IconBullets = () => <Icon><circle cx="3.5" cy="4.5" r="1" fill="currentColor" stroke="none" /><circle cx="3.5" cy="9" r="1" fill="currentColor" stroke="none" /><circle cx="3.5" cy="13.5" r="1" fill="currentColor" stroke="none" /><path d="M7 4.5h8M7 9h8M7 13.5h8" /></Icon>;
-const IconNumbers = () => <Icon><path d="M7 4.5h8M7 9h8M7 13.5h8" /><text x="1.5" y="6" fontSize="4.5" fill="currentColor" stroke="none">1</text><text x="1.5" y="10.5" fontSize="4.5" fill="currentColor" stroke="none">2</text><text x="1.5" y="15" fontSize="4.5" fill="currentColor" stroke="none">3</text></Icon>;
-const IconIndentIn = () => <Icon><path d="M3 4h12M9 8h6M9 12h6M3 16h12" /><path d="M3 7l3 3-3 3" /></Icon>;
-const IconIndentOut = () => <Icon><path d="M3 4h12M9 8h6M9 12h6M3 16h12" /><path d="M6 7 3 10l3 3" /></Icon>;
-const IconLink = () => <Icon><path d="M7.5 10.5 10.5 7.5" /><path d="M8 4.5 9.5 3a2.8 2.8 0 0 1 4 4L12 8.5M10 13.5 8.5 15a2.8 2.8 0 0 1-4-4L6 9.5" /></Icon>;
-const IconClear = () => <Icon><path d="M5 3h6l3 12H8z" /><path d="M3 3l12 12" /></Icon>;
-const IconRule = () => <Icon><path d="M3 9h12" /></Icon>;
-const IconImage = () => <Icon><rect x="3" y="4" width="12" height="10" rx="1.5" /><circle cx="6.5" cy="7.5" r="1.2" /><path d="M4 13l3.5-4L11 13" /></Icon>;
-const IconImgLeft = () => <Icon><rect x="3" y="4" width="6" height="6" rx="1" /><path d="M3 13h12M3 15.5h8" /></Icon>;
-const IconImgCenter = () => <Icon><rect x="6" y="3" width="6" height="6" rx="1" /><path d="M3 12h12M5 14.5h8" /></Icon>;
-const IconImgRight = () => <Icon><rect x="9" y="4" width="6" height="6" rx="1" /><path d="M3 13h12M7 15.5h8" /></Icon>;
-const IconZoomIn = () => <Icon><circle cx="7.5" cy="7.5" r="4.5" /><path d="M11 11l4 4" /><path d="M7.5 5.5v4M5.5 7.5h4" /></Icon>;
-const IconZoomOut = () => <Icon><circle cx="7.5" cy="7.5" r="4.5" /><path d="M11 11l4 4" /><path d="M5.5 7.5h4" /></Icon>;
-const IconIf = () => <Icon><path d="M5 4l-3 5 3 5M13 4l3 5-3 5" /><text x="6.4" y="10.5" fontSize="5.5" fontWeight="700" fill="currentColor" stroke="none">if</text></Icon>;
-const IconEach = () => <Icon><rect x="2.5" y="3.5" width="13" height="3" rx="0.8" /><rect x="2.5" y="7.5" width="13" height="3" rx="0.8" /><rect x="2.5" y="11.5" width="13" height="3" rx="0.8" /></Icon>;
+
+const IconUndo = () => (
+  <IconSvg>
+    <path d="M3 7v6h6" />
+    <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13" />
+  </IconSvg>
+);
+
+const IconRedo = () => (
+  <IconSvg>
+    <path d="M21 7v6h-6" />
+    <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7" />
+  </IconSvg>
+);
+
+const IconBold = () => (
+  <strong style={{ fontSize: '15px', fontWeight: 800, fontFamily: 'serif', lineHeight: 1, display: 'block' }}>B</strong>
+);
+
+const IconItalic = () => (
+  <em style={{ fontSize: '15px', fontStyle: 'italic', fontWeight: 700, fontFamily: 'serif', lineHeight: 1, display: 'block' }}>I</em>
+);
+
+const IconUnderline = () => (
+  <u style={{ fontSize: '14px', fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: '2px', lineHeight: 1, display: 'block' }}>U</u>
+);
+
+const IconStrike = () => (
+  <s style={{ fontSize: '14px', fontWeight: 700, textDecoration: 'line-through', lineHeight: 1, display: 'block' }}>S</s>
+);
+
+const IconSub = () => (
+  <span style={{ fontSize: '13px', fontWeight: 700, lineHeight: 1, display: 'inline-flex', alignItems: 'baseline' }}>
+    X<sub style={{ fontSize: '9px', fontWeight: 700, bottom: '-2px', position: 'relative' }}>2</sub>
+  </span>
+);
+
+const IconSup = () => (
+  <span style={{ fontSize: '13px', fontWeight: 700, lineHeight: 1, display: 'inline-flex', alignItems: 'baseline' }}>
+    X<sup style={{ fontSize: '9px', fontWeight: 700, top: '-4px', position: 'relative' }}>2</sup>
+  </span>
+);
+
+const IconAlignLeft = () => (
+  <IconSvg>
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <line x1="3" y1="12" x2="11" y2="12" />
+    <line x1="3" y1="18" x2="17" y2="18" />
+  </IconSvg>
+);
+
+const IconAlignCenter = () => (
+  <IconSvg>
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <line x1="6" y1="12" x2="18" y2="12" />
+    <line x1="4" y1="18" x2="20" y2="18" />
+  </IconSvg>
+);
+
+const IconAlignRight = () => (
+  <IconSvg>
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <line x1="13" y1="12" x2="21" y2="12" />
+    <line x1="7" y1="18" x2="21" y2="18" />
+  </IconSvg>
+);
+
+const IconAlignJustify = () => (
+  <IconSvg>
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <line x1="3" y1="12" x2="21" y2="12" />
+    <line x1="3" y1="18" x2="21" y2="18" />
+  </IconSvg>
+);
+
+const IconBullets = () => (
+  <IconSvg strokeWidth="2">
+    <line x1="9" y1="6" x2="21" y2="6" />
+    <line x1="9" y1="12" x2="21" y2="12" />
+    <line x1="9" y1="18" x2="21" y2="18" />
+    <circle cx="4" cy="6" r="2" fill="currentColor" stroke="none" />
+    <circle cx="4" cy="12" r="2" fill="currentColor" stroke="none" />
+    <circle cx="4" cy="18" r="2" fill="currentColor" stroke="none" />
+  </IconSvg>
+);
+
+const IconNumbers = () => (
+  <IconSvg strokeWidth="2">
+    <line x1="10" y1="6" x2="21" y2="6" />
+    <line x1="10" y1="12" x2="21" y2="12" />
+    <line x1="10" y1="18" x2="21" y2="18" />
+    <text x="2" y="7" fontSize="7" fontWeight="700" fill="currentColor" stroke="none" fontFamily="sans-serif">1</text>
+    <text x="2" y="13.5" fontSize="7" fontWeight="700" fill="currentColor" stroke="none" fontFamily="sans-serif">2</text>
+    <text x="2" y="20" fontSize="7" fontWeight="700" fill="currentColor" stroke="none" fontFamily="sans-serif">3</text>
+  </IconSvg>
+);
+
+const IconIndentIn = () => (
+  <IconSvg>
+    <polyline points="13 8 17 12 13 16" />
+    <line x1="3" y1="12" x2="17" y2="12" />
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <line x1="3" y1="18" x2="21" y2="18" />
+  </IconSvg>
+);
+
+const IconIndentOut = () => (
+  <IconSvg>
+    <polyline points="7 8 3 12 7 16" />
+    <line x1="21" y1="12" x2="3" y2="12" />
+    <line x1="21" y1="6" x2="11" y2="6" />
+    <line x1="21" y1="18" x2="11" y2="18" />
+  </IconSvg>
+);
+
+const IconLink = () => (
+  <IconSvg>
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+  </IconSvg>
+);
+
+const IconClear = () => (
+  <span style={{ fontSize: '13px', fontWeight: 800, lineHeight: 1, display: 'block' }}>✕</span>
+);
+
+const IconRule = () => (
+  <span style={{ fontSize: '16px', fontWeight: 700, lineHeight: 1, display: 'block' }}>―</span>
+);
+
+const IconImage = () => (
+  <IconSvg strokeWidth="2">
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <circle cx="8.5" cy="8.5" r="1.5" />
+    <polyline points="21 15 16 10 5 21" />
+  </IconSvg>
+);
+
+const IconImgLeft = () => (
+  <IconSvg strokeWidth="2">
+    <rect x="3" y="5" width="8" height="8" rx="1" />
+    <line x1="3" y1="16" x2="21" y2="16" />
+    <line x1="3" y1="19" x2="15" y2="19" />
+  </IconSvg>
+);
+
+const IconImgCenter = () => (
+  <IconSvg strokeWidth="2">
+    <rect x="8" y="5" width="8" height="8" rx="1" />
+    <line x1="3" y1="16" x2="21" y2="16" />
+    <line x1="6" y1="19" x2="18" y2="19" />
+  </IconSvg>
+);
+
+const IconImgRight = () => (
+  <IconSvg strokeWidth="2">
+    <rect x="13" y="5" width="8" height="8" rx="1" />
+    <line x1="3" y1="16" x2="21" y2="16" />
+    <line x1="9" y1="19" x2="21" y2="19" />
+  </IconSvg>
+);
+
+const IconZoomIn = () => (
+  <IconSvg strokeWidth="2">
+    <circle cx="11" cy="11" r="7" />
+    <line x1="21" y1="21" x2="16" y2="16" />
+    <line x1="11" y1="8" x2="11" y2="14" />
+    <line x1="8" y1="11" x2="14" y2="11" />
+  </IconSvg>
+);
+
+const IconZoomOut = () => (
+  <IconSvg strokeWidth="2">
+    <circle cx="11" cy="11" r="7" />
+    <line x1="21" y1="21" x2="16" y2="16" />
+    <line x1="8" y1="11" x2="14" y2="11" />
+  </IconSvg>
+);
+
+const IconIf = () => (
+  <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'monospace', lineHeight: 1 }}>{'{if}'}</span>
+);
+
+const IconEach = () => (
+  <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'monospace', lineHeight: 1 }}>{'{loop}'}</span>
+);
+
 const IconTable = () => (
-  <Icon>
-    <rect x="2" y="3" width="14" height="12" rx="1.5" />
-    <path d="M2 7.5h14M2 11.5h14M7 7.5v7.5M11.5 7.5v7.5" />
-  </Icon>
+  <IconSvg strokeWidth="2">
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <line x1="3" y1="9" x2="21" y2="9" />
+    <line x1="3" y1="15" x2="21" y2="15" />
+    <line x1="9" y1="3" x2="9" y2="21" />
+    <line x1="15" y1="3" x2="15" y2="21" />
+  </IconSvg>
 );
 
 const IconLtr = () => (
-  <Icon>
-    <path d="M4 5h7M4 9h7M4 13h10M4 17h6" />
-    <path d="M12 5l3 4-3 4" />
-  </Icon>
+  <span style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '-0.3px', lineHeight: 1, display: 'block' }}>LTR</span>
 );
 
 const IconRtl = () => (
-  <Icon>
-    <path d="M14 5H7M14 9H7M14 13H4M14 17H8" />
-    <path d="M6 5L3 9l3 4" />
-  </Icon>
+  <span style={{ fontSize: '10px', fontWeight: 800, letterSpacing: '-0.3px', lineHeight: 1, display: 'block' }}>RTL</span>
 );
 
 /** Small toolbar button: icon + tooltip, consistent styling, optional active state. */
@@ -158,6 +327,51 @@ export default function RichTextEditor({ value, onChange, availableFields = [], 
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(3);
   const [tableHeader, setTableHeader] = useState(true);
+
+  const [activeFormats, setActiveFormats] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    strikeThrough: false,
+    subscript: false,
+    superscript: false,
+    justifyLeft: false,
+    justifyCenter: false,
+    justifyRight: false,
+    justifyFull: false,
+    insertUnorderedList: false,
+    insertOrderedList: false,
+  });
+
+  const updateActiveFormats = useCallback(() => {
+    if (!editorRef.current) return;
+    try {
+      setActiveFormats({
+        bold: document.queryCommandState('bold'),
+        italic: document.queryCommandState('italic'),
+        underline: document.queryCommandState('underline'),
+        strikeThrough: document.queryCommandState('strikeThrough'),
+        subscript: document.queryCommandState('subscript'),
+        superscript: document.queryCommandState('superscript'),
+        justifyLeft: document.queryCommandState('justifyLeft'),
+        justifyCenter: document.queryCommandState('justifyCenter'),
+        justifyRight: document.queryCommandState('justifyRight'),
+        justifyFull: document.queryCommandState('justifyFull'),
+        insertUnorderedList: document.queryCommandState('insertUnorderedList'),
+        insertOrderedList: document.queryCommandState('insertOrderedList'),
+      });
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      document.execCommand('defaultParagraphSeparator', false, 'p');
+    } catch {
+      // ignore
+    }
+  }, []);
 
   // Close table popover when clicking outside
   useEffect(() => {
@@ -211,6 +425,34 @@ export default function RichTextEditor({ value, onChange, availableFields = [], 
     editorRef.current?.focus();
     document.execCommand(command, false, arg);
     emitChange();
+    updateActiveFormats();
+  };
+
+  const handleAlign = (alignment) => {
+    editorRef.current?.focus();
+    const cmdMap = {
+      left: 'justifyLeft',
+      center: 'justifyCenter',
+      right: 'justifyRight',
+      justify: 'justifyFull',
+    };
+
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      let node = sel.anchorNode;
+      if (node && node.nodeType === 3) node = node.parentNode;
+      const block = node?.closest('p, h1, h2, h3, h4, h5, h6, li, blockquote, div, td, th');
+      if (block && editorRef.current?.contains(block)) {
+        block.style.textAlign = alignment;
+        block.setAttribute('align', alignment);
+      }
+    }
+
+    if (cmdMap[alignment]) {
+      document.execCommand(cmdMap[alignment], false, null);
+    }
+    emitChange();
+    updateActiveFormats();
   };
 
   const handleHeadingChange = (e) => {
@@ -282,9 +524,29 @@ export default function RichTextEditor({ value, onChange, availableFields = [], 
   };
 
   const insertLink = () => {
+    saveSelection();
+    let selectedText = '';
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) {
+      selectedText = sel.toString().trim();
+    }
     const url = window.prompt('Link URL (e.g. https://example.com):', 'https://');
-    if (!url) return;
-    exec('createLink', url);
+    if (!url || url.trim() === '' || url.trim() === 'https://') return;
+    const cleanUrl = url.trim();
+
+    editorRef.current?.focus();
+    restoreSelection();
+
+    const curSel = window.getSelection();
+    if (curSel && !curSel.isCollapsed && curSel.toString().trim().length > 0) {
+      document.execCommand('createLink', false, cleanUrl);
+    } else {
+      const label = selectedText || cleanUrl;
+      const html = `<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer">${label}</a>&nbsp;`;
+      document.execCommand('insertHTML', false, html);
+    }
+    emitChange();
+    updateActiveFormats();
   };
 
   const insertConditionalBlock = () => {
@@ -634,12 +896,12 @@ const handleImageFileSelected = (e) => {
         <span className="rte-divider" />
 
         <div className="rte-group">
-          <ToolBtn onClick={() => exec('bold')} title="Bold (Ctrl+B)"><IconBold /></ToolBtn>
-          <ToolBtn onClick={() => exec('italic')} title="Italic (Ctrl+I)"><IconItalic /></ToolBtn>
-          <ToolBtn onClick={() => exec('underline')} title="Underline (Ctrl+U)"><IconUnderline /></ToolBtn>
-          <ToolBtn onClick={() => exec('strikeThrough')} title="Strikethrough"><IconStrike /></ToolBtn>
-          <ToolBtn onClick={() => exec('subscript')} title="Subscript"><IconSub /></ToolBtn>
-          <ToolBtn onClick={() => exec('superscript')} title="Superscript"><IconSup /></ToolBtn>
+          <ToolBtn onClick={() => exec('bold')} title="Bold (Ctrl+B)" active={activeFormats.bold}><IconBold /></ToolBtn>
+          <ToolBtn onClick={() => exec('italic')} title="Italic (Ctrl+I)" active={activeFormats.italic}><IconItalic /></ToolBtn>
+          <ToolBtn onClick={() => exec('underline')} title="Underline (Ctrl+U)" active={activeFormats.underline}><IconUnderline /></ToolBtn>
+          <ToolBtn onClick={() => exec('strikeThrough')} title="Strikethrough" active={activeFormats.strikeThrough}><IconStrike /></ToolBtn>
+          <ToolBtn onClick={() => exec('subscript')} title="Subscript" active={activeFormats.subscript}><IconSub /></ToolBtn>
+          <ToolBtn onClick={() => exec('superscript')} title="Superscript" active={activeFormats.superscript}><IconSup /></ToolBtn>
         </div>
 
         <span className="rte-divider" />
@@ -660,10 +922,10 @@ const handleImageFileSelected = (e) => {
         <span className="rte-divider" />
 
         <div className="rte-group">
-          <ToolBtn onClick={() => exec('justifyLeft')} title="Align left"><IconAlignLeft /></ToolBtn>
-          <ToolBtn onClick={() => exec('justifyCenter')} title="Align center"><IconAlignCenter /></ToolBtn>
-          <ToolBtn onClick={() => exec('justifyRight')} title="Align right"><IconAlignRight /></ToolBtn>
-          <ToolBtn onClick={() => exec('justifyFull')} title="Justify"><IconAlignJustify /></ToolBtn>
+          <ToolBtn onClick={() => handleAlign('left')} title="Align left" active={activeFormats.justifyLeft}><IconAlignLeft /></ToolBtn>
+          <ToolBtn onClick={() => handleAlign('center')} title="Align center" active={activeFormats.justifyCenter}><IconAlignCenter /></ToolBtn>
+          <ToolBtn onClick={() => handleAlign('right')} title="Align right" active={activeFormats.justifyRight}><IconAlignRight /></ToolBtn>
+          <ToolBtn onClick={() => handleAlign('justify')} title="Justify" active={activeFormats.justifyFull}><IconAlignJustify /></ToolBtn>
         </div>
 
         <span className="rte-divider" />
@@ -676,8 +938,8 @@ const handleImageFileSelected = (e) => {
         <span className="rte-divider" />
 
         <div className="rte-group">
-          <ToolBtn onClick={() => exec('insertUnorderedList')} title="Bullet list"><IconBullets /></ToolBtn>
-          <ToolBtn onClick={() => exec('insertOrderedList')} title="Numbered list"><IconNumbers /></ToolBtn>
+          <ToolBtn onClick={() => exec('insertUnorderedList')} title="Bullet list" active={activeFormats.insertUnorderedList}><IconBullets /></ToolBtn>
+          <ToolBtn onClick={() => exec('insertOrderedList')} title="Numbered list" active={activeFormats.insertOrderedList}><IconNumbers /></ToolBtn>
           <ToolBtn onClick={() => exec('outdent')} title="Decrease indent"><IconIndentOut /></ToolBtn>
           <ToolBtn onClick={() => exec('indent')} title="Increase indent"><IconIndentIn /></ToolBtn>
         </div>
@@ -944,8 +1206,14 @@ const handleImageFileSelected = (e) => {
         }}
         contentEditable
         suppressContentEditableWarning
-        onInput={emitChange}
+        onInput={() => {
+          emitChange();
+          updateActiveFormats();
+        }}
         onBlur={emitChange}
+        onKeyUp={updateActiveFormats}
+        onMouseUp={updateActiveFormats}
+        onClick={updateActiveFormats}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
       />
