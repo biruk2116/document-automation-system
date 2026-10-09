@@ -180,28 +180,19 @@ async function sendWorkflowNotificationToGenerator({ delivery, doc, triggerStep,
       subject,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1e293b;">
-          <h2 style="color: #0F2747; margin-top: 0;">Recipient Response Received</h2>
+          <h2 style="color: #0F2747; margin-top: 0;">Recipient Workflow Completed</h2>
           <p>Hi ${generator.full_name || 'there'},</p>
           <p>
-            The recipient <b>${recipientLabel}</b> has submitted a response for document <b>${doc.doc_uuid}</b> (${docTitle}).
+            The workflow for document <b>${doc.doc_uuid}</b> (${docTitle}) has been completed by the recipient.
           </p>
-          ${responseText ? `
-          <div style="margin: 16px 0; padding: 14px 18px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; border-left: 3px solid #2563EB;">
-            <p style="margin: 0 0 6px; font-size: 11px; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;">
-              Recipient Response
-            </p>
-            <p style="margin: 0; font-size: 0.95rem; color: #1E293B; font-style: italic; line-height: 1.5;">
-              "${responseText}"
-            </p>
-          </div>` : ''}
           <p style="margin: 20px 0;">
             <a href="${trackingUrl}"
                style="display: inline-block; padding: 12px 24px; background: #2563EB; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 0.95rem;">
-              View Submitted Document
+              View Final Document
             </a>
           </p>
           <p style="font-size: 0.82rem; color: #64748B; margin-top: 24px;">
-            This link is valid for 7 days and lets you view the submitted document and tracking status without signing in.
+            This link is valid for 7 days and lets you view the final document directly in the system.
           </p>
         </div>
       `,
