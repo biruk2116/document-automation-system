@@ -493,7 +493,7 @@ export default function SecureDeliveryPage() {
 
         {/* ── Header ── */}
         <div className="public-page-header">
-          <div className="public-page-header-brand font-handwriting" style={{ fontFamily: "'Edu QLD Beginner', 'Edu AU VIC WA NT Hand', cursive, sans-serif" }}>
+          <div className="public-page-header-brand">
             <img src={logo} alt="" style={{ width: 28, height: 28 }}/>
             Document Automation System
           </div>
